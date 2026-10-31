@@ -1,1 +1,3 @@
-declare module '*.js';
+declare module '*.js' {
+  export function render(top?: boolean): void;
+}

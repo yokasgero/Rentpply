@@ -1,6 +1,6 @@
 # Rentpply
 
-Rentpply is a student housing app for discovering accommodation, finding roommates, handling rental paperwork, and managing property operations. It is built with React, TypeScript, and Vite, and is structured for Cloudflare Pages hosting. The current user-facing prototype includes separate Student, Tenant, Owner, and Admin roles.
+Rentpply is a student housing app for discovering accommodation, finding roommates, handling rental paperwork, and managing property operations. It is built with React, TypeScript, and Vite, and is configured as a Cloudflare Worker serving Vite static assets. The public landing page is at `/`; the interactive platforms are at `/app`. The current prototype includes separate Student, Tenant, Owner, and Admin roles.
 
 ## Run locally
 
@@ -13,9 +13,9 @@ npm run dev
 
 Create a production bundle with `npm run build`, then preview it with `npm run preview`.
 
-## Cloudflare Pages
+## Cloudflare Workers
 
-Connect the repository to Cloudflare Pages with build command `npm run build` and output directory `dist`. The app is a single-page app; `public/_redirects` keeps application routes on the app entry point.
+The repository is configured for Workers Builds. Use build command `npm run build` and deploy command `npx wrangler deploy`. `wrangler.jsonc` identifies the Worker as `rentpply`, publishes the Vite `dist/` output as static assets, and routes app paths such as `/app` back to the SPA entry point. The Worker name must match the name configured in Cloudflare.
 
 ## Supabase and backend status
 
@@ -26,8 +26,8 @@ When backend work begins, add Supabase credentials as Cloudflare environment var
 ## Project structure
 
 - `src/app/` — application startup and root composition
-- `src/components/` — shared React app shell
+- `src/components/` — public landing page and shared React app shell
 - `src/features/prototype/` — isolated prototype workflows and sample data
 - `src/styles/` — global design tokens and responsive styles
 - `src/types/` — Vite and TypeScript declarations
-- `public/` — static files copied to the production build
+- `wrangler.jsonc` — Cloudflare Worker name, static asset directory, and SPA routing

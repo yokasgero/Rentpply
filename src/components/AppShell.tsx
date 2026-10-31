@@ -18,8 +18,8 @@ function Logo() {
 function RoleSwitcher() {
   return (
     <div className="seg" role="group" aria-label="View as">
-      <button data-role="student" aria-pressed="false">Student</button>
-      <button data-role="tenant" aria-pressed="true">Tenant</button>
+      <button data-role="student" aria-pressed="true">Student</button>
+      <button data-role="tenant" aria-pressed="false">Tenant</button>
       <button data-role="owner" aria-pressed="false">Owner</button>
       <button data-role="admin" aria-pressed="false">Admin</button>
     </div>
@@ -30,7 +30,7 @@ export default function AppShell({ startupError }: AppShellProps) {
   return (
     <>
       <header className="top wrap">
-        <Logo />
+        <a className="app-brand-link" href="/" aria-label="Rentpply landing page"><Logo /></a>
         <RoleSwitcher />
         <button className="ibtn" id="theme" aria-label="Switch theme">
           <svg className="i" viewBox="0 0 24 24" aria-hidden="true">

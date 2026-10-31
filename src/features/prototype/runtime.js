@@ -72,7 +72,7 @@ const efrisNo = id => String(1000000000 + hash(id) % 8000000000);
 const vcode = id => { const t = ((hash(id) * 2654435761) >>> 0).toString(36).toUpperCase().padStart(8, '0').slice(-8); return t.slice(0, 4) + '-' + t.slice(4) };
 const fdt = d => new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const S = {
-  role: 'tenant', tab: 'home',
+  role: store.get('role', 'student'), tab: 'home',
   f: { type: 'all', q: '', area: '', max: 0 },
   saved: store.get('saved', [4, 6]),
   bookings: store.get('bookings', [{ id: 'RP-2026-0412', lid: 2, room: 'B-14', start: iso(NOW - 52 * DAY), months: 6, amount: 1920000, fee: 57600, method: 'MTN MoMo', paidBy: 'Self', ts: NOW - 53 * DAY, listed: false }]),
@@ -975,7 +975,7 @@ document.addEventListener('click', e => {
   const t = e.target, c = s => t.closest(s);
   let el;
   if (c('#theme')) { const dark = document.documentElement.getAttribute('data-theme') === 'dark' || (!document.documentElement.getAttribute('data-theme') && matchMedia('(prefers-color-scheme:dark)').matches); const n = dark ? 'light' : 'dark'; applyTheme(n); store.set('theme', n); return; }
-  if ((el = c('[data-role]'))) { S.role = el.dataset.role; S.tab = FIRST[S.role]; render(true); return; }
+  if ((el = c('[data-role]'))) { S.role = el.dataset.role; store.set('role', S.role); S.tab = FIRST[S.role]; render(true); return; }
   if ((el = c('[data-tab]'))) { S.tab = el.dataset.tab; render(true); return; }
   if ((el = c('[data-go]'))) { go(el.dataset.go); return; }
   if ((el = c('[data-save]'))) { const id = +el.dataset.save; S.saved = S.saved.includes(id) ? S.saved.filter(x => x !== id) : [...S.saved, id]; save(); el.setAttribute('aria-pressed', S.saved.includes(id)); toast(S.saved.includes(id) ? 'Saved to your list' : 'Removed from your list'); return; }
@@ -1046,5 +1046,7 @@ document.addEventListener('pointerdown', e => { const el = e.target.closest('[da
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => document.addEventListener(ev, () => clearTimeout(lp.t), true));
 document.addEventListener('contextmenu', e => { const el = e.target.closest('[data-unit]'); if (el) { e.preventDefault(); lp.done = true; openUnitMenu(el.dataset.unit); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+export { render };
 
 render();
