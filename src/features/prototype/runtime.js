@@ -183,8 +183,11 @@ function vStudentHome() {
   <section class="sec">
     <div class="tiles">
       <button class="tile" data-go="explore:hostel"><span class="ico" style="background:var(--accent-soft);color:var(--accent)">${ic('bed')}</span>Student hostels</button>
-      <button class="tile" data-go="roommates"><span class="ico" style="background:var(--ok-soft);color:var(--ok)">${ic('users')}</span>Find roommates</button>
-      <button class="tile" data-go="wallet"><span class="ico" style="background:var(--warn-soft);color:var(--warn)">${ic('wallet')}</span>My housing</button>
+      <button class="tile" data-go="explore:airbnb"><span class="ico" style="background:var(--ok-soft);color:var(--ok)">${ic('building')}</span>Airbnbs</button>
+      <button class="tile" data-go="explore:rental"><span class="ico" style="background:var(--surface-2);color:var(--ink)">${ic('key')}</span>Rentals</button>
+      <button class="tile" data-go="wallet"><span class="ico" style="background:var(--warn-soft);color:var(--warn)">${ic('wallet')}</span>Payments</button>
+      <button class="tile" data-go="roommates"><span class="ico" style="background:var(--accent-soft);color:var(--accent)">${ic('users')}</span>Find roommates</button>
+      <button class="tile" data-go="space"><span class="ico" style="background:var(--ok-soft);color:var(--ok)">${ic('tag')}</span>Sell space</button>
     </div>
   </section>
   <section class="sec">
@@ -947,7 +950,7 @@ function vBills() {
 
 /* ---------- navigation + render ---------- */
 const NAV = {
-  student: [['home', 'Campus', 'home', vStudentHome], ['explore', 'Find housing', 'search', vExplore], ['roommates', 'Roommates', 'users', vRoommates], ['wallet', 'My housing', 'wallet', vWallet]],
+  student: [['home', 'Campus', 'home', vStudentHome], ['explore', 'Find housing', 'search', vExplore], ['roommates', 'Roommates', 'users', vRoommates], ['space', 'Sell space', 'swap', vSpace], ['wallet', 'Payments', 'wallet', vWallet]],
   tenant: [['home', 'Home', 'home', vHome], ['explore', 'Explore', 'search', vExplore], ['roommates', 'Roommates', 'users', vRoommates], ['space', 'Sell space', 'swap', vSpace], ['wallet', 'Pay', 'wallet', vWallet]],
   owner: [['overview', 'Overview', 'chart', vOverview], ['units', 'Units', 'building', vUnits], ['payments', 'Payments', 'receipt', vPayments], ['terms', 'Terms', 'key', vTerms], ['requests', 'Requests', 'list', vRequests]],
   admin: [['queue', 'Verify', 'shield', vQueue], ['listings', 'Listings', 'building', vListings], ['kpis', 'KPIs', 'chart', vKpis]]
