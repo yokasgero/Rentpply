@@ -2088,7 +2088,7 @@ document.addEventListener('input', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.target.id === 'ol-user' || e.target.id === 'ol-pass')) ownerLogin(); });
 
 /* ---------- owner: login and per-property view ---------- */
-S.ownerLid = store.get('oauth1', null);
+S.ownerLid = store.get('oauth1', null) || 1;
 const ownerLid = () => { const l = S.ownerLid && byId(S.ownerLid); return l && l.v ? l.id : null; };
 function ownerLogin() {
   const u = ($('#ol-user').value || '').trim().toLowerCase(), p = ($('#ol-pass').value || '').replace(/[\s-]/g, '').toUpperCase(), err = $('#ol-err');
@@ -2107,7 +2107,7 @@ function vOwnerLogin() {
     <div class="card stack" style="gap:8px;background:var(--surface-2);border:0"><b>Trying the demo?</b><p class="muted" style="font-size:13.5px">Logins are made in Admin, under Onboarding, then Owner logins. To skip that, fill in the sample Kikoni Scholars Hostel owner.</p><button class="btn ghost sm" data-ofill style="align-self:flex-start">Fill in the demo owner</button></div>
     <p class="muted" style="font-size:12.5px;text-align:center">Not an owner? Use the switch at the top to go back to Tenant.</p></section>`;
 }
-const ownerBar = () => { const l = byId(ownerLid()); return `<div class="obar"><span>Signed in · <b>${esc(l.name)}</b></span><button data-ologout>Log out</button></div>`; };
+const ownerBar = () => { const l = byId(ownerLid()); return `<div class="obar"><span>Owner view · <b>${esc(l.name)}</b></span></div>`; };
 function ownerLite(tab) {
   const lid = ownerLid(), l = byId(lid), list = admUnits(lid), st = e => admStatus(lid, e), n = k => list.filter(e => st(e) === k).length;
   const names = { occupied: 'Occupied', vacant: 'Vacant', reserved: 'Reserved', maint: 'Maintenance' };
