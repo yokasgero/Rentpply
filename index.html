@@ -526,11 +526,19 @@ code{background:var(--line);border-radius:6px;padding:1px 5px;font-size:12.5px}
 }
 
 /* Product tour: layered Kampala backdrop, product screens, and scroll-led transitions */
-#landing .jny{height:330vh;height:330svh;min-height:2100px;margin-top:48px;position:relative}
+#landing .jny{height:520vh;height:520svh;min-height:3200px;margin-top:48px;position:relative}
 #landing .jstick{position:sticky;top:0;isolation:isolate;height:100vh;height:100svh;min-height:620px;overflow:hidden;background:#0b211e;color:#eef8f4}
 .jtown{position:absolute;inset:0;overflow:hidden;perspective:1100px;background:radial-gradient(ellipse at 72% 38%,rgba(74,137,117,.24),transparent 38%),linear-gradient(150deg,#102c28 0%,#0d2422 56%,#091a19 100%);z-index:-1}
 .jglow{position:absolute;width:42vw;height:42vw;min-width:340px;min-height:340px;border-radius:50%;filter:blur(1px);opacity:.55;background:radial-gradient(circle,rgba(250,155,104,.24),rgba(255,180,125,.04) 46%,transparent 70%)}
 .jglow-one{right:7%;top:8%}.jglow-two{left:-18%;bottom:2%;width:38vw;height:38vw;background:radial-gradient(circle,rgba(77,158,132,.22),transparent 68%)}
+.jglow{transition:background .65s ease,opacity .65s ease,transform .8s ease}
+.jtown{transition:background .8s ease}
+.jstick[data-stage="1"] .jtown{background:radial-gradient(ellipse at 72% 38%,rgba(75,160,130,.3),transparent 40%),linear-gradient(150deg,#112f2b 0%,#102822 56%,#0a1a19 100%)}
+.jstick[data-stage="2"] .jtown{background:radial-gradient(ellipse at 72% 38%,rgba(111,144,189,.28),transparent 40%),linear-gradient(150deg,#142b32 0%,#102329 56%,#09181b 100%)}
+.jstick[data-stage="3"] .jtown{background:radial-gradient(ellipse at 72% 38%,rgba(218,140,104,.28),transparent 40%),linear-gradient(150deg,#2b2c2b 0%,#1b2825 56%,#0c1b19 100%)}
+.jstick[data-stage="1"] .jglow-one{background:radial-gradient(circle,rgba(93,173,145,.25),rgba(255,180,125,.035) 48%,transparent 70%);transform:translate(-8px,10px)}
+.jstick[data-stage="2"] .jglow-one{background:radial-gradient(circle,rgba(105,141,180,.23),rgba(255,180,125,.035) 48%,transparent 70%);transform:translate(8px,4px)}
+.jstick[data-stage="3"] .jglow-one{background:radial-gradient(circle,rgba(235,155,112,.25),rgba(255,180,125,.035) 48%,transparent 70%);transform:translate(0,-8px)}
 .jhill{position:absolute;bottom:20%;height:28%;width:78%;border-radius:50% 50% 0 0 / 35% 38% 0 0;filter:blur(.2px)}
 .jhill-back{left:-12%;background:linear-gradient(170deg,rgba(50,113,94,.34),rgba(16,53,47,.03));transform:rotate(-5deg)}
 .jhill-front{right:-20%;bottom:15%;height:23%;background:linear-gradient(190deg,rgba(44,91,77,.34),rgba(16,46,42,.03));transform:rotate(7deg)}
@@ -544,9 +552,9 @@ code{background:var(--line);border-radius:6px;padding:1px 5px;font-size:12.5px}
 .jbuilding:after{content:"";position:absolute;bottom:-10px;left:-12px;right:-12px;height:12px;background:#193b34;transform:translateZ(-24px)}
 .jbuilding i{display:block;width:14px;height:21px;border-radius:2px;background:linear-gradient(140deg,#f6d7a4,#b88055);box-shadow:0 2px 8px rgba(247,181,111,.13)}
 .jbuilding-left{left:6%;width:18%;height:34%;grid-template-columns:repeat(3,auto);background:linear-gradient(110deg,#426d5c,#254c42);transform:translate3d(var(--near-shift,0px),0,8px) rotateY(8deg)}
-.jbuilding-right{right:2%;width:22%;height:43%;grid-template-columns:repeat(3,auto);background:linear-gradient(105deg,#d5cbb5,#8d9b7e);transform:translate3d(calc(var(--near-shift,0px) * -1),0,12px) rotateY(-9deg)}
+.jbuilding-right{right:2%;width:22%;height:43%;grid-template-columns:repeat(3,auto);background:linear-gradient(105deg,#d5cbb5,#8d9b7e);transform:translate3d(var(--near-shift-reverse,0px),0,12px) rotateY(-9deg)}
 .jbuilding-right i{background:#426e5c;box-shadow:inset 0 -4px rgba(239,219,179,.16)}
-.jbuilding-center{left:31%;bottom:20%;width:25%;height:52%;grid-template-columns:repeat(4,auto);padding:30px 22px 34px;background:linear-gradient(100deg,#315e50,#1e443c);transform:translate3d(calc(var(--near-shift,0px) * .45),0,36px);box-shadow:0 30px 58px rgba(0,0,0,.31),inset 0 -12px rgba(6,23,20,.28)}
+.jbuilding-center{left:31%;bottom:20%;width:25%;height:52%;grid-template-columns:repeat(4,auto);padding:30px 22px 34px;background:linear-gradient(100deg,#315e50,#1e443c);transform:translate3d(var(--near-shift-center,0px),0,36px);box-shadow:0 30px 58px rgba(0,0,0,.31),inset 0 -12px rgba(6,23,20,.28)}
 .jbuilding-center i{width:17px;height:24px;background:linear-gradient(145deg,#f8dfaf,#bd8654)}
 .jroad{position:absolute;bottom:-27%;left:50%;width:75%;height:72%;transform:translateX(-50%) perspective(420px) rotateX(62deg);transform-origin:center top;background:linear-gradient(90deg,transparent 0 17%,#52625b 17% 18%,#24302d 18% 82%,#52625b 82% 83%,transparent 83%),linear-gradient(180deg,rgba(88,119,104,.34),rgba(17,33,31,.08));clip-path:polygon(42% 0,58% 0,100% 100%,0 100%);opacity:.8}
 .jroad span{position:absolute;left:calc(50% - 2px);width:4px;background:rgba(239,205,145,.62)}
@@ -562,13 +570,16 @@ code{background:var(--line);border-radius:6px;padding:1px 5px;font-size:12.5px}
 .jstage-count{position:absolute;right:0;top:8px;display:flex;align-items:center;gap:7px;font:600 13px var(--f-mono);color:#9fbbb2}
 .jstage-count span{font-size:22px;color:#fff}.jstage-count i{font-style:normal;color:#526e65}
 .jbody{flex:1;min-height:0;display:grid;grid-template-columns:minmax(260px,.75fr) minmax(0,1.25fr);gap:clamp(28px,5vw,76px);align-items:center}
-.jsteps{position:relative;min-height:260px;max-width:390px}
+.jsteps{position:relative;min-height:390px;max-width:430px}
 #landing .jc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:12px;padding:0;background:none;border:0;border-radius:0;box-shadow:none;opacity:0;transform:translate3d(0,18px,0);transition:opacity .35s ease,transform .45s cubic-bezier(.2,.8,.2,1);pointer-events:none;backdrop-filter:none}
 #landing .jc.on{opacity:1;transform:translate3d(0,0,0);pointer-events:auto}
 .jstep-no{font:700 12px var(--f-mono);letter-spacing:.12em;color:#e89978}
 #landing .jc h3{font:700 clamp(28px,3.5vw,40px)/1.05 var(--f-display);letter-spacing:-.04em;color:#fff;margin:0}
 #landing .jc p{font-size:15px;line-height:1.65;color:#c1d7d0;margin:0;max-width:37ch}
-.jstep-demo{margin-top:3px;color:#8ab2a5;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.jstep-points{list-style:none;margin:1px 0 2px;padding:0;display:flex;flex-direction:column;gap:10px;color:#e0ece7;font-size:13px}
+.jstep-points li{position:relative;padding-left:22px;line-height:1.4}
+.jstep-points li:before{content:"✓";position:absolute;left:0;top:0;width:15px;height:15px;display:grid;place-items:center;border-radius:50%;background:rgba(105,191,157,.16);color:#8ed6b5;font-size:10px;font-weight:800}
+.jstep-demo{display:block;margin-top:8px;color:#8ab2a5;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .jvisual{height:min(54vh,470px);min-height:360px;position:relative;display:grid;place-items:center;perspective:1400px;transform:translate3d(0,var(--scene-lift,0px),0) rotateY(var(--scene-turn,0deg));transform-style:preserve-3d;will-change:transform}
 .jvisual:before,.jvisual:after{content:"";position:absolute;border:1px solid rgba(229,242,235,.1);border-radius:50%;transform:rotateX(70deg);pointer-events:none}
 .jvisual:before{width:94%;height:62%;box-shadow:0 0 0 30px rgba(229,242,235,.025),0 0 0 66px rgba(229,242,235,.018)}
@@ -576,7 +587,13 @@ code{background:var(--line);border-radius:6px;padding:1px 5px;font-size:12.5px}
 .jvisual-halo{position:absolute;width:68%;height:68%;border-radius:50%;background:radial-gradient(circle,rgba(255,139,106,.2),rgba(255,139,106,.04) 50%,transparent 70%);filter:blur(10px)}
 .jvisual-floor{position:absolute;bottom:8%;left:10%;right:10%;height:14%;border-radius:50%;background:rgba(0,0,0,.25);filter:blur(18px);transform:rotateX(70deg)}
 .jframe{position:absolute;z-index:2;width:min(100%,510px);max-height:100%;overflow:hidden;padding:20px;background:linear-gradient(155deg,#fff 0%,#f7faf8 100%);color:#18352f;border:1px solid rgba(255,255,255,.82);border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.36),0 7px 22px rgba(2,20,17,.16);opacity:0;transform:perspective(1200px) translate3d(42px,22px,-90px) rotateY(9deg) scale(.96);transform-origin:center;transition:opacity .42s ease,transform .62s cubic-bezier(.2,.75,.25,1);pointer-events:none}
-.jframe.on{opacity:1;transform:perspective(1200px) translate3d(0,0,0) rotateY(-1deg) scale(1);pointer-events:auto}
+.jframe.on{opacity:1;transform:perspective(1200px) translate3d(0,0,0) rotateY(var(--card-angle,-1deg)) scale(1);pointer-events:auto}
+@media (prefers-reduced-motion:no-preference){
+  @keyframes jTourReveal{from{opacity:0;transform:translate3d(0,12px,0) scale(.99)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
+  .jframe.on .jframe-title,.jframe.on .jfilter-row,.jframe.on .jmini-result,.jframe.on .jlisting-image,.jframe.on .jlisting-body,.jframe.on .jdoc-top,.jframe.on .jdoc-copy,.jframe.on .jdoc-rows,.jframe.on .jdoc-action,.jframe.on .jwelcome,.jframe.on .jstay-card,.jframe.on .jstay-footer{animation:jTourReveal .48s cubic-bezier(.2,.8,.2,1) .12s both}
+  .jframe.on .jfilter-secondary{animation-delay:.21s}
+  .jframe.on .jmini-result,.jframe.on .jlisting-body,.jframe.on .jdoc-rows,.jframe.on .jstay-card{animation-delay:.24s}
+}
 .jappbar{display:flex;align-items:center;gap:8px;padding-bottom:13px;border-bottom:1px solid #e7eeea;color:#183b34;font-size:12px}
 .jmark{width:23px;height:23px;border-radius:7px;background:#ff5a36;color:#fff;display:grid;place-items:center;font:800 15px var(--f-display)}
 .japp-tag{margin-left:auto;font-size:9px;font-weight:800;letter-spacing:.09em;color:#789087}
@@ -605,25 +622,26 @@ code{background:var(--line);border-radius:6px;padding:1px 5px;font-size:12.5px}
 .jfooter{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding-top:18px}.jprogress{height:3px;border-radius:4px;background:rgba(231,245,238,.17);overflow:hidden}.jprogress i{display:block;width:0;height:100%;border-radius:4px;background:#ff8b6a;box-shadow:0 0 12px rgba(255,139,106,.45)}
 .jscroll-hint,.jfooter-note{font-size:10px;color:#91afa4}.jscroll-hint{display:flex;align-items:center;gap:8px;grid-column:1/2}.jscroll-hint i{display:block;width:7px;height:7px;border-right:1px solid #d4e5dc;border-bottom:1px solid #d4e5dc;transform:rotate(45deg);margin-top:-4px}.jfooter-note{grid-column:2;grid-row:1/3;text-align:right}
 #landing .jstepsec{display:none}
-@media (prefers-reduced-motion:no-preference){#landing .jny{height:330vh;height:330svh}}
+@media (prefers-reduced-motion:no-preference){#landing .jny{height:520vh;height:520svh}}
 @media (max-width:900px){
   #landing .jcontent{padding-inline:26px}.jbody{grid-template-columns:minmax(220px,.72fr) minmax(0,1.28fr);gap:22px}
   .jvisual{height:min(52vh,420px);min-height:330px}.jframe{padding:17px;border-radius:18px}.jlisting-image{height:115px}
   .jbuilding-left{left:-2%;width:22%}.jbuilding-right{right:-4%;width:24%}.jbuilding-center{left:26%;width:27%}
 }
 @media (max-width:650px){
-  #landing .jny{height:340vh;height:340svh;min-height:2200px;margin-top:34px}
-  #landing .jstick{min-height:650px}
+  #landing .jny{height:560vh;height:560svh;min-height:3400px;margin-top:34px}
+  #landing .jstick{min-height:680px}
   #landing .jcontent{padding:30px 18px 18px}
   #landing .jtop{padding-bottom:10px;max-width:calc(100% - 42px)}
   #landing .jtop h2{font-size:clamp(28px,8vw,36px);max-width:18ch}
   .jstage-count{right:-44px;top:4px}.jstage-count span{font-size:19px}
   .jbody{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:4px;align-content:start}
-  .jsteps{min-height:122px;max-width:none}
+  .jsteps{min-height:220px;max-width:none}
   #landing .jc{justify-content:flex-start;gap:7px;padding-top:2px}
   #landing .jc h3{font-size:26px}#landing .jc p{font-size:12px;line-height:1.45;max-width:45ch}
-  .jstep-demo{font-size:9px;margin-top:0}
-  .jvisual{height:clamp(280px,43vh,360px);min-height:280px;margin-inline:-5px}
+  .jstep-points{gap:5px;margin:0;font-size:10px}.jstep-points li{padding-left:18px}.jstep-points li:before{width:13px;height:13px;font-size:9px}
+  .jstep-demo{font-size:8px;margin-top:4px}
+  .jvisual{height:clamp(270px,40vh,340px);min-height:270px;margin-inline:-5px}
   .jvisual:before{width:100%;height:56%}.jvisual:after{width:82%;height:42%}
   .jframe{width:min(100%,440px);padding:14px;border-radius:16px}
   .jappbar{padding-bottom:9px;font-size:10px}.jmark{width:21px;height:21px}.japp-tag{font-size:7px}
@@ -635,6 +653,14 @@ code{background:var(--line);border-radius:6px;padding:1px 5px;font-size:12.5px}
   .jwelcome{padding:6px 0 9px}.jwelcome-icon{width:34px;height:34px;margin-bottom:4px}.jwelcome h3{font-size:17px}.jwelcome p{font-size:9px}.jstay-card{grid-template-columns:105px 1fr}.jstay-image{min-height:96px}.jstay-info{gap:5px;padding:8px}.jstay-info b{font-size:9px}.jstay-footer{gap:9px;font-size:8px;margin-top:9px;padding-top:8px}
   .jfooter{padding-top:8px;gap:8px}.jscroll-hint,.jfooter-note{font-size:8px}
   .jbuilding{bottom:18%;opacity:.8}.jbuilding-left{left:-12%;width:30%;height:29%}.jbuilding-right{right:-15%;width:31%;height:36%}.jbuilding-center{left:29%;bottom:17%;width:37%;height:43%;padding:22px 14px}.jbuilding i{width:11px;height:16px}.jbuilding-center i{width:13px;height:18px}.jskyline{bottom:24%;height:27%}.jplant{display:none}.jroad{width:100%;height:62%;bottom:-35%}
+}
+@media (max-width:650px) and (max-height:720px){
+  #landing .jstick{min-height:620px}
+  #landing .jcontent{padding-top:22px;padding-bottom:14px}
+  #landing .jtop h2{font-size:27px}
+  .jsteps{min-height:190px}
+  .jvisual{height:250px;min-height:250px}
+  .jframe{padding:11px}
 }
 @media (prefers-reduced-motion:reduce){#landing .jstepsec{display:flex}}
 </style>
@@ -2388,10 +2414,10 @@ function landGo(k) {
 
 /* ---------- landing: scroll-guided product tour ---------- */
 const JSTEPS = [
-  ['Find a place', 'Filter sample hostels and rentals by area, stay type and monthly budget.'],
-  ['Compare the details', 'Check rent, room type, amenities and listing notes before choosing.'],
-  ['Review the agreement', 'Read the rental terms before continuing. Agreement actions in this experience are a demo.'],
-  ['Keep your stay details', 'View booking information, rent records and repair requests together. No payments are processed here.']
+  { title: 'Find a place', body: 'Start with where you study and what you can spend. Filter sample hostels and rentals to narrow your search.', points: ['Choose an area or campus', 'Set a monthly budget', 'Filter hostels or rentals'] },
+  { title: 'Compare the details', body: 'Open a listing to understand the monthly cost and what comes with the room before you decide.', points: ['Review rent and availability', 'Check room type and amenities', 'Read the listing notes'] },
+  { title: 'Review the agreement', body: 'Read the rental terms before continuing. Confirm rent, dates, deposit and house rules with the owner.', points: ['Check rent and due date', 'Review dates, deposit and rules', 'Accept before continuing'] },
+  { title: 'Keep your stay details', body: 'The demo brings room information, rent records and repair requests together after a booking.', points: ['Find room and stay details', 'Review sample rent records', 'See how repair requests appear'] }
 ];
 function init3D() {
   const root = $('#landing');
@@ -2438,7 +2464,7 @@ function journeyHTML() {
       <div class="jcontent">
         <header class="jtop"><span class="jeyebrow">A clearer way to find your next place</span><h2>From search to move-in,<br><em>know what comes next.</em></h2><div class="jstage-count"><span id="jcount">01</span><i>/</i>04</div></header>
         <div class="jbody">
-          <div class="jsteps" aria-live="polite">${JSTEPS.map((s, i) => `<article class="jc ${i ? '' : 'on'}" data-copy="${i}" aria-hidden="${i !== 0}"><span class="jstep-no">0${i + 1}</span><h3>${s[0]}</h3><p>${s[1]}</p><span class="jstep-demo">${i === 0 ? 'Sample listings' : 'Demo experience'}</span></article>`).join('')}</div>
+          <div class="jsteps" aria-live="polite">${JSTEPS.map((s, i) => `<article class="jc ${i ? '' : 'on'}" data-copy="${i}" aria-hidden="${i !== 0}"${i ? ' inert' : ''}><span class="jstep-no">STEP 0${i + 1} OF 04</span><h3>${s.title}</h3><p>${s.body}</p><ul class="jstep-points">${s.points.map(point => `<li>${esc(point)}</li>`).join('')}</ul><span class="jstep-demo">${i === 0 ? 'Sample listings · Demo experience' : 'Scroll to continue'}</span></article>`).join('')}</div>
           <div class="jvisual" id="jvisual" aria-hidden="true">
             <div class="jvisual-halo"></div><div class="jvisual-floor"></div>
             <div class="jframe on" data-frame="0">
@@ -2472,7 +2498,7 @@ function journeyHTML() {
             </div>
           </div>
         </div>
-        <footer class="jfooter"><div class="jprogress" aria-hidden="true"><i id="jbar"></i></div><span class="jscroll-hint"><i></i>Keep scrolling to explore</span><span class="jfooter-note">Sample data · Demo actions only</span></footer>
+        <footer class="jfooter"><div class="jprogress" aria-hidden="true"><i id="jbar"></i></div><span class="jscroll-hint"><i></i>Scroll at your pace to explore each step</span><span class="jfooter-note">Sample data · Demo actions only</span></footer>
       </div>
     </div>
   </section>`;
@@ -2494,11 +2520,14 @@ function startEngine() {
     stick.dataset.stage = String(stage);
     stick.style.setProperty('--journey-progress', progress.toFixed(4));
     stick.style.setProperty('--stage-progress', Math.max(0, Math.min(1, local)).toFixed(4));
-    stick.style.setProperty('--scene-lift', `${(0.5 - local) * 10}px`);
-    stick.style.setProperty('--scene-turn', `${(local - 0.5) * -2}deg`);
-    stick.style.setProperty('--far-shift', `${(progress - 0.5) * -18}px`);
-    stick.style.setProperty('--near-shift', `${(progress - 0.5) * 12}px`);
-    copies.forEach((n, i) => { n.classList.toggle('on', i === stage); n.setAttribute('aria-hidden', String(i !== stage)); });
+    stick.style.setProperty('--scene-lift', `${(0.5 - progress) * 34}px`);
+    stick.style.setProperty('--scene-turn', `${(progress - 0.5) * -8}deg`);
+    stick.style.setProperty('--far-shift', `${(progress - 0.5) * -44}px`);
+    stick.style.setProperty('--near-shift', `${(progress - 0.5) * 30}px`);
+    stick.style.setProperty('--near-shift-reverse', `${(progress - 0.5) * -30}px`);
+    stick.style.setProperty('--near-shift-center', `${(progress - 0.5) * 14}px`);
+    stick.style.setProperty('--card-angle', `${[-2.5, 1.8, -1.6, 2.3][stage] + (local - 0.5) * 1.2}deg`);
+    copies.forEach((n, i) => { n.classList.toggle('on', i === stage); n.setAttribute('aria-hidden', String(i !== stage)); n.inert = i !== stage; });
     frames.forEach((n, i) => { n.classList.toggle('on', i === stage); n.style.setProperty('--frame-progress', i === stage ? String(local) : '0'); });
     if (bar) bar.style.width = `${progress * 100}%`;
     if (count) count.textContent = `0${stage + 1}`;
@@ -2510,7 +2539,6 @@ function startEngine() {
   }
   scheduleJourney();
 }
-
 /* ---------- owner: the Board (walk-in booking, onboarding and part payments) ---------- */
 S.board = store.get('board1', []);
 const bdSave = () => store.set('board1', S.board);
