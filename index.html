@@ -2774,7 +2774,7 @@ async function syncLiveSession(session) {
     S.role = 'tenant'; S.tab = 'home';
     updateUserInfo();
     render(true);
-    if (store.get('landed1') && !S.authPage) showLanding();
+    if (!S.authPage) showLanding();
     return;
   }
   S.user = session.user;
@@ -2896,6 +2896,11 @@ function initLiveAuth() {
 }
 
 function render(top) {
+  const authVisible = S.authPage && (!S.user || S.authPage.mode === 'reset');
+  if (!S.user && !authVisible) {
+    showLanding();
+    return;
+  }
   const nav = NAV[S.role] || NAV.tenant, cur = nav.find(n => n[0] === S.tab) || nav[0];
   S.tab = cur[0];
   const pg = ['tenant', 'student'].includes(S.role) && S.page;
@@ -2904,7 +2909,6 @@ function render(top) {
   const ownerOut = S.role === 'owner' && !liveOwnerAdmin && !ownerLid();
   if (ownerOut && !S.authPage) S.authPage = { mode: 'signin', audience: 'owner' };
   document.body.classList.toggle('flow', !!pg || ownerOut);
-  const authVisible = S.authPage && (!S.user || S.authPage.mode === 'reset');
   const draw = () => authVisible ? authPageHTML() : liveOwnerAdmin ? (S.liveError ? `<section class="sec"><div class="card"><b>Could not load live records</b><p class="muted">${esc(S.liveError)}</p><button class="btn" data-live-retry>Retry</button></div></section>` : renderPortal(S.role, S.tab, S.liveData, S.profile)) : pg ? ({ listing: pgListing, agreement: pgAgreement, payment: pgPayment, status: pgStatus })[pg.name]() : S.role === 'owner' ? ownerBar() + (ownerLid() === 1 ? cur[3]() : ownerLite(cur[0])) : cur[3]();
   try { $('#main').innerHTML = draw(); } catch (err) {
     console.error(err);
@@ -3234,7 +3238,7 @@ document.addEventListener('contextmenu', e => { const el = e.target.closest('[da
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 
 render();
-if (!store.get('landed1')) showLanding();
+if (!S.user && !S.authPage) showLanding();
 initLiveAuth();
 
 </script>
