@@ -17,12 +17,16 @@ Create a production bundle with `npm run build`, then preview it with `npm run p
 
 The repository is configured for Workers Builds. Use build command `npm run build` and deploy command `npx wrangler deploy`. `wrangler.jsonc` publishes the Vite `dist/` output as static assets and serves the single-page site at app paths.
 
-## Demo data
+## Accounts and workspaces
 
-Listings, people, payments, verification, messaging, and rental operations use browser-side sample data. These actions are demonstrations, not live services. Do not enter real payment details or confidential personal data.
+Rentpply has four account roles: tenant, student, property owner, and administrator. Students use the tenant housing features with campus-focused labels. Owners only see their own property workspace. Only administrators can switch between platform views or manage all records. Public signup can create tenant, student, or owner accounts; administrator access must be assigned by an existing administrator.
 
-## Supabase connection
+## Supabase
 
-The Supabase JavaScript client is installed and initialized by `src/lib/supabase.js`. To configure it locally, copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from your Supabase project's Connect panel. The browser client is available as `window.rentpplySupabase` when configured.
+The active app uses the Supabase client in `src/lib/supabase.js` and the owner/admin data workspace in `src/live-portal.js`. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from your project's Connect panel. Never add a Supabase secret or service role key to browser code or a `VITE_` variable.
 
-For Cloudflare Workers Builds, add those same `VITE_` variables as build environment variables so Vite can include the project URL and publishable key in the static site. Never add a Supabase secret or service role key to browser code or a `VITE_` variable. Database tables and app workflows are not connected yet; add Row Level Security policies before exposing tables to the client.
+Database migrations live in `supabase/migrations/`. The current production project has these migrations applied. For future schema changes, add a new migration and deploy it with `supabase db push --linked` before publishing app code that depends on it. Row Level Security protects profiles, listings, bookings, payments, identity files, and admin actions.
+
+Listings, accounts, saved listings, roommate requests, agreements, payment requests, maintenance, bills, and inventory are stored in Supabase. Checkout records a payment claim and transaction reference only; it does not charge a card or move mobile money. Owners must verify receipt before confirming a request. Identity documents are stored in a private bucket and accessible only to their owner and administrators.
+
+For Cloudflare Workers Builds, configure the same `VITE_` variables as build environment variables. Pushing application code to the connected GitHub branch starts the configured automatic deployment.

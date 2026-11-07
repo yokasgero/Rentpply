@@ -677,6 +677,7 @@ code{background:var(--line);border-radius:6px;padding:1px 5px;font-size:12.5px}
 <div id="toast-host" aria-live="polite"></div>
 <script type="module">
 import { supabase, auth } from './src/lib/supabase.js';
+import { handlePortalChange, handlePortalClick, handlePortalSubmit, loadPortalData, renderPortal } from './src/live-portal.js';
 /* ---------- helpers ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const fmt = n => 'UGX ' + Math.round(n).toLocaleString('en-US');
@@ -706,6 +707,7 @@ const IC = {
   bed: 'M3 18v-8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8M3 14h18M3 21v-3M21 21v-3M7 11h4',
   flag: 'M5 21V4M5 4h12l-2 4 2 4H5',
   moon: 'M21 12.800A9 9 0 1 1 11.200 3a7 7 0 0 0 9.800 9.800z',
+  arrow: 'M5 12h14M13 6l6 6-6 6',
   sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.900 4.900l1.400 1.400M17.700 17.700l1.400 1.400M2 12h2M20 12h2M4.900 19.100l1.400-1.400M17.700 6.300l1.400-1.400'
 };
 const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="${IC[n]}"/></svg>`;
@@ -805,12 +807,13 @@ function card(l) {
 
 /* ---------- home ---------- */
 function vHome() {
+  const student = S.role === 'student';
   const tiles = [
     ['Hostels', 'bed', 'explore:hostel', 'var(--accent-soft)', 'var(--accent)'],
     ['Airbnbs', 'building', 'explore:airbnb', 'var(--ok-soft)', 'var(--ok)'],
     ['Rentals', 'key', 'explore:rental', 'var(--surface-2)', 'var(--ink)'],
     ['Payment', 'wallet', 'wallet', 'var(--warn-soft)', 'var(--warn)'],
-    ['Roommates', 'users', 'roommates', 'var(--accent-soft)', 'var(--accent)'],
+    [student ? 'Study partners' : 'Roommates', 'users', 'roommates', 'var(--accent-soft)', 'var(--accent)'],
     ['Sell space', 'tag', 'space', 'var(--ok-soft)', 'var(--ok)']
   ].map(t => `<button class="tile" data-go="${t[2]}"><span class="ico" style="background:${t[3]};color:${t[4]}">${ic(t[1])}</span>${t[0]}</button>`).join('');
   const near = L.filter(l => l.v && l.type === 'hostel').sort((a, b) => a.dist - b.dist).slice(0, 3);
@@ -818,9 +821,9 @@ function vHome() {
     <div class="hero">
       <svg class="skyline" viewBox="0 0 420 220" aria-hidden="true"><g fill="none" stroke="#2f6b63" stroke-width="2"><rect x="20" y="90" width="70" height="130"/><rect x="100" y="40" width="80" height="180"/><rect x="190" y="110" width="60" height="110"/><rect x="260" y="60" width="90" height="160"/><rect x="360" y="120" width="50" height="100"/></g><g fill="#FF5A36"><rect x="118" y="62" width="10" height="14"/><rect x="146" y="98" width="10" height="14"/><rect x="284" y="84" width="10" height="14"/><rect x="40" y="120" width="10" height="14"/></g></svg>
       <div class="stack" style="gap:10px;position:relative;z-index:1">
-        <span class="eyebrow" style="color:var(--hero-muted)">Hello, Yokas</span>
-        <h1>Find a place that is <em>really</em> there.</h1>
-        <p class="sub">Verified owners, clear prices and one place to pay. Search hostels, rentals and short stays across Kampala before you travel.</p>
+        <span class="eyebrow" style="color:var(--hero-muted)">${S.profile?.full_name ? `Hello, ${esc(S.profile.full_name)}` : student ? 'Student housing' : 'A clearer way to find your next place'}</span>
+        <h1>${student ? 'Find a place near your campus.' : 'Find a place that is <em>really</em> there.'}</h1>
+        <p class="sub">${student ? 'Compare campus housing, connect with verified students and keep your housing details together.' : 'Verified owners, clear prices and one place to pay. Search hostels, rentals and short stays across Kampala before you travel.'}</p>
       </div>
       <form class="search" id="homeSearch">
         <input class="inp" id="hq" placeholder="Area, hostel or university (try Makerere)" aria-label="Search">
@@ -831,7 +834,7 @@ function vHome() {
   </section>
   <section class="sec"><div class="tiles">${tiles}</div></section>
   <section class="sec">
-    <div class="sec-h"><div><span class="eyebrow">Student living</span><h2>Closest to Makerere</h2></div><button class="btn ghost sm" data-go="explore:hostel">All hostels</button></div>
+    <div class="sec-h"><div><span class="eyebrow">${student ? 'Campus housing' : 'Student living'}</span><h2>Closest to Makerere</h2></div><button class="btn ghost sm" data-go="explore:hostel">All hostels</button></div>
     <div class="grid">${near.map(card).join('')}</div>
   </section>
   <section class="sec">
@@ -926,12 +929,12 @@ function vRoommates() {
   if (!done) return `<section class="sec">${head}<p class="muted" style="max-width:60ch">Five quick questions. You are only matched with people whose identity Rentpply has checked.</p>${rqCard()}</section>`;
   return `<section class="sec">${head}
     <div class="card" style="padding:12px 14px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:10px"><div class="scrollrow" style="flex:1;min-width:0">${RQ.map((r, j) => `<button class="chip" data-rqgo="${j}" title="Change">${rqLabel(r, a[r.k])}</button>`).join('')}</div><button class="btn ghost sm" data-rqgo="0" style="flex:none">Edit</button></div></div>
-    <div class="sec-h"><h2 style="font-size:22px">${out.length} people to consider</h2><span class="pill mute">Sample profiles</span></div>
-    <div class="grid">${out.map((o, i) => { const p = o.p, asked = S.asked.includes(p.n); return `<div class="card stack" style="gap:10px">
+    <div class="sec-h"><h2 style="font-size:22px">${out.length} people to consider</h2><span class="pill mute">${S.user ? 'Verified profiles' : 'Sample profiles'}</span></div>
+    <div class="grid">${out.map((o, i) => { const p = o.p, asked = S.asked.includes(p.id || p.n); return `<div class="card stack" style="gap:10px">
       <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div class="row" style="flex-wrap:nowrap"><span class="avatar" style="background:hsl(${HUES[i % 6]},70%,75%)">${p.n[0]}</span><div><b>${p.n}</b><div class="muted" style="font-size:13px">${p.course}, year ${p.yr}</div></div></div><div style="text-align:right"><div class="match">${o.s}%</div><div class="muted" style="font-size:11px">match</div></div></div>
       <div class="row"><span class="pill ok">${ic('shield')}ID verified</span><span class="pill mute">${p.loc}</span></div>
       <div class="am">${trait(p).map(t => `<span>${t}</span>`).join('') || '<span>Different routines</span>'}</div>
-      <button class="btn ${asked ? 'ghost' : ''} sm" data-ask="${p.n}" ${asked ? 'disabled' : ''}>${asked ? 'Request sent' : 'Ask to share a room'}</button></div>`}).join('')}</div>
+      <button class="btn ${asked ? 'ghost' : ''} sm" data-ask="${p.id || p.n}" ${asked ? 'disabled' : ''}>${asked ? 'Request sent' : 'Ask to share a room'}</button></div>`}).join('')}</div>
   </section>`;
 }
 
@@ -1672,26 +1675,40 @@ function pgPayment() {
         <div class="field"><label for="bq">${night ? 'Nights' : 'Months'}</label><select class="inp" id="bq">${(night ? [1, 2, 3, 5, 7, 14] : [1, 2, 3, 4, 6, 12]).map(n => `<option ${BK.qty === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div></div></div>
       <div class="card stack"><span class="lbl">Who is paying</span><div class="row"><button class="chip" data-payer="Self" aria-pressed="${BK.paidBy === 'Self'}">I am paying</button><button class="chip" data-payer="Sponsor" aria-pressed="${BK.paidBy === 'Sponsor'}">A sponsor is paying</button></div>
         <div id="sp" ${BK.paidBy === 'Sponsor' ? '' : 'hidden'} class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))"><div class="field"><label for="spn">Sponsor name</label><input class="inp" id="spn" placeholder="e.g. Mother"></div><div class="field"><label for="spc">Paying from</label><input class="inp" id="spc" placeholder="e.g. United States"></div></div></div>
-      <div class="card stack"><span class="lbl">Payment method</span>
-        ${[['MTN MoMo', 'MTN', '#FFCC00'], ['Airtel Money', 'AIR', '#E40000'], ['Card', 'VISA', '#8FB4FF']].map(m => `<button class="opt" data-method="${m[0]}" aria-pressed="${BK.method === m[0]}"><span class="dot" style="background:${m[2]};color:#111">${m[1]}</span><b>${m[0]}</b></button>`).join('')}
-        <div class="field"><label for="ph">${BK.method === 'Card' ? 'Name on card' : 'Mobile number to pay from'}</label><input class="inp" id="ph" inputmode="${BK.method === 'Card' ? 'text' : 'tel'}" placeholder="${BK.method === 'Card' ? 'Name on card' : '07XX XXX XXX'}"></div></div>
-      <p class="muted" style="font-size:12px;max-width:62ch">Demo mode. No real money moves in this prototype. A live version connects to MTN MoMo, Airtel Money and card processors. After you pay, the owner confirms they received it.</p>
+      <div class="card stack"><span class="lbl">Payment evidence</span><p class="muted">After sending money directly to the property owner, choose the method and enter the transaction reference. Card charging is not available here.</p>
+        ${[['MTN MoMo', 'MTN', '#FFCC00'], ['Airtel Money', 'AIR', '#E40000'], ['Bank transfer', 'BANK', '#8FB4FF']].map(m => `<button class="opt" data-method="${m[0]}" aria-pressed="${BK.method === m[0]}"><span class="dot" style="background:${m[2]};color:#111">${m[1]}</span><b>${m[0]}</b></button>`).join('')}
+        <div class="field"><label for="ph">Transaction reference</label><input class="inp" id="ph" autocomplete="off" placeholder="Enter the reference from your receipt" required></div></div>
+      <p class="muted" style="font-size:12px;max-width:62ch">This records a pending request only. Rentpply does not collect or charge money here. The owner confirms a request only after verifying the payment.</p>
     </div><aside class="lp-aside"><div class="card stack" style="gap:10px"><h3 style="font-size:19px">Your booking</h3><div class="stack" style="gap:10px">${sumInner()}</div></div></aside></div>
-    <div class="actbar always"><div class="inner"><div class="tot1"><small class="muted">Total</small> <b>${fmt(calc().tot)}</b></div><button class="btn" id="payBtn" data-pay>Pay now</button></div></div>
+    <div class="actbar always"><div class="inner"><div class="tot1"><small class="muted">Total</small> <b>${fmt(calc().tot)}</b></div><button class="btn" id="payBtn" data-pay>Record payment request</button></div></div>
   </section>`;
 }
-function doPay() {
+async function doPay() {
+  if (!S.user || !S.profile) { showAuth('signin'); return; }
+  const l = byId(BK.lid);
+  if (!l?.dbId) { toast('This property is not connected to a live listing record.'); return; }
   const ph = $('#ph').value.trim();
-  if (BK.method !== 'Card' && ph.replace(/\D/g, '').length < 9) { toast('Enter the mobile money number to pay from'); $('#ph').focus(); return; }
-  if (BK.method === 'Card' && ph.length < 3) { toast('Enter the name on the card'); $('#ph').focus(); return; }
+  if (ph.length < 4) { toast('Enter the transaction reference from your receipt'); $('#ph').focus(); return; }
   if (BK.paidBy === 'Sponsor' && !$('#spn').value.trim()) { toast('Add the sponsor name'); $('#spn').focus(); return; }
-  const b = $('#payBtn'); b.disabled = true; b.textContent = 'Waiting for approval…'; const ag = S.agreements.find(x => x.id === BK.agId); if (ag) { ag.qty = BK.qty; ag.start = BK.start; }
+  const b = $('#payBtn'); b.disabled = true; b.textContent = 'Saving request…';
   const spn = BK.paidBy === 'Sponsor' ? $('#spn').value.trim() + ($('#spc').value.trim() ? ', ' + $('#spc').value.trim() : '') : 'Self';
-  setTimeout(() => {
-    const l = byId(BK.lid), c = calc(), night = l.per === 'night', id = 'RP-2026-' + String(Math.floor(1000 + Math.random() * 8999));
-    S.payments.unshift({ id, lid: l.id, room: 'To be assigned', start: BK.start, months: night ? 0 : BK.qty, nights: night ? BK.qty : 0, amount: c.sub, fee: c.fee, dep: c.dep, method: BK.method, purpose: night ? 'Stay, ' + plural(BK.qty, 'night') : 'Rent, ' + plural(BK.qty, 'month'), paidBy: spn, ts: Date.now(), st: 'pending', agId: BK.agId, tenant: ME, from: BK.method === 'Card' ? 'Card, ' + ph : '07XX XXX ' + ph.replace(/\D/g, '').slice(-3) });
-    save(); S.page = { name: 'status', lid: l.id, pid: id }; render(true);
-  }, 1700);
+  const costs = calc(), night = l.per === 'night', reference = `RP-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  const { data: acceptedAgreement, error: agreementError } = await supabase.rpc('accept_listing_agreement', { listing_uuid: l.dbId, desired_start: BK.start, stay_quantity: BK.qty });
+  if (agreementError) { b.disabled = false; b.textContent = 'Record payment request'; toast(agreementError.message || 'Could not save your agreement.'); return; }
+  BK.agDbId = acceptedAgreement.id;
+  BK.agId = acceptedAgreement.reference;
+  S.agreements.unshift({ id: acceptedAgreement.reference, dbId: acceptedAgreement.id, lid: l.id, room: 'Unassigned', tenant: S.profile.full_name, qty: BK.qty, start: BK.start, status: 'accepted', issued: Date.now(), accepted: Date.now(), paid: false });
+  const { data, error } = await supabase.from('payments').insert({
+    reference, listing_id: l.dbId, room_code: 'Unassigned', tenant_id: S.user.id,
+    tenant_name: S.profile.full_name, start_date: BK.start, months: night ? 0 : BK.qty,
+    nights: night ? BK.qty : 0, amount: costs.sub, fee: costs.fee, deposit: costs.dep,
+    payment_method: BK.method, paid_by: spn, agreement_id: acceptedAgreement.id,
+    purpose: night ? 'Stay, ' + plural(BK.qty, 'night') : 'Rent, ' + plural(BK.qty, 'month'),
+    from_source: ph.trim()
+  }).select().single();
+  if (error) { b.disabled = false; b.textContent = 'Record payment request'; toast(error.message || 'Could not save your payment request.'); return; }
+  S.payments.unshift({ id: data.reference, dbId: data.id, lid: l.id, room: 'Unassigned', start: BK.start, months: night ? 0 : BK.qty, nights: night ? BK.qty : 0, amount: costs.sub, fee: costs.fee, dep: costs.dep, method: BK.method, purpose: data.purpose, paidBy: spn, ts: Date.now(), st: 'pending', tenant: S.profile.full_name });
+  S.page = { name: 'status', lid: l.id, pid: data.reference }; render(true);
 }
 
 /* ---------- page 4: waiting for / result of owner confirmation ---------- */
@@ -1752,9 +1769,20 @@ function openReport(bid) {
     <div class="field"><label for="mt-note">Describe it</label><textarea class="inp" id="mt-note" rows="3" placeholder="e.g. The tap in the bathroom is leaking onto the floor"></textarea></div>
     <button class="btn" data-msend>Send to owner</button>`, 'Maintenance');
 }
-function sendReport() {
+async function sendReport() {
   const note = $('#mt-note').value.trim(); if (note.length < 4) { toast('Describe the problem in a few words'); $('#mt-note').focus(); return; }
   const b = S.bookings.find(x => x.id === MT.bid);
+  if (S.user && b) {
+    const listing = byId(b.lid);
+    const { data: unit, error: unitError } = await supabase.from('units').select('id').eq('listing_id', listing.dbId).eq('unit_code', b.room).eq('tenant_id', S.user.id).single();
+    if (unitError || !unit) { toast('Could not verify the room assigned to this stay.'); return; }
+    const { error } = await supabase.from('maintenance_requests').insert({
+      listing_id: listing.dbId, unit_id: unit.id, room_code: b.room, tenant_id: S.user.id,
+      tenant_name: S.profile.full_name, type: MT.type, urgent: MT.urgent, note
+    });
+    if (error) { toast(error.message || 'Could not send maintenance request.'); return; }
+    await loadTenantData(); closeSheet(); render(); toast('Maintenance request sent to the property owner.'); return;
+  }
   S.maint.unshift({ id: 'm' + Date.now(), lid: b.lid, room: b.room, tenant: ME, type: MT.type, urgent: MT.urgent, note, ts: Date.now(), st: 'open' });
   save(); closeSheet(); toast('Sent to the owner. They have been alerted.'); render();
 }
@@ -1841,7 +1869,7 @@ function vKyc() {
   if (k.st !== 'none') return `<section class="sec"><div class="card stack" style="gap:14px"><div class="row" style="justify-content:space-between"><div><span class="eyebrow">Know your customer</span><h3 style="font-size:24px">${k.st === 'verified' ? 'You are verified' : 'Your ID is being checked'}</h3></div><span class="pill ${k.st === 'verified' ? 'ok' : 'warn'}">${ic(k.st === 'verified' ? 'shield' : 'clock')}${k.st === 'verified' ? 'Verified' : 'In review'}</span></div>
     <p class="muted">${k.st === 'verified' ? 'Owners see a verified badge on your applications, so they approve you faster.' : 'We usually check IDs within one working day. You can keep applying while you wait.'}</p>
     <div class="stack" style="gap:8px"><div class="kv"><span>Name on ID</span><span>${esc(k.name)}</span></div><div class="kv"><span>${esc(k.type)}</span><span class="mono">${esc(k.mask)}</span></div><div class="kv"><span>Selfie</span><span>Received</span></div><div class="kv"><span>Student proof</span><span>${k.student ? 'Received' : 'Not a student'}</span></div><div class="kv"><span>Next of kin</span><span>${esc(k.kin)}</span></div><div class="kv"><span>Submitted</span><span>${fdt(k.ts)}</span></div></div>
-    ${k.st === 'review' ? `<button class="btn sm ghost" style="align-self:flex-start" data-kycverify>Demo: mark as verified</button>` : ''}</div></section>`;
+    ${k.st === 'review' && !S.user ? `<button class="btn sm ghost" style="align-self:flex-start" data-kycverify>Demo: mark as verified</button>` : ''}</div></section>`;
   return `<section class="sec"><div class="card stack" style="gap:16px"><div><span class="eyebrow">Know your customer</span><h3 style="font-size:24px">Verify who you are</h3><p class="muted" style="max-width:56ch;margin-top:4px">Owners and parents trust verified tenants. It takes about two minutes. Have your ID ready.</p></div>
     ${step(false, '1. Your ID', 'National ID, passport or student ID')}${step(false, '2. A selfie', 'So we know it is really you')}${step(false, '3. Next of kin', 'Someone we can call in an emergency')}
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))">
@@ -1849,17 +1877,18 @@ function vKyc() {
       <div class="field"><label for="ky-n">ID number</label><input class="inp" id="ky-n" autocomplete="off" placeholder="e.g. CM9XXXXXXXXXXX"></div>
       <div class="field"><label for="ky-nm">Full name as on the ID</label><input class="inp" id="ky-nm" value="${esc(ME)}"></div></div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))">
-      <div class="field"><label for="ky-id">Photo of your ID</label><input class="inp" id="ky-id" type="file" accept="image/*" capture="environment"></div>
-      <div class="field"><label for="ky-self">Selfie</label><input class="inp" id="ky-self" type="file" accept="image/*" capture="user"></div></div>
+      <div class="field"><label for="ky-id">Photo of your ID</label><input class="inp" id="ky-id" type="file" accept=".jpg,.jpeg,.png,.webp" capture="environment"></div>
+      <div class="field"><label for="ky-self">Selfie</label><input class="inp" id="ky-self" type="file" accept=".jpg,.jpeg,.png,.webp" capture="user"></div></div>
     <label class="chk" for="ky-stu"><input type="checkbox" id="ky-stu" checked><span>I am a student (add an admission letter or student card)</span></label>
     <div class="field" id="ky-stuf"><label for="ky-sp">Admission letter or student card</label><input class="inp" id="ky-sp" type="file" accept="image/*,application/pdf"></div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))"><div class="field"><label for="ky-kn">Next of kin name</label><input class="inp" id="ky-kn" placeholder="e.g. Mother"></div><div class="field"><label for="ky-kp">Next of kin phone</label><input class="inp" id="ky-kp" inputmode="tel" placeholder="07XX XXX XXX"></div></div>
     <label class="chk" for="ky-ok"><input type="checkbox" id="ky-ok"><span>I agree that Rentpply may check my ID and share my verified status with owners I apply to.</span></label>
     <button class="btn" data-kycsubmit>Submit for checking</button>
-    <p class="muted" style="font-size:12px">Demo mode. Nothing you pick here is uploaded or stored. Only the last digits of the ID number are kept on this device.</p></div></section>`;
+    <p class="muted" style="font-size:12px">${S.user ? 'Documents are stored in a private bucket. Only you and Rentpply administrators can access them. The full ID number is not stored.' : 'Sign in to securely upload documents for review.'}</p></div></section>`;
 }
-function kycSubmit() {
+async function kycSubmit() {
   const v = id => $('#' + id).value.trim(), f = id => $('#' + id).files && $('#' + id).files.length, stu = $('#ky-stu').checked;
+  if (!S.user || !S.profile) { showAuth('signin'); return; }
   if (v('ky-n').length < 6) { toast('Enter your ID number'); $('#ky-n').focus(); return; }
   if (v('ky-nm').length < 3) { toast('Enter your name as on the ID'); $('#ky-nm').focus(); return; }
   if (!f('ky-id')) { toast('Add a photo of your ID'); return; }
@@ -1867,8 +1896,35 @@ function kycSubmit() {
   if (stu && !f('ky-sp')) { toast('Add your admission letter or student card'); return; }
   if (v('ky-kn').length < 2 || v('ky-kp').replace(/\D/g, '').length < 9) { toast('Add a next of kin and their phone'); $('#ky-kn').focus(); return; }
   if (!$('#ky-ok').checked) { toast('Tick the box to agree'); return; }
-  S.kyc = { st: 'review', type: v('ky-t'), mask: '••••' + v('ky-n').slice(-3), name: v('ky-nm'), student: stu, kin: v('ky-kn') + ', ' + v('ky-kp'), ts: Date.now() };
-  kycSave(); toast('Submitted. We will tell you once it is checked.'); render(true);
+  const uploaded = [];
+  const upload = async (inputId, label) => {
+    const file = $('#' + inputId).files[0];
+    if (file.size > 10 * 1024 * 1024) throw new Error('Each document must be smaller than 10 MB.');
+    if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) throw new Error('Use a JPG, PNG, WEBP or PDF document.');
+    const path = `${S.user.id}/${crypto.randomUUID()}-${label}.${file.name.split('.').pop().toLowerCase()}`;
+    const { error } = await supabase.storage.from('kyc-documents').upload(path, file, { contentType: file.type, upsert: false });
+    if (error) throw error;
+    uploaded.push(path);
+    return path;
+  };
+  try {
+    const idDocument = await upload('ky-id', 'id');
+    const selfie = await upload('ky-self', 'selfie');
+    const studentProof = stu ? await upload('ky-sp', 'student-proof') : null;
+    const updates = {
+      kyc_status: 'review', id_type: v('ky-t'), id_number_masked: '••••' + v('ky-n').slice(-3),
+      id_document_url: idDocument, selfie_url: selfie, student_proof_url: studentProof,
+      is_student: stu, next_of_kin_name: v('ky-kn'), next_of_kin_phone: v('ky-kp'), updated_at: new Date().toISOString()
+    };
+    const { data, error } = await supabase.from('profiles').update(updates).eq('id', S.user.id).select().single();
+    if (error) throw error;
+    S.profile = data;
+    S.kyc = { st: 'review', type: updates.id_type, mask: updates.id_number_masked, name: v('ky-nm'), student: stu, kin: v('ky-kn') + ', ' + v('ky-kp'), ts: Date.now() };
+    render(true); toast('Documents submitted for administrator review.');
+  } catch (error) {
+    if (uploaded.length) await supabase.storage.from('kyc-documents').remove(uploaded);
+    toast(error.message || 'Could not submit documents.');
+  }
 }
 
 /* ---------- admin: Units tab (pages by floor, add units, allocate room numbers) ---------- */
@@ -2383,7 +2439,7 @@ function landingHTML() {
   return `<div class="lhead"><div class="lnav wrap"><a class="logo" href="#top" aria-label="Rentpply home"><b>${ic('home2')}</b><span>Rentpply</span></a><nav class="lhead-nav" aria-label="Landing page"><a href="#how-it-works">How it works</a><a href="#for-owners">For property owners</a></nav><button class="btn sm" data-land="tenant">Find a place</button></div>
   <header class="lhero wrap" id="top"><div class="ltext"><span class="lpill">${ic('home2')}Student housing in Kampala</span><h1>Find a place to <em>feel at home.</em></h1>
       <p>Compare student hostels and rentals by area, price and amenities, then explore the next steps in one place.</p>
-      <div class="lcta"><button class="btn lg" data-land="tenant">Explore places <span aria-hidden="true">→</span></button><a class="ltext-link" href="#for-owners">I’m a property owner <span aria-hidden="true">→</span></a></div>
+      <div class="lcta"><button class="btn lg" data-land="tenant">Explore places <span aria-hidden="true">→</span></button><button class="ltext-link" data-land="owner">I’m a property owner <span aria-hidden="true">→</span></button></div>
       <div class="ltrust"><span>${ic('check')}Search around Kampala</span><span>${ic('check')}Compare the details</span><span>${ic('check')}Demo experience</span></div></div>
     <div class="lscene"><div class="lphoto"><img src="${PHOTO}" alt="Example apartment building with balconies and a paved compound" width="1000" height="750" fetchpriority="high">
       <span class="chipf cf3">Example property</span></div>
@@ -2398,15 +2454,20 @@ function landingHTML() {
   ${journeyHTML()}
   <section class="lsec2 wrap lstepsec" id="how-it-works"><span class="eyebrow">How it works</span><h2>A clearer path from search to move-in</h2><div class="lsteps">${steps.map((s, i) => `<div class="lstep"><span class="n">${i + 1}</span><div><b>${s[1]}</b><p>${s[2]}</p></div></div>`).join('')}</div></section>
   <section class="lsec2 wrap lfeatures" id="why-rentpply"><span class="eyebrow">One place for the details</span><h2>Make the next move with more clarity</h2><div class="lfeat">${feat.map(f => `<div class="card"><span class="ric">${ic(f[0])}</span><b>${f[1]}</b><p class="muted">${f[2]}</p></div>`).join('')}</div></section>
-  <section class="lsec2 wrap" id="for-owners"><div class="laud"><div class="card dark owner-card"><span class="eyebrow">For property owners</span><h3>Keep your property details organized.</h3><p class="muted">Preview a demo dashboard for units, tenant requests and rental records.</p><button class="btn" data-land="owner">Explore the owner demo <span aria-hidden="true">→</span></button></div></div></section>
+  <section class="lsec2 wrap" id="for-owners"><div class="laud"><div class="card dark owner-card"><span class="eyebrow">For property owners</span><h3>Keep your property details organized.</h3><p class="muted">Manage your listings, rooms, payments and tenant requests from one workspace.</p><button class="btn" data-land="owner">Owner sign in or register <span aria-hidden="true">→</span></button></div></div></section>
   <footer class="lfoot wrap"><div class="lband"><div class="lbtxt"><h2>Your next place starts with a clearer search.</h2><button class="btn lg" data-land="tenant">Find a place <span aria-hidden="true">→</span></button></div><div class="lbscene">${sceneSVG()}</div></div>
-    <p class="muted">Demo experience. Listings, accounts, verification and transactions use sample data; payments, ID checks and messages are not live. <button class="linkbtn" data-land="admin">Rentpply team view</button></p></footer>`;
+    <p class="muted">Rentpply connects tenants, students and property owners with verified rental records.</p></footer>`;
 }
 function showLanding() { const n = $('#landing'); n.innerHTML = landingHTML(); n.hidden = false; n.scrollTop = 0; document.body.classList.add('landing'); init3D(); startEngine(); }
 function hideLanding() { $('#landing').hidden = true; document.body.classList.remove('landing'); store.set('landed1', 1); }
 function landGo(k) {
+  if (k === 'owner' && S.profile?.role === 'owner') { hideLanding(); S.role = 'owner'; S.tab = FIRST.owner; render(true); return; }
+  if (k === 'owner' && S.profile?.role === 'admin') { hideLanding(); S.role = 'owner'; S.viewRole = 'owner'; S.tab = FIRST.owner; render(true); return; }
+  if (k === 'owner') { showAuth('signin', 'owner'); return; }
+  if (k === 'admin' && S.profile?.role !== 'admin') { toast('Administrator sign-in is required.'); return; }
+  if (k === 'tenant' && S.profile?.role === 'owner') { toast('Property owners stay in their property workspace.'); return; }
   hideLanding(); S.page = null;
-  if (k === 'tenant') { S.role = 'tenant'; S.tab = 'home'; } else if (k === 'owner') { S.role = 'owner'; S.tab = 'overview'; } else if (k === 'admin') { S.role = 'admin'; S.tab = 'queue'; }
+  if (k === 'tenant') { S.role = S.profile?.role === 'student' ? 'student' : 'tenant'; S.tab = 'home'; } else if (k === 'admin') { S.role = 'admin'; S.tab = 'queue'; }
   document.querySelectorAll('[data-role]').forEach(b => b.setAttribute('aria-pressed', b.dataset.role === S.role)); render(true);
 }
 
@@ -2446,7 +2507,8 @@ function init3D() {
   }
 }
 function journeyHTML() {
-  const property = byId(1), booking = S.bookings.find(x => x.lid === property.id);
+  const property = byId(1) || L.find(item => item.type === 'hostel') || { name: 'Student housing in Kampala', price: 0, rating: 0, am: [] };
+  const booking = S.bookings.find(x => x.lid === property.id);
   return `<section class="jny" id="jny" aria-label="How Rentpply works">
     <div class="jstick" id="jstick" data-stage="0">
       <div class="jtown" aria-hidden="true">
@@ -2622,18 +2684,135 @@ document.addEventListener('change', ev => { if (ev.target.id === 'bd-mo') { cons
 /* ---------- navigation + render ---------- */
 const NAV = {
   tenant: [['home', 'Home', 'home', vHome], ['explore', 'Explore', 'search', vExplore], ['roommates', 'Roommates', 'users', vRoommates], ['wallet', 'My stay', 'key', vWallet]],
+  student: [['home', 'Campus home', 'home', vHome], ['explore', 'Find housing', 'search', vExplore], ['roommates', 'Study partners', 'users', vRoommates], ['wallet', 'My housing', 'key', vWallet]],
   owner: [['overview', 'Overview', 'chart', vOverview], ['units', 'Units', 'building', vUnits], ['payments', 'Payments', 'receipt', vPayments], ['terms', 'Board', 'key', vBoard], ['requests', 'Requests', 'list', vRequests]],
   admin: [['queue', 'Onboard', 'shield', vQueue], ['units', 'Units', 'key', vAdmUnits], ['prop', 'Property', 'home', vAdmProp], ['listings', 'Listings', 'building', vListings], ['kpis', 'KPIs', 'chart', vKpis]]
 };
-const FIRST = { tenant: 'home', owner: 'overview', admin: 'queue' };
+const FIRST = { tenant: 'home', student: 'home', owner: 'overview', admin: 'queue' };
+function showAuth(mode = 'signin', preferredRole = 'tenant') {
+  const signup = mode === 'signup';
+  sheet(`<div class="stack" style="gap:4px"><h2 style="font-size:26px">${signup ? 'Create your Rentpply account' : 'Sign in'}</h2><p class="muted">${signup ? 'Your account opens the workspace for your role.' : 'Continue to your assigned workspace.'}</p></div>
+    <form class="stack" style="gap:12px" data-auth-form="${mode}" data-preferred-role="${preferredRole}">
+      ${signup ? '<div class="field"><label for="auth-name">Full name</label><input class="inp" id="auth-name" name="full_name" autocomplete="name" required></div>' : ''}
+      <div class="field"><label for="auth-email">Email</label><input class="inp" id="auth-email" name="email" type="email" autocomplete="email" required></div>
+      <div class="field"><label for="auth-password">Password</label><input class="inp" id="auth-password" name="password" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" minlength="6" required></div>
+      ${signup ? `<label class="field"><span>I am a</span><select class="inp" name="role">${[['tenant', 'Tenant'], ['student', 'Student'], ['owner', 'Property owner']].map(([value, label]) => `<option value="${value}" ${value === preferredRole ? 'selected' : ''}>${label}</option>`).join('')}</select></label>` : ''}
+      <button class="btn" type="submit">${signup ? 'Create account' : 'Sign in'}</button>
+    </form><p class="muted" style="font-size:13px;text-align:center">${signup ? 'Already registered?' : 'New to Rentpply?'} <button class="linkbtn" data-auth-switch="${signup ? 'signin' : 'signup'}">${signup ? 'Sign in' : 'Create an account'}</button></p>`, signup ? 'Create account' : 'Sign in');
+}
+
+function updateUserInfo() {
+  const el = $('#user-info');
+  if (!el) return;
+  if (!S.user || !S.profile) {
+    el.innerHTML = '<button class="btn sm" data-auth-open="signin">Sign in</button><button class="btn ghost sm" data-auth-open="signup">Sign up</button>';
+    return;
+  }
+  const admin = S.profile.role === 'admin';
+  const views = admin ? `<label class="field" style="margin:0"><span class="sr-only">Platform view</span><select class="inp" data-admin-view aria-label="View platform">${[['admin', 'Admin'], ['owner', 'Property owner'], ['tenant', 'Tenant'], ['student', 'Student']].map(([value, label]) => `<option value="${value}" ${S.role === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>` : '';
+  el.innerHTML = `<span>${esc(S.profile.full_name || S.user.email)}</span>${views}<span class="pill ok">${admin ? 'Admin' : S.profile.role === 'student' ? 'Student' : S.profile.role === 'owner' ? 'Owner' : 'Tenant'}</span><button class="btn ghost sm" data-auth-signout>Sign out</button>`;
+}
+
+async function refreshPortal() {
+  if (!S.user || !S.profile || !['owner', 'admin'].includes(S.profile.role)) return;
+  try {
+    S.liveError = null;
+    S.liveData = await loadPortalData(S.profile.role, S.user.id);
+  } catch (error) {
+    S.liveError = error.message || 'Could not load live records.';
+    console.error('Portal data load failed:', error);
+  }
+  render();
+}
+
+async function syncLiveSession(session) {
+  if (!session?.user) {
+    S.user = null; S.profile = null; S.liveData = null; S.liveError = null;
+    S.role = 'tenant'; S.tab = 'home';
+    updateUserInfo();
+    render(true);
+    if (store.get('landed1')) showLanding();
+    return;
+  }
+  S.user = session.user;
+  const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+  if (error) { toast(error.message || 'Could not load your account.'); return; }
+  if (!profile?.role || !FIRST[profile.role]) { toast('Your account role is not configured. Contact Rentpply support.'); return; }
+  S.profile = profile;
+  S.kyc = { st: profile.kyc_status || 'none', type: profile.id_type, mask: profile.id_number_masked, name: profile.full_name, student: profile.is_student, kin: profile.next_of_kin_name ? `${profile.next_of_kin_name}, ${profile.next_of_kin_phone || ''}` : '', ts: Date.parse(profile.updated_at || profile.created_at) };
+  S.role = profile.role;
+  S.viewRole = profile.role === 'admin' ? (S.viewRole || 'admin') : profile.role;
+  S.role = S.viewRole;
+  S.tab = FIRST[S.role] || 'home';
+  hideLanding();
+  await loadPublicListings();
+  if (['tenant', 'student'].includes(profile.role)) {
+    try { await loadTenantData(); }
+    catch (loadError) { console.error('Tenant data load failed:', loadError); toast('Some account records could not be loaded.'); }
+  }
+  updateUserInfo();
+  if (['owner', 'admin'].includes(profile.role)) await refreshPortal();
+  else render(true);
+}
+
+async function loadPublicListings() {
+  if (!supabase) return;
+  const { data, error } = await supabase.from('listings').select('*').eq('verified', true).order('created_at', { ascending: false });
+  if (error || !data) return;
+  const used = new Set();
+  const liveListings = data.map((item, index) => {
+    let id = Math.abs(hash(item.id)) || index + 1;
+    while (used.has(id)) id++;
+    used.add(id);
+    return { id, dbId: item.id, name: item.name, type: item.type, area: item.area, price: item.price, per: item.per, unit: item.unit_type, dist: Number(item.distance_km) || 0, avail: item.available_units, total: item.total_units, v: item.verified ? 1 : 0, rating: 0, n: 0, hue: item.hue || 168, owner: item.owner_name, am: item.amenities || [], desc: item.description || '' };
+  });
+  L.splice(0, L.length, ...liveListings);
+  AREAS.splice(0, AREAS.length, ...new Set(liveListings.map(item => item.area)));
+}
+
+async function loadTenantData() {
+  if (!S.user) return;
+  const [saved, bookings, payments, agreements, maintenance] = await Promise.all([
+    supabase.from('saved_listings').select('listing_id').eq('user_id', S.user.id),
+    supabase.from('bookings').select('*').eq('tenant_id', S.user.id).order('created_at', { ascending: false }),
+    supabase.from('payments').select('*').eq('tenant_id', S.user.id).order('created_at', { ascending: false }),
+    supabase.from('agreements').select('*').eq('tenant_id', S.user.id).order('created_at', { ascending: false }),
+    supabase.from('maintenance_requests').select('*').eq('tenant_id', S.user.id).order('created_at', { ascending: false })
+  ]);
+  const failed = [saved, bookings, payments, agreements, maintenance].find(result => result.error);
+  if (failed) throw failed.error;
+  const listingId = id => L.find(item => item.dbId === id)?.id;
+  S.saved = (saved.data || []).map(item => listingId(item.listing_id)).filter(Boolean);
+  S.bookings = (bookings.data || []).map(item => ({ id: item.reference, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, ts: Date.parse(item.created_at), listed: item.listed_for_transfer, purpose: item.purpose })).filter(item => item.lid);
+  S.payments = (payments.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, purpose: item.purpose, ts: Date.parse(item.created_at), st: item.status, tenant: item.tenant_name, from: item.from_source, fdn: item.efris_document_no })).filter(item => item.lid);
+  S.agreements = (agreements.data || []).map(item => ({ id: item.reference, dbId: item.id, lid: listingId(item.listing_id), room: item.room_code, tenant: item.tenant_name, qty: item.quantity, start: item.start_date, status: item.status, issued: Date.parse(item.issued_at || item.created_at), accepted: item.accepted_at ? Date.parse(item.accepted_at) : null, paid: item.paid })).filter(item => item.lid);
+  S.maint = (maintenance.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, tenant: item.tenant_name, type: item.type, urgent: item.urgent, note: item.note, ts: Date.parse(item.created_at), st: item.status })).filter(item => item.lid);
+  const [roommates, roommateRequests] = await Promise.all([
+    supabase.from('roommate_profiles').select('*').eq('is_verified', true).neq('user_id', S.user.id),
+    supabase.from('roommate_requests').select('to_user_id').eq('from_user_id', S.user.id)
+  ]);
+  if (roommates.error) throw roommates.error;
+  if (roommateRequests.error) throw roommateRequests.error;
+  PEOPLE.splice(0, PEOPLE.length, ...(roommates.data || []).map(item => ({ id: item.user_id, n: item.full_name, course: item.course || '', college: item.college || '', g: item.gender, yr: item.year || '', budget: item.budget, sleep: item.sleep, clean: item.clean_level, study: item.study, loc: item.location || '' })));
+  S.asked = (roommateRequests.data || []).map(item => item.to_user_id);
+}
+
+function initLiveAuth() {
+  if (!supabase) { updateUserInfo(); return; }
+  auth.onAuthStateChange((_event, session) => { queueMicrotask(() => syncLiveSession(session)); });
+  auth.getSession().then(syncLiveSession).catch(error => toast(error.message || 'Could not check your session.'));
+  loadPublicListings().then(() => { if (!S.user) render(); }).catch(error => console.error('Listings load failed:', error));
+}
+
 function render(top) {
-  const nav = NAV[S.role], cur = nav.find(n => n[0] === S.tab) || nav[0];
+  const nav = NAV[S.role] || NAV.tenant, cur = nav.find(n => n[0] === S.tab) || nav[0];
   S.tab = cur[0];
-  const pg = S.role === 'tenant' && S.page;
+  const pg = ['tenant', 'student'].includes(S.role) && S.page;
   if (pg && pg.name === 'listing' && !BK) initBK(pg.lid);
-  const ownerOut = S.role === 'owner' && !ownerLid();
+  const liveOwnerAdmin = S.profile && ['owner', 'admin'].includes(S.profile.role) && ['owner', 'admin'].includes(S.role);
+  const ownerOut = S.role === 'owner' && !liveOwnerAdmin && !ownerLid();
   document.body.classList.toggle('flow', !!pg || ownerOut);
-  const draw = () => pg ? ({ listing: pgListing, agreement: pgAgreement, payment: pgPayment, status: pgStatus })[pg.name]() : ownerOut ? vOwnerLogin() : S.role === 'owner' ? ownerBar() + (ownerLid() === 1 ? cur[3]() : ownerLite(cur[0])) : cur[3]();
+  const draw = () => liveOwnerAdmin ? (S.liveError ? `<section class="sec"><div class="card"><b>Could not load live records</b><p class="muted">${esc(S.liveError)}</p><button class="btn" data-live-retry>Retry</button></div></section>` : renderPortal(S.role, S.tab, S.liveData, S.profile)) : pg ? ({ listing: pgListing, agreement: pgAgreement, payment: pgPayment, status: pgStatus })[pg.name]() : ownerOut ? vOwnerLogin() : S.role === 'owner' ? ownerBar() + (ownerLid() === 1 ? cur[3]() : ownerLite(cur[0])) : cur[3]();
   try { $('#main').innerHTML = draw(); } catch (err) {
     console.error(err);
     ['units4', 'adm1', 'board1'].forEach(k => { try { localStorage.removeItem('rp_' + k); } catch (_) {} });
@@ -2642,13 +2821,15 @@ function render(top) {
   if (pg && pg.name === 'agreement') { agrFill(); accSync(); }
   const badge = n => (S.role === 'owner' && ownerLid() !== 1) ? '' : (n[0] === 'units' && S.maint.some(m => m.st === 'open')) || (n[0] === 'requests' && S.owner.req.some(r => r.st === 'open')) || (n[0] === 'wallet' && S.role === 'tenant' && S.payments.some(p => p.st === 'pending')) ? '<i class="dot"></i>' : '';
   $('#dock').innerHTML = nav.map(n => `<button data-tab="${n[0]}" ${n[0] === S.tab ? 'aria-current="page"' : ''}>${ic(n[2])}<span>${n[1]}</span>${badge(n)}</button>`).join('');
+  updateUserInfo();
   syncGate(); if (typeof fpRestore === 'function') fpRestore();
   document.querySelectorAll('[data-role]').forEach(b => b.setAttribute('aria-pressed', b.dataset.role === S.role));
   if (top) window.scrollTo({ top: 0 });
 }
 function go(spec) {
   let [t, arg] = spec.split(':');
-  if (S.role !== 'tenant') S.role = 'tenant';
+  if (S.profile?.role === 'owner' && !['overview', 'units', 'payments', 'terms', 'requests'].includes(t)) return;
+  if (!['tenant', 'student'].includes(S.role)) S.role = S.profile?.role === 'student' ? 'student' : 'tenant';
   if (t === 'space') { t = 'wallet'; S.wtab = 'pass'; }
   if (t === 'wallet' && arg) S.wtab = arg;
   if (t === 'explore') { S.f.type = arg || 'all'; S.f.q = ''; }
@@ -2658,15 +2839,23 @@ function applyTheme(t) { if (t) document.documentElement.setAttribute('data-them
 applyTheme(store.get('theme', null));
 
 /* ---------- events ---------- */
-document.addEventListener('click', e => {
+document.addEventListener('click', async e => {
   const t = e.target, c = s => t.closest(s);
   let el;
+  if ((el = c('[data-auth-open]'))) { showAuth(el.dataset.authOpen); return; }
+  if ((el = c('[data-auth-switch]'))) { const preferred = $('form[data-auth-form]')?.dataset.preferredRole || 'tenant'; showAuth(el.dataset.authSwitch, preferred); return; }
+  if (c('[data-auth-signout]')) { await auth.signOut(); closeSheet(); return; }
+  if (c('[data-live-retry]')) { await refreshPortal(); return; }
+  if (S.profile && ['owner', 'admin'].includes(S.profile.role)) {
+    try { if (await handlePortalClick(t, refreshPortal)) { toast('Changes saved.'); return; } }
+    catch (error) { toast(error.message || 'Could not save that change.'); return; }
+  }
   if (!c('.acwrap')) document.querySelectorAll('.acpop').forEach(x => { x.hidden = true; });
   if ((el = c('[data-budtoggle]'))) { const pop = $('#acBud'); pop.hidden = !pop.hidden; el.setAttribute('aria-expanded', !pop.hidden); return; }
   if (c('#theme')) { const dark = document.documentElement.getAttribute('data-theme') === 'dark' || (!document.documentElement.getAttribute('data-theme') && matchMedia('(prefers-color-scheme:dark)').matches); const n = dark ? 'light' : 'dark'; applyTheme(n); store.set('theme', n); return; }
-  if ((el = c('[data-role]'))) { S.page = null; S.role = el.dataset.role; S.tab = FIRST[S.role]; if (S.role === 'tenant' && el.dataset.role && S.payments.some(p => p.st !== 'pending')) {} render(true); return; }
+  if ((el = c('[data-role]'))) { if (S.profile?.role !== 'admin') return; S.page = null; S.role = el.dataset.role; S.viewRole = S.role; S.tab = FIRST[S.role]; render(true); return; }
   if ((el = c('[data-tab]'))) { S.page = null; S.tab = el.dataset.tab; render(true); return; }
-  if (c('[data-kycsubmit]')) { kycSubmit(); return; }
+  if (c('[data-kycsubmit]')) { await kycSubmit(); return; }
   if (c('[data-kycverify]')) { S.kyc.st = 'verified'; kycSave(); toast('Verified. Owners now see the badge.'); render(); return; }
   if ((el = c('[data-rqa]'))) { const [k, v] = el.dataset.rqa.split(':'); S.prefs[k] = (k === 'budget' || k === 'clean') ? +v : v; document.querySelectorAll('[data-rqa]').forEach(b => b.setAttribute('aria-pressed', b === el)); setTimeout(() => { if (S.rq < RQ.length - 1) S.rq++; else S.prefs.done = true; save(); render(); }, 220); return; }
   if ((el = c('[data-rqgo]'))) { S.rq = +el.dataset.rqgo; S.prefs.done = false; save(); render(); return; }
@@ -2691,7 +2880,18 @@ document.addEventListener('click', e => {
   if ((el = c('[data-admgo]'))) { S.adm.sel = +el.dataset.admgo; S.adm.open.units = S.adm.sel; S.adm.es = null; S.tab = 'units'; render(true); return; }
   if ((el = c('[data-wtab]'))) { S.wtab = el.dataset.wtab; render(); return; }
   if ((el = c('[data-go]'))) { go(el.dataset.go); return; }
-  if ((el = c('[data-save]'))) { const id = +el.dataset.save; S.saved = S.saved.includes(id) ? S.saved.filter(x => x !== id) : [...S.saved, id]; save(); el.setAttribute('aria-pressed', S.saved.includes(id)); toast(S.saved.includes(id) ? 'Saved to your list' : 'Removed from your list'); return; }
+  if ((el = c('[data-save]'))) {
+    const id = +el.dataset.save, listing = byId(id), wasSaved = S.saved.includes(id);
+    S.saved = wasSaved ? S.saved.filter(x => x !== id) : [...S.saved, id];
+    if (S.user && listing?.dbId) {
+      const request = wasSaved
+        ? supabase.from('saved_listings').delete().eq('user_id', S.user.id).eq('listing_id', listing.dbId)
+        : supabase.from('saved_listings').upsert({ user_id: S.user.id, listing_id: listing.dbId });
+      const { error } = await request;
+      if (error) { S.saved = wasSaved ? [...S.saved, id] : S.saved.filter(savedId => savedId !== id); toast(error.message || 'Could not update saved listings.'); return; }
+    }
+    save(); el.setAttribute('aria-pressed', S.saved.includes(id)); toast(S.saved.includes(id) ? 'Saved to your list' : 'Removed from your list'); return;
+  }
   if ((el = c('[data-open]'))) { openListing(+el.dataset.open); return; }
   if ((el = c('[data-area]'))) { S.f.q = el.dataset.area; S.f.area = ''; render(); return; }
   if ((el = c('[data-max]'))) { S.f.max = +el.dataset.max; render(); return; }
@@ -2720,7 +2920,12 @@ document.addEventListener('click', e => {
   if ((el = c('[data-mclear]'))) { const n = S.maint.filter(m => m.lid === 1 && m.room === el.dataset.mclear && m.st === 'done').length; S.maint = S.maint.filter(m => !(m.lid === 1 && m.room === el.dataset.mclear && m.st === 'done')); save(); toast(n + (n === 1 ? ' fixed repair cleared' : ' fixed repairs cleared')); render(); return; }
   if ((el = c('[data-mstatus]'))) { const [id, st] = el.dataset.mstatus.split(':'), m = S.maint.find(x => x.id === id); m.st = st; save(); toast(st === 'work' ? 'Marked as being fixed. The tenant is told.' : 'Marked as fixed. The tenant is told.'); render(); return; }
   if ((el = c('[data-receipt]'))) { showReceipt({ id: el.dataset.receipt }); return; }
-  if ((el = c('[data-ask]'))) { S.asked.push(el.dataset.ask); save(); toast('Request sent. They will see your verified profile.'); render(); return; }
+  if ((el = c('[data-ask]'))) {
+    if (!S.user) { showAuth('signin'); return; }
+    const { error } = await supabase.from('roommate_requests').insert({ from_user_id: S.user.id, to_user_id: el.dataset.ask });
+    if (error) { toast(error.message || 'Could not send roommate request.'); return; }
+    S.asked.push(el.dataset.ask); render(); toast('Roommate request sent.'); return;
+  }
   if ((el = c('[data-take]'))) { S.asked.push(el.dataset.take); save(); toast('Sent to the owner for approval'); render(); return; }
   if ((el = c('[data-list]'))) {
     const b = S.bookings.find(x => x.id === el.dataset.list), p = +$('#sp-p-' + b.id).value || byId(b.lid).price;
@@ -2754,7 +2959,33 @@ document.addEventListener('click', e => {
   if ((el = c('[data-adm]'))) { const [id, st] = el.dataset.adm.split(':'), r = S.admin.q.find(x => x.id === id); r.st = st; if (r.lid && st === 'approved') { const l = byId(r.lid); l.v = 1; l.owner = 'Wasswa Rentals'; } toast(st === 'approved' ? 'Verified. The listing can now be booked.' : 'Rejected. The applicant is told what to fix.'); render(); return; }
   if ((el = c('[data-fr]'))) { const [id, st] = el.dataset.fr.split(':'); S.admin.fr.find(x => x.id === id).st = st; toast(st === 'suspended' ? 'Account and listing suspended' : 'Report dismissed'); render(); return; }
 });
-document.addEventListener('submit', e => {
+document.addEventListener('submit', async e => {
+  const form = e.target.closest('[data-auth-form], [data-live-form]');
+  if (form?.matches('[data-auth-form="signin"]')) {
+    e.preventDefault();
+    const values = Object.fromEntries(new FormData(form));
+    try { await auth.signIn(values.email, values.password); closeSheet(); }
+    catch (error) { toast(error.message || 'Sign in failed.'); }
+    return;
+  }
+  if (form?.matches('[data-auth-form="signup"]')) {
+    e.preventDefault();
+    const values = Object.fromEntries(new FormData(form));
+    try {
+      await auth.signUp(values.email, values.password, { full_name: values.full_name, role: values.role });
+      closeSheet();
+      toast('Account created. Check your email to confirm it.');
+    } catch (error) { toast(error.message || 'Account creation failed.'); }
+    return;
+  }
+  if (form?.matches('[data-live-form]')) {
+    e.preventDefault();
+    if (!S.profile || !['owner', 'admin'].includes(S.profile.role)) return;
+    try {
+      if (await handlePortalSubmit(form, S.profile.role, S.user, S.profile, S.liveData, refreshPortal)) toast('Changes saved.');
+    } catch (error) { toast(error.message || 'Could not save that record.'); }
+    return;
+  }
   if (e.target.id === 'landingSearch') {
     e.preventDefault();
     S.f = { type: $('#landType').value, q: $('#landArea').value, area: '', max: +$('#landBudget').value, sort: 'rec' };
@@ -2769,8 +3000,20 @@ document.addEventListener('input', e => {
   else if (id === 'bq') { BK.qty = +e.target.value; if (!(S.page && S.page.name === 'payment')) agrRefresh(); }
   else if (id === 'tm-rules') { tmPreview(); }
 });
-document.addEventListener('change', e => {
+document.addEventListener('change', async e => {
   const id = e.target.id, v = e.target.value;
+  if (e.target.matches('[data-admin-view]')) {
+    if (S.profile?.role !== 'admin') return;
+    S.role = e.target.value;
+    S.viewRole = S.role;
+    S.tab = FIRST[S.role];
+    render(true);
+    return;
+  }
+  if (S.profile && ['owner', 'admin'].includes(S.profile.role)) {
+    try { if (await handlePortalChange(e.target, refreshPortal)) { toast('Changes saved.'); return; } }
+    catch (error) { toast(error.message || 'Could not update that record.'); return; }
+  }
   if (id === 'ky-stu') { $('#ky-stuf').hidden = !e.target.checked; return; }
   if (id === 'bq') { BK.qty = +v; agrRefresh(); return; }
   if (id === 'bs') { BK.start = v || BK.start; if (S.page && S.page.name === 'payment') render(); return; }
@@ -2791,6 +3034,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
 
 render();
 if (!store.get('landed1')) showLanding();
+initLiveAuth();
 
 </script>
 

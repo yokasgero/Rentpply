@@ -20,7 +20,8 @@ export const auth = {
         data: {
           full_name: metadata.full_name || email.split('@')[0],
           phone: metadata.phone || '',
-          role: metadata.role === 'owner' ? 'owner' : 'tenant'
+          role: ['owner', 'student'].includes(metadata.role) ? metadata.role : 'tenant',
+          is_student: metadata.role === 'student' || metadata.is_student === true
         },
         emailRedirectTo: `${window.location.origin}/`
       }
