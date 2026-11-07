@@ -17,31 +17,15 @@ export const auth = {
       email,
       password,
       options: {
-        data: metadata,
+        data: {
+          full_name: metadata.full_name || email.split('@')[0],
+          phone: metadata.phone || '',
+          role: metadata.role === 'owner' ? 'owner' : 'tenant'
+        },
         emailRedirectTo: `${window.location.origin}/`
       }
     });
     if (error) throw error;
-
-    // Create profile for the new user
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          full_name: metadata.full_name || email.split('@')[0],
-          role: metadata.role || 'tenant',
-          phone: metadata.phone || '',
-          kyc_status: 'none',
-          is_student: metadata.role === 'student',
-          prefs_done: false,
-          created_at: new Date().toISOString()
-        });
-      if (profileError) {
-        console.error('Failed to create profile:', profileError);
-      }
-    }
-
     return data;
   },
 
