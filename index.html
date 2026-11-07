@@ -929,8 +929,10 @@ function vRoommates() {
   const a = S.prefs, done = a.done, out = PEOPLE.filter(p => a.gender === 'any' || p.g === a.gender).map(p => ({ p, s: score(p) })).sort((x, y) => y.s - x.s);
   const trait = p => [p.sleep === a.sleep ? (p.sleep === 'early' ? 'Early riser' : 'Night owl') : '', p.study === a.study ? (p.study === 'quiet' ? 'Calm at home' : 'Lively at home') : '', Math.abs(p.budget - a.budget) <= 100000 ? 'Similar budget' : '', Math.abs(p.clean - a.clean) <= 1 ? 'Similar tidiness' : ''].filter(Boolean);
   const head = `<div class="sec-h"><div><span class="eyebrow">Share the rent</span><h2>Find a roommate</h2></div></div>`;
-  if (!done) return `<section class="sec">${head}<p class="muted" style="max-width:60ch">Five quick questions. You are only matched with people whose identity Rentpply has checked.</p>${rqCard()}</section>`;
+  const inbox = (S.roommateRequests || []).filter(request => request.status === 'pending').length ? `<div class="card stack"><div><span class="eyebrow">Your inbox</span><h3>Roommate requests</h3></div>${S.roommateRequests.filter(request => request.status === 'pending').map(request => `<div class="row" style="justify-content:space-between"><span><b>${esc(request.from_user?.full_name || 'Student')}</b><small class="muted">Sent ${fdate(request.created_at)}</small></span><span class="row"><button class="btn sm" data-roommate-decision="${request.id}:accepted">Accept</button><button class="btn ghost sm" data-roommate-decision="${request.id}:declined">Decline</button></span></div>`).join('')}</div>` : '';
+  if (!done) return `<section class="sec">${head}${inbox}<p class="muted" style="max-width:60ch">Five quick questions. Verified profiles are shown after identity review.</p>${rqCard()}</section>`;
   return `<section class="sec">${head}
+    ${inbox}
     <div class="card" style="padding:12px 14px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:10px"><div class="scrollrow" style="flex:1;min-width:0">${RQ.map((r, j) => `<button class="chip" data-rqgo="${j}" title="Change">${rqLabel(r, a[r.k])}</button>`).join('')}</div><button class="btn ghost sm" data-rqgo="0" style="flex:none">Edit</button></div></div>
     <div class="sec-h"><h2 style="font-size:22px">${out.length} people to consider</h2><span class="pill mute">${S.user ? 'Verified profiles' : 'Sample profiles'}</span></div>
     <div class="grid">${out.map((o, i) => { const p = o.p, asked = S.asked.includes(p.id || p.n); return `<div class="card stack" style="gap:10px">
@@ -942,30 +944,26 @@ function vRoommates() {
 }
 
 /* ---------- sell space (rent transfer) ---------- */
-const OPEN = [
-  { id: 't1', lid: 1, room: 'C-07', left: 3, price: 380000, from: iso(NOW + 9 * DAY), why: 'Changing university' },
-  { id: 't2', lid: 3, room: 'A-21', left: 2, price: 500000, from: iso(NOW + 14 * DAY), why: 'Internship in Mbarara' },
-  { id: 't3', lid: 4, room: 'Flat 3B', left: 5, price: 1150000, from: iso(NOW + 20 * DAY), why: 'Job transfer to Gulu' },
-  { id: 't4', lid: 11, room: 'D-12', left: 4, price: 280000, from: iso(NOW + 7 * DAY), why: 'Moving abroad' }
-];
 function vSpace() {
   const mine = S.bookings.filter(b => b.months > 0);
-  const mc = mine.map(b => { const l = byId(b.lid), left = monthsLeft(b), t = S.transfers.find(x => x.bid === b.id); return `<div class="card stack" style="gap:10px">
+  const mc = mine.map(b => { const l = byId(b.lid), left = monthsLeft(b), t = S.transfers.find(x => x.bid === b.id && ['listed', 'requested', 'approved'].includes(x.status)); return `<div class="card stack" style="gap:10px">
     <div class="row" style="justify-content:space-between"><div><b style="font-size:17px">${esc(l.name)}</b><div class="muted" style="font-size:13px">Unit <span class="mono">${b.room}</span> · paid until ${fdate(new Date(b.start).getTime() + b.months * 30.4 * DAY)}</div></div><span class="pill ${t ? 'warn' : 'ok'}">${t ? 'Waiting for owner' : left + ' months left'}</span></div>
-    ${t ? `<p class="muted">Listed for ${fmt(t.price)} a month from ${fdate(t.from)}. The owner approves any new tenant before the transfer completes.</p>` : left > 0 ? `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))">
+    ${t ? `<p class="muted">Listed for ${fmt(t.price)} a month from ${fdate(t.from)}. Status: ${esc(t.status)}. The owner approves any new tenant before the transfer completes.</p>` : left > 0 ? `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))">
       <div class="field"><label for="sp-p-${b.id}">Price per month</label><input class="inp" id="sp-p-${b.id}" type="number" value="${l.price}" step="10000"></div>
+      <div class="field"><label for="sp-f-${b.id}">Available from</label><input class="inp" id="sp-f-${b.id}" type="date" value="${iso(NOW + 7 * DAY)}" min="${iso(NOW)}"></div>
       <div class="field"><label for="sp-r-${b.id}">Reason</label><select class="inp" id="sp-r-${b.id}"><option>Job transfer</option><option>Changing school</option><option>Moving abroad</option><option>Emergency</option></select></div></div>
       <button class="btn" data-list="${b.id}">List my remaining ${left} months</button>` : '<p class="muted">Nothing left to pass on.</p>'}</div>`; }).join('');
+  const openTransfers = S.openTransfers || [];
   return `<section class="sec">
     <div class="sec-h"><div><span class="eyebrow">Rent transfer</span><h2>Sell space</h2></div></div>
     <p class="muted" style="max-width:62ch">Paid for months you cannot use? List the rest of your rental period. A verified person can take it over once your landlord approves them.</p>
     <h3 style="font-size:20px">Your paid-up places</h3>
     <div class="grid">${mc || '<div class="card"><p class="muted">Book a hostel or rental first. Months you have paid for show up here.</p></div>'}</div>
-    <div class="sec-h" style="margin-top:8px"><h3 style="font-size:20px">Spaces other tenants are passing on</h3><span class="pill mute">Sample listings</span></div>
-    <div class="grid">${OPEN.map(t => { const l = byId(t.lid), asked = S.asked.includes(t.id); return `<div class="card stack" style="gap:10px">
+    <div class="sec-h" style="margin-top:8px"><h3 style="font-size:20px">Spaces other tenants are passing on</h3><span class="pill mute">${openTransfers.length} available</span></div>
+    <div class="grid">${openTransfers.map(t => { const l = byId(t.lid), request = (S.transferRequests || []).find(x => x.transfer_id === t.id), asked = Boolean(request); return `<div class="card stack" style="gap:10px">
       <div class="row" style="flex-wrap:nowrap"><div style="width:84px;border-radius:12px;overflow:hidden;flex:none">${art(l)}</div><div><b>${esc(l.name)}</b><div class="muted" style="font-size:13px">${l.area} · unit <span class="mono">${t.room}</span></div></div></div>
       <div class="kv"><span>Months left</span><span>${t.left}</span></div><div class="kv"><span>Available from</span><span>${fdate(t.from)}</span></div><div class="kv"><span>Why</span><span>${t.why}</span></div>
-      <div class="row" style="justify-content:space-between"><div class="price">${fmt(t.price)} <small>/ month</small></div><button class="btn sm ${asked ? 'ghost' : ''}" data-take="${t.id}" ${asked ? 'disabled' : ''}>${asked ? 'Requested' : 'Request this space'}</button></div></div>`}).join('')}</div>
+      <div class="row" style="justify-content:space-between"><div class="price">${fmt(t.price)} <small>/ month</small></div><button class="btn sm ${asked ? 'ghost' : ''}" data-take="${t.id}" ${asked ? 'disabled' : ''}>${asked ? request.status === 'pending' ? 'Request pending' : `Request ${request.status}` : 'Request this space'}</button></div></div>`}).join('') || '<p class="card muted">No tenants have listed a transfer yet.</p>'}</div>
   </section>`;
 }
 
@@ -2689,7 +2687,7 @@ document.addEventListener('change', ev => { if (ev.target.id === 'bd-mo') { cons
 const NAV = {
   tenant: [['home', 'Home', 'home', vHome], ['explore', 'Explore', 'search', vExplore], ['roommates', 'Roommates', 'users', vRoommates], ['wallet', 'My stay', 'key', vWallet]],
   student: [['home', 'Campus home', 'home', vHome], ['explore', 'Find housing', 'search', vExplore], ['roommates', 'Study partners', 'users', vRoommates], ['wallet', 'My housing', 'key', vWallet]],
-  owner: [['overview', 'Overview', 'chart', vOverview], ['units', 'Units', 'building', vUnits], ['payments', 'Payments', 'receipt', vPayments], ['terms', 'Board', 'key', vBoard], ['requests', 'Requests', 'list', vRequests]],
+  owner: [['overview', 'Overview', 'chart', vOverview], ['units', 'Units', 'building', vUnits], ['payments', 'Payments', 'receipt', vPayments], ['terms', 'Board', 'key', vBoard], ['requests', 'Requests', 'list', vRequests], ['tax', 'Tax records', 'receipt', vRequests]],
   admin: [['queue', 'Onboard', 'shield', vQueue], ['units', 'Units', 'key', vAdmUnits], ['prop', 'Property', 'home', vAdmProp], ['listings', 'Listings', 'building', vListings], ['kpis', 'KPIs', 'chart', vKpis]]
 };
 const FIRST = { tenant: 'home', student: 'home', owner: 'overview', admin: 'queue' };
@@ -2746,8 +2744,15 @@ function updateUserInfo() {
     return;
   }
   const admin = S.profile.role === 'admin';
+  const unread = (S.notifications || []).filter(notification => !notification.read).length;
   const views = admin ? `<label class="field" style="margin:0"><span class="sr-only">Platform view</span><select class="inp" data-admin-view aria-label="View platform">${[['admin', 'Admin'], ['owner', 'Property owner'], ['tenant', 'Tenant'], ['student', 'Student']].map(([value, label]) => `<option value="${value}" ${S.role === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>` : '';
-  el.innerHTML = `<span>${esc(S.profile.full_name || S.user.email)}</span>${views}<span class="pill ok">${admin ? 'Admin' : S.profile.role === 'student' ? 'Student' : S.profile.role === 'owner' ? 'Owner' : 'Tenant'}</span><button class="btn ghost sm" data-auth-signout>Sign out</button>`;
+  el.innerHTML = `<span>${esc(S.profile.full_name || S.user.email)}</span>${views}<span class="pill ok">${admin ? 'Admin' : S.profile.role === 'student' ? 'Student' : S.profile.role === 'owner' ? 'Owner' : 'Tenant'}</span><button class="ibtn" data-notifications aria-label="Notifications${unread ? ', ' + unread + ' unread' : ''}">${ic('bell')}${unread ? `<small class="not-count">${unread}</small>` : ''}</button><button class="btn ghost sm" data-auth-signout>Sign out</button>`;
+}
+
+function showNotifications() {
+  const notifications = S.notifications || [];
+  const content = notifications.length ? notifications.map(item => `<article class="card stack" style="gap:6px;${item.read ? 'opacity:.72' : ''}"><div class="row" style="justify-content:space-between"><b>${esc(item.title)}</b><small class="muted">${fdt(item.created_at)}</small></div><p class="muted">${esc(item.message)}</p>${item.read ? '' : `<button class="btn ghost sm" data-notification-read="${esc(item.id)}" style="align-self:flex-start">Mark as read</button>`}</article>`).join('') : '<p class="muted">No notifications yet.</p>';
+  sheet(`<div class="stack"><h2>Notifications</h2>${content}</div>`, 'Notifications');
 }
 
 async function refreshPortal() {
@@ -2755,6 +2760,7 @@ async function refreshPortal() {
   try {
     S.liveError = null;
     S.liveData = await loadPortalData(S.profile.role, S.user.id);
+    S.notifications = S.liveData.notifications || [];
   } catch (error) {
     S.liveError = error.message || 'Could not load live records.';
     console.error('Portal data load failed:', error);
@@ -2779,6 +2785,17 @@ async function syncLiveSession(session) {
   if (S.authPage?.mode !== 'reset') S.authPage = null;
   S.authNotice = '';
   S.kyc = { st: profile.kyc_status || 'none', type: profile.id_type, mask: profile.id_number_masked, name: profile.full_name, student: profile.is_student, kin: profile.next_of_kin_name ? `${profile.next_of_kin_name}, ${profile.next_of_kin_phone || ''}` : '', ts: Date.parse(profile.updated_at || profile.created_at) };
+  S.prefs = {
+    ...S.prefs,
+    course: profile.course || S.prefs.course,
+    college: profile.college || S.prefs.college,
+    gender: profile.gender || S.prefs.gender,
+    budget: profile.budget || S.prefs.budget,
+    sleep: profile.sleep || S.prefs.sleep,
+    clean: profile.clean_level || S.prefs.clean,
+    study: profile.study || S.prefs.study,
+    done: Boolean(profile.prefs_done)
+  };
   S.role = profile.role;
   S.viewRole = profile.role === 'admin' ? (S.viewRole || 'admin') : profile.role;
   S.role = S.viewRole;
@@ -2823,18 +2840,49 @@ async function loadTenantData() {
   if (failed) throw failed.error;
   const listingId = id => L.find(item => item.dbId === id)?.id;
   S.saved = (saved.data || []).map(item => listingId(item.listing_id)).filter(Boolean);
-  S.bookings = (bookings.data || []).map(item => ({ id: item.reference, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, ts: Date.parse(item.created_at), listed: item.listed_for_transfer, purpose: item.purpose })).filter(item => item.lid);
+  S.bookings = (bookings.data || []).map(item => ({ id: item.reference, dbId: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, ts: Date.parse(item.created_at), listed: item.listed_for_transfer, purpose: item.purpose })).filter(item => item.lid);
   S.payments = (payments.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, purpose: item.purpose, ts: Date.parse(item.created_at), st: item.status, tenant: item.tenant_name, from: item.from_source, fdn: item.efris_document_no })).filter(item => item.lid);
   S.agreements = (agreements.data || []).map(item => ({ id: item.reference, dbId: item.id, lid: listingId(item.listing_id), room: item.room_code, tenant: item.tenant_name, qty: item.quantity, start: item.start_date, status: item.status, issued: Date.parse(item.issued_at || item.created_at), accepted: item.accepted_at ? Date.parse(item.accepted_at) : null, paid: item.paid })).filter(item => item.lid);
   S.maint = (maintenance.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, tenant: item.tenant_name, type: item.type, urgent: item.urgent, note: item.note, ts: Date.parse(item.created_at), st: item.status })).filter(item => item.lid);
-  const [roommates, roommateRequests] = await Promise.all([
+  const [roommates, sentRoommateRequests, receivedRoommateRequests, ownTransfers, openTransfers, transferRequests, notifications] = await Promise.all([
     supabase.from('roommate_profiles').select('*').eq('is_verified', true).neq('user_id', S.user.id),
-    supabase.from('roommate_requests').select('to_user_id').eq('from_user_id', S.user.id)
+    supabase.from('roommate_requests').select('to_user_id').eq('from_user_id', S.user.id),
+    supabase.from('roommate_requests').select('id,status,created_at,from_user:profiles!roommate_requests_from_user_id_fkey(id,full_name)').eq('to_user_id', S.user.id).order('created_at', { ascending: false }),
+    supabase.from('rent_transfers').select('*, bookings!inner(reference,tenant_id)').eq('bookings.tenant_id', S.user.id).order('created_at', { ascending: false }),
+    supabase.from('rent_transfers').select('*, bookings!inner(tenant_id,tenant_name)').eq('status', 'listed').neq('bookings.tenant_id', S.user.id).order('created_at', { ascending: false }),
+    supabase.from('rent_transfer_requests').select('transfer_id,status').eq('requester_id', S.user.id),
+    supabase.from('notifications').select('*').eq('user_id', S.user.id).order('created_at', { ascending: false }).limit(50)
   ]);
   if (roommates.error) throw roommates.error;
-  if (roommateRequests.error) throw roommateRequests.error;
+  const requestError = [sentRoommateRequests, receivedRoommateRequests, ownTransfers, openTransfers, transferRequests, notifications].find(result => result.error);
+  if (requestError) throw requestError.error;
   PEOPLE.splice(0, PEOPLE.length, ...(roommates.data || []).map(item => ({ id: item.user_id, n: item.full_name, course: item.course || '', college: item.college || '', g: item.gender, yr: item.year || '', budget: item.budget, sleep: item.sleep, clean: item.clean_level, study: item.study, loc: item.location || '' })));
-  S.asked = (roommateRequests.data || []).map(item => item.to_user_id);
+  S.asked = (sentRoommateRequests.data || []).map(item => item.to_user_id);
+  S.roommateRequests = receivedRoommateRequests.data || [];
+  S.transfers = (ownTransfers.data || []).map(item => ({ id: item.id, bid: item.bookings.reference, price: item.price_per_month, from: item.available_from, why: item.reason, status: item.status, room: item.room_code }));
+  S.openTransfers = (openTransfers.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, left: item.months_left, price: item.price_per_month, from: item.available_from, why: item.reason, status: item.status })).filter(item => item.lid);
+  S.transferRequests = transferRequests.data || [];
+  S.notifications = notifications.data || [];
+}
+
+async function saveRoommatePreferences() {
+  if (!S.user || !S.profile) throw new Error('Sign in to save your roommate profile.');
+  const updates = {
+    course: S.prefs.course, college: S.prefs.college, gender: S.prefs.gender,
+    budget: S.prefs.budget, sleep: S.prefs.sleep, clean_level: S.prefs.clean,
+    study: S.prefs.study, prefs_done: S.prefs.done, updated_at: new Date().toISOString()
+  };
+  const { data: profile, error: profileError } = await supabase.from('profiles').update(updates).eq('id', S.user.id).select().single();
+  if (profileError) throw profileError;
+  S.profile = profile;
+  if (!S.prefs.done) return;
+  const { error } = await supabase.from('roommate_profiles').upsert({
+    user_id: S.user.id, full_name: S.profile.full_name, course: S.prefs.course,
+    college: S.prefs.college, gender: S.prefs.gender, budget: S.prefs.budget,
+    sleep: S.prefs.sleep, clean_level: S.prefs.clean, study: S.prefs.study,
+    location: S.profile.location || '', is_verified: S.kyc.st === 'verified'
+  }, { onConflict: 'user_id' });
+  if (error) throw error;
 }
 
 function initLiveAuth() {
@@ -2894,6 +2942,16 @@ document.addEventListener('click', async e => {
   if ((el = c('[data-auth-context]'))) { showAuth('signin', el.dataset.authContext); return; }
   if (c('[data-auth-back]')) { S.authPage = null; S.authNotice = ''; S.role = 'tenant'; S.tab = 'home'; showLanding(); render(true); return; }
   if (c('[data-auth-signout]')) { await auth.signOut(); return; }
+  if (c('[data-notifications]')) { showNotifications(); return; }
+  if ((el = c('[data-notification-read]'))) {
+    const { error } = await supabase.from('notifications').update({ read: true }).eq('id', el.dataset.notificationRead).eq('user_id', S.user.id);
+    if (error) { toast(error.message || 'Could not mark notification as read.'); return; }
+    S.notifications = (S.notifications || []).map(item => item.id === el.dataset.notificationRead ? { ...item, read: true } : item);
+    if (S.profile && ['owner', 'admin'].includes(S.profile.role)) await refreshPortal();
+    else render();
+    showNotifications();
+    return;
+  }
   if (c('[data-live-retry]')) { await refreshPortal(); return; }
   if (S.profile && ['owner', 'admin'].includes(S.profile.role)) {
     try { if (await handlePortalClick(t, refreshPortal)) { toast('Changes saved.'); return; } }
@@ -2906,7 +2964,20 @@ document.addEventListener('click', async e => {
   if ((el = c('[data-tab]'))) { S.page = null; S.tab = el.dataset.tab; render(true); return; }
   if (c('[data-kycsubmit]')) { await kycSubmit(); return; }
   if (c('[data-kycverify]')) { S.kyc.st = 'verified'; kycSave(); toast('Verified. Owners now see the badge.'); render(); return; }
-  if ((el = c('[data-rqa]'))) { const [k, v] = el.dataset.rqa.split(':'); S.prefs[k] = (k === 'budget' || k === 'clean') ? +v : v; document.querySelectorAll('[data-rqa]').forEach(b => b.setAttribute('aria-pressed', b === el)); setTimeout(() => { if (S.rq < RQ.length - 1) S.rq++; else S.prefs.done = true; save(); render(); }, 220); return; }
+  if ((el = c('[data-rqa]'))) {
+    if (!S.user) { showAuth('signin'); return; }
+    const [key, value] = el.dataset.rqa.split(':');
+    S.prefs[key] = (key === 'budget' || key === 'clean') ? +value : value;
+    document.querySelectorAll('[data-rqa]').forEach(button => button.setAttribute('aria-pressed', button === el));
+    setTimeout(async () => {
+      S.prefs.done = S.rq >= RQ.length - 1;
+      if (!S.prefs.done) S.rq++;
+      try { await saveRoommatePreferences(); save(); }
+      catch (error) { toast(error.message || 'Could not save your roommate preferences.'); }
+      render();
+    }, 220);
+    return;
+  }
   if ((el = c('[data-rqgo]'))) { S.rq = +el.dataset.rqgo; S.prefs.done = false; save(); render(); return; }
   if ((el = c('[data-land]'))) { landGo(el.dataset.land === 'skip' ? '' : el.dataset.land); return; }
   if ((el = c('a[href="#how-it-works"]'))) {
@@ -2971,14 +3042,30 @@ document.addEventListener('click', async e => {
   if ((el = c('[data-receipt]'))) { showReceipt({ id: el.dataset.receipt }); return; }
   if ((el = c('[data-ask]'))) {
     if (!S.user) { showAuth('signin'); return; }
-    const { error } = await supabase.from('roommate_requests').insert({ from_user_id: S.user.id, to_user_id: el.dataset.ask });
+    const { error } = await supabase.rpc('send_roommate_request', { target_user: el.dataset.ask });
     if (error) { toast(error.message || 'Could not send roommate request.'); return; }
-    S.asked.push(el.dataset.ask); render(); toast('Roommate request sent.'); return;
+    await loadTenantData(); render(); toast('Roommate request sent.'); return;
   }
-  if ((el = c('[data-take]'))) { S.asked.push(el.dataset.take); save(); toast('Sent to the owner for approval'); render(); return; }
+  if ((el = c('[data-roommate-decision]'))) {
+    const [id, status] = el.dataset.roommateDecision.split(':');
+    const { error } = await supabase.rpc('respond_roommate_request', { request_uuid: id, accept_request: status === 'accepted' });
+    if (error) { toast(error.message || 'Could not update roommate request.'); return; }
+    await loadTenantData(); render(); toast(status === 'accepted' ? 'Roommate request accepted.' : 'Roommate request declined.'); return;
+  }
+  if ((el = c('[data-take]'))) {
+    const { error } = await supabase.rpc('request_rent_transfer', { transfer_uuid: el.dataset.take });
+    if (error) { toast(error.message || 'Could not request this transfer.'); return; }
+    await loadTenantData(); render(); toast('Request sent to the property owner.'); return;
+  }
   if ((el = c('[data-list]'))) {
-    const b = S.bookings.find(x => x.id === el.dataset.list), p = +$('#sp-p-' + b.id).value || byId(b.lid).price;
-    S.transfers.push({ bid: b.id, price: p, from: iso(NOW + 7 * DAY), why: $('#sp-r-' + b.id).value }); save(); toast('Listed. Waiting for owner approval of the new tenant.'); render(); return;
+    const booking = S.bookings.find(item => item.id === el.dataset.list), listing = booking && byId(booking.lid);
+    if (!booking?.dbId || !listing?.dbId) { toast('This stay is not linked to a confirmed live booking.'); return; }
+    const price = +$('#sp-p-' + booking.id).value || listing.price;
+    const availableFrom = $('#sp-f-' + booking.id).value || iso(NOW + 7 * DAY);
+    const reason = $('#sp-r-' + booking.id).value;
+    const { error } = await supabase.rpc('create_rent_transfer', { booking_uuid: booking.dbId, requested_price: price, available_from: availableFrom, transfer_reason: reason });
+    if (error) { toast(error.message || 'Could not list this rent transfer.'); return; }
+    await loadTenantData(); render(); toast('Transfer listing sent to the owner workflow.'); return;
   }
   if ((el = c('[data-copy]'))) { const v = el.dataset.copy; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => toast('Link copied')).catch(() => { const r = document.createRange(); const code = el.parentNode.querySelector('code'); r.selectNodeContents(code); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Press and hold to copy'); }); return; }
   /* owner */
@@ -2998,10 +3085,50 @@ document.addEventListener('click', async e => {
   if ((el = c('[data-agresend]'))) { toast('Reminder sent to the tenant'); return; }
   if (c('[data-saveterms]')) { S.terms[1] = formTerms(); save(); toast('Terms saved. New bookings use them.'); render(); return; }
   if (c('[data-issue]')) { const nm = $('#ag-name').value.trim(); if (!nm) { toast('Enter the tenant name'); $('#ag-name').focus(); return; } S.agreements.unshift({ id: 'AG-2026-' + String(4300 + S.agreements.length), lid: 1, room: $('#ag-unit').value, tenant: nm, qty: +$('#ag-q').value, start: $('#ag-s').value || iso(NOW), status: 'sent', issued: Date.now(), accepted: null, paid: false }); save(); toast('Sent to ' + nm + '. They must accept before paying.'); render(); return; }
-  if ((el = c('[data-efris]'))) { const u = UNITS.find(x => x.id === el.dataset.efris); u.efris = u.corp ? 1 : u.ytdM; toast('EFRIS receipt submitted for ' + u.tenant); render(); return; }
-  if (c('[data-efris-all]')) { occ.forEach(u => { u.efris = u.corp ? 1 : u.ytdM; }); toast('Pending receipts submitted to URA EFRIS (demo)'); render(); return; }
-  if ((el = c('[data-paybill]'))) { const b = S.bills.find(x => x.id === el.dataset.paybill); b.st = 'paid'; b.paid = Date.now(); save(); toast(b.cat === 'staff' ? 'Salary sent to ' + b.name + ' by mobile money' : b.name + ' paid'); render(); return; }
-  if (c('[data-payall]')) { S.bills.forEach(b => { if (b.st !== 'paid') { b.st = 'paid'; b.paid = Date.now(); } }); save(); toast('All bills and salaries paid'); render(); return; }
+  if ((el = c('[data-efris]'))) {
+    const unit = UNITS.find(x => x.id === el.dataset.efris);
+    if (!unit || !supabase) { toast('Could not find a live payment record for this tenant.'); return; }
+    const { data: matches, error: matchError } = await supabase.from('payments').select('id').eq('tenant_name', unit.tenant || '').eq('status', 'confirmed').order('created_at', { ascending: false }).limit(1);
+    if (matchError) { toast(matchError.message || 'Could not resolve the tenant payment record.'); return; }
+    const paymentId = matches?.[0]?.id;
+    if (!paymentId) { toast('No confirmed payment record exists for this tenant yet.'); return; }
+    const reference = `EFRIS-${Date.now()}`;
+    const { error } = await supabase.from('payments').update({ efris_document_no: reference }).eq('id', paymentId);
+    if (error) { toast(error.message || 'Could not save the EFRIS reference.'); return; }
+    if (S.profile && ['owner', 'admin'].includes(S.profile.role)) await refreshPortal();
+    else render();
+    toast('EFRIS receipt reference saved for ' + (unit.tenant || 'tenant'));
+    return;
+  }
+  if (c('[data-efris-all]')) {
+    if (!supabase) { toast('No live payment table is configured.'); return; }
+    const { data: matches, error } = await supabase.from('payments').select('id,tenant_name').eq('status', 'confirmed');
+    if (error) { toast(error.message || 'Could not load confirmed payment records.'); return; }
+    for (const payment of matches || []) {
+      if (!payment.tenant_name) continue;
+      await supabase.from('payments').update({ efris_document_no: `EFRIS-${Date.now()}-${payment.id.slice(0, 6)}` }).eq('id', payment.id);
+    }
+    if (S.profile && ['owner', 'admin'].includes(S.profile.role)) await refreshPortal();
+    else render();
+    toast('Confirmed receipt references have been stored for the live payment records.');
+    return;
+  }
+  if ((el = c('[data-paybill]'))) {
+    if (!supabase) { toast('No live bill table is configured.'); return; }
+    const { error } = await supabase.from('bills').update({ status: 'paid', paid_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', el.dataset.paybill);
+    if (error) { toast(error.message || 'Could not record the bill as paid.'); return; }
+    await refreshPortal();
+    toast('Bill marked as paid.');
+    return;
+  }
+  if (c('[data-payall]')) {
+    if (!supabase) { toast('No live bill table is configured.'); return; }
+    const { error } = await supabase.from('bills').update({ status: 'paid', paid_at: new Date().toISOString(), updated_at: new Date().toISOString() }).neq('status', 'paid');
+    if (error) { toast(error.message || 'Could not mark all bills as paid.'); return; }
+    await refreshPortal();
+    toast('All outstanding bills have been marked paid.');
+    return;
+  }
   if ((el = c('[data-rcpt]'))) { toast('Receipt emailed to the tenant'); return; }
   if ((el = c('[data-req]'))) { const [id, st] = el.dataset.req.split(':'); S.owner.req.find(r => r.id === id).st = st; if (id === 'q3' && st === 'approved') { const a2 = UNITS.find(x => x.id === 'A-02'); if (a2 && a2.st === 'occupied') { a2.roommate = 'Moses Tumusiime'; persistUnits(); } } toast(st === 'approved' ? 'Approved. Everyone has been notified.' : 'Declined'); render(); return; }
   /* admin */
