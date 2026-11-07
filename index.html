@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23FF5A36%27/%3E%3Cpath d=%27M7 15l9-7 9 7v9H7z%27 fill=%27%23fff%27/%3E%3C/svg%3E"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Rentpply</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -697,6 +697,12 @@ body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
   table tbody tr{transition:background-color .18s}table tbody tr:hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}
 }
 .ltext-link{background:none;border:0;padding:6px 2px;color:#fff;font:inherit;font-weight:700;cursor:pointer;border-bottom:1.5px solid rgba(255,255,255,.35)}.ltext-link:hover{border-bottom-color:var(--accent)}.ltext-link span{transition:transform .25s var(--ease)}.ltext-link:hover span{transform:translateX(4px)}
+
+/* header: single compact row on every screen */
+.top{flex-wrap:nowrap;gap:10px;backdrop-filter:saturate(1.4) blur(14px);background:color-mix(in srgb,var(--bg) 82%,transparent)}
+.top .logo{margin-right:0}#user-info{margin-left:auto;margin-right:0!important;min-width:0;flex-wrap:nowrap}
+#user-info>span:not(.pill){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22ch}
+@media (max-width:640px){.top .wm{display:none}#user-info>span:not(.pill){display:none}#user-info{gap:6px!important}#user-info .btn.sm{padding:6px 11px}#user-info .field{max-width:112px}#user-info .pill{display:none}}
 @keyframes rpUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @keyframes rpFade{from{opacity:0}to{opacity:1}}
 @keyframes rpPop{0%{transform:scale(.7)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
@@ -1830,7 +1836,7 @@ function roomCard(r, first) {
     <div class="row">${cur ? `<button class="btn" data-report="${b.id}">${ic('bell')}Report a problem</button>` : ''}${ag ? `<button class="btn ghost" data-agview="${ag.id}">View agreement</button>` : ''}<button class="btn ghost" data-receipt="${b.id}">${ic('receipt')}Receipt</button></div></div>`;
 }
 function vWallet() {
-  const link = 'rentpply.com/pay/YG-4471', pays = [...S.payments].sort((a, b) => b.ts - a.ts), rc = pays.filter(p => (p.st || 'confirmed') === 'confirmed');
+  const pays = [...S.payments].sort((a, b) => b.ts - a.ts), rc = pays.filter(p => (p.st || 'confirmed') === 'confirmed');
   const paid = rc.reduce((s, r) => s + r.amount + r.fee + (r.dep || 0), 0);
   const rooms = S.bookings.map(roomInfo).filter(r => r.state !== 'ended').sort((a, b) => (a.state === 'current' ? 0 : 1) - (b.state === 'current' ? 0 : 1) || a.st - b.st);
   const waiting = pays.filter(p => p.st === 'pending'), mine = S.agreements.filter(a => a.tenant === ME).sort((a, b) => (b.issued || 0) - (a.issued || 0));
@@ -1844,8 +1850,6 @@ function vWallet() {
     ${rooms.length ? rooms.map((r, i) => roomCard(r, i === 0)).join('') : `<div class="card stack" style="align-items:flex-start"><h3 style="font-size:20px">No room yet</h3><p class="muted">When you rent a place and the owner confirms your payment, it shows up here so you can keep an eye on it.</p><button class="btn" data-go="explore">Find a place</button></div>`}
     ${mine.some(a => a.status === 'sent') ? `<div class="notice">A landlord sent you an agreement. Read and accept it before you pay.</div>` : ''}
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))">
-      <div class="card stack" style="gap:10px"><span class="eyebrow">Let someone else pay</span><h3 style="font-size:20px">Share a payment link</h3><p class="muted">A parent, relative or employer abroad opens this link, pays by card or mobile money and you both get the receipt.</p>
-        <div class="row" style="flex-wrap:nowrap"><code class="mono inp" style="display:flex;align-items:center;overflow:auto">${link}</code><button class="btn sm" data-copy="${link}">Copy</button></div></div>
       <div class="card stack" style="gap:10px"><span class="eyebrow">Reminders</span><h3 style="font-size:20px">You will hear from us</h3>
         ${['7 days before rent is due', 'On the due date', 'When payment arrives'].map(t => `<div class="row" style="flex-wrap:nowrap;gap:10px"><span style="color:var(--ok)">${ic('bell')}</span>${t}</div>`).join('')}</div>
     </div>
