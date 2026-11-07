@@ -99,7 +99,7 @@ function adminView(tab, data, profile) {
 }
 
 export function renderPortal(role, tab, data, profile) {
-  if (!data) return '<section class="sec"><div class="card">Loading live records…</div></section>';
+  if (!data) return '<section class="sec"><div class="card skeleton" style="height:120px"></div><div class="tgrid"><div class="card skeleton" style="height:90px"></div><div class="card skeleton" style="height:90px"></div><div class="card skeleton" style="height:90px"></div></div></section>';
   return role === 'admin' ? adminView(tab, data, profile) : ownerView(tab, data, profile);
 }
 

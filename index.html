@@ -666,6 +666,44 @@ code{background:var(--line);border-radius:6px;padding:1px 5px;font-size:12.5px}
 body.auth-page .dock,body.auth-page #user-info{display:none!important}
 body.auth-page #main{max-width:1080px}
 body.auth-page .top{position:relative}
+
+/* ---------- motion & polish layer ---------- */
+:root{--ease:cubic-bezier(.22,.8,.24,1);--ease-spring:cubic-bezier(.34,1.4,.64,1)}
+::selection{background:var(--accent);color:var(--accent-ink)}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:3px;border-radius:8px}
+body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+@media (prefers-reduced-motion:no-preference){
+  .btn,.ibtn,.tile,.card,.lcard,.pill,.inp,.heart,.linkbtn,.chip{transition:transform .22s var(--ease),box-shadow .25s var(--ease),background-color .2s,border-color .2s,color .2s,filter .2s,opacity .2s}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(255,90,54,.28)}
+  .btn.ghost:hover,.btn.dark:hover{box-shadow:0 6px 16px rgba(15,34,32,.14)}
+  .btn:active,.tile:active,.ibtn:active,.heart:active{transform:scale(.96);transition-duration:.08s}
+  .lcard:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(15,34,32,.16)}
+  .lcard .art{overflow:hidden}.lcard .art>svg,.lcard .art>img{transition:transform .6s var(--ease)}.lcard:hover .art>svg,.lcard:hover .art>img{transform:scale(1.05)}
+  .tile:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+  .heart[aria-pressed="true"]{animation:rpPop .42s var(--ease-spring)}
+  .inp:focus{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent);border-color:var(--accent)}
+  #main.enter>*{animation:rpUp .55s var(--ease) both}
+  #main.enter>*:nth-child(2){animation-delay:.05s}#main.enter>*:nth-child(3){animation-delay:.1s}#main.enter>*:nth-child(4){animation-delay:.15s}#main.enter>*:nth-child(n+5){animation-delay:.2s}
+  #main.enter .grid>*,#main.enter .stack>.card,#main.enter .tgrid>*{animation:rpUp .5s var(--ease) both}
+  #main.enter .grid>*:nth-child(2),#main.enter .tgrid>*:nth-child(2){animation-delay:.07s}#main.enter .grid>*:nth-child(3),#main.enter .tgrid>*:nth-child(3){animation-delay:.14s}#main.enter .grid>*:nth-child(n+4),#main.enter .tgrid>*:nth-child(n+4){animation-delay:.2s}
+  .veil{animation:rpFade .25s var(--ease) both}
+  .sheet{animation:rpSheet .42s var(--ease) both}
+  .toast{animation:rpToast .4s var(--ease-spring) both}
+  #dock a,#dock button{transition:color .2s,background-color .2s,transform .2s var(--ease)}#dock [aria-current="page"],#dock .on{transform:translateY(-2px)}
+  #landing .lhead,#landing .lproof>div{animation:rpFade .8s var(--ease) both}
+  #landing .ltext>*{animation:rpUp .7s var(--ease) both}#landing .ltext>*:nth-child(2){animation-delay:.08s}#landing .ltext>*:nth-child(3){animation-delay:.16s}#landing .ltext>*:nth-child(4){animation-delay:.24s}#landing .ltext>*:nth-child(5){animation-delay:.32s}
+  #landing .lsearch-preview{animation:rpUp .8s .25s var(--ease) both}
+  .skeleton,.loading{background:linear-gradient(100deg,var(--surface-2) 30%,var(--surface) 50%,var(--surface-2) 70%);background-size:200% 100%;animation:rpShimmer 1.4s linear infinite;border-radius:var(--r-sm)}
+  table tbody tr{transition:background-color .18s}table tbody tr:hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+}
+.ltext-link{background:none;border:0;padding:6px 2px;color:#fff;font:inherit;font-weight:700;cursor:pointer;border-bottom:1.5px solid rgba(255,255,255,.35)}.ltext-link:hover{border-bottom-color:var(--accent)}.ltext-link span{transition:transform .25s var(--ease)}.ltext-link:hover span{transform:translateX(4px)}
+@keyframes rpUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes rpFade{from{opacity:0}to{opacity:1}}
+@keyframes rpPop{0%{transform:scale(.7)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
+@keyframes rpSheet{from{opacity:0;transform:translateY(40px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes rpToast{from{opacity:0;transform:translate(-50%,16px) scale(.94)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes rpShimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 </style>
 <header class="top wrap">
   <div class="logo"><b><svg class="i" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></b><span class="wm">Rentpply</span></div>
@@ -729,19 +767,7 @@ let art = function (l, big) {
 };
 
 /* ---------- sample data (clearly marked as examples in the UI) ---------- */
-const L = [
-  { id: 1, name: 'Kikoni Scholars Hostel', type: 'hostel', area: 'Kikoni', price: 380000, per: 'month', unit: 'Single room', dist: 0.6, avail: 6, total: 48, v: 1, rating: 4.6, n: 128, hue: 168, owner: 'Ssemakula Properties', am: ['Wi-Fi', '24h security', 'Water tank', 'Study room', 'Backup power'], desc: 'Purpose-built student hostel with a guarded gate, a quiet study room on every floor and a ten-minute walk to the main gate of Makerere University.' },
-  { id: 2, name: 'Wandegeya Court Hostel', type: 'hostel', area: 'Wandegeya', price: 320000, per: 'month', unit: 'Double room (shared)', dist: 0.9, avail: 11, total: 60, v: 1, rating: 4.2, n: 84, hue: 205, owner: 'Court Estates Ltd', am: ['Wi-Fi', 'CCTV', 'Laundry area', 'Kitchenette'], desc: 'Shared double rooms with a kitchenette per floor. Close to the Wandegeya market and boda stage. Rent is paid per semester block or monthly.' },
-  { id: 3, name: 'Makerere Heights Residence', type: 'hostel', area: 'Makerere', price: 520000, per: 'month', unit: 'En-suite single', dist: 0.3, avail: 3, total: 30, v: 1, rating: 4.8, n: 203, hue: 28, owner: 'Heights Hospitality', am: ['En-suite bathroom', 'Wi-Fi', 'Generator', '24h security', 'Cafeteria'], desc: 'Premium en-suite singles within walking distance of the lecture blocks. Backup generator keeps lights and Wi-Fi on during load shedding.' },
-  { id: 4, name: 'Ntinda Garden Apartments', type: 'rental', area: 'Ntinda', price: 1200000, per: 'month', unit: '2-bedroom apartment', dist: 6.2, avail: 2, total: 16, v: 1, rating: 4.5, n: 41, hue: 140, owner: 'Garden Estates', am: ['Parking', 'Garden', 'Water tank', 'Security guard'], desc: 'Two-bedroom apartments in a gated compound with a shared garden. Twelve-month agreements with a two-month deposit.' },
-  { id: 5, name: 'Muyenga Hill Studio', type: 'rental', area: 'Muyenga', price: 750000, per: 'month', unit: 'Studio', dist: 8.4, avail: 1, total: 6, v: 1, rating: 4.4, n: 19, hue: 300, owner: 'Kisakye Holdings', am: ['Hill view', 'Parking', 'Wi-Fi ready'], desc: 'A bright studio on Tank Hill road with a balcony view across the city. Quiet street and a short ride from Ggaba Road.' },
-  { id: 6, name: 'Kololo Serviced Suites', type: 'airbnb', area: 'Kololo', price: 260000, per: 'night', unit: 'One-bedroom suite', dist: 3.1, avail: 5, total: 12, v: 1, rating: 4.9, n: 312, hue: 18, owner: 'Kololo Stays', am: ['Daily cleaning', 'Wi-Fi', 'Air conditioning', 'Breakfast'], desc: 'Serviced suites for visitors and business travellers. Self check-in with a code sent after payment is confirmed.' },
-  { id: 7, name: 'Munyonyo Lakeside Stay', type: 'airbnb', area: 'Munyonyo', price: 210000, per: 'night', unit: 'Lake-view room', dist: 11, avail: 4, total: 8, v: 1, rating: 4.7, n: 156, hue: 195, owner: 'Lakeside Hosts', am: ['Lake view', 'Pool', 'Breakfast', 'Parking'], desc: 'Quiet rooms facing Lake Victoria. Popular with families and weekend guests.' },
-  { id: 8, name: 'Bukoto Family Flat', type: 'rental', area: 'Bukoto', price: 900000, per: 'month', unit: '2-bedroom flat', dist: 5.0, avail: 2, total: 10, v: 1, rating: 4.3, n: 27, hue: 85, owner: 'Bukoto Rentals', am: ['Security guard', 'Water tank', 'Parking'], desc: 'Family flat close to schools and Bukoto market. Landlord on the premises.' },
-  { id: 9, name: 'Najjera Budget Rooms', type: 'rental', area: 'Najjera', price: 280000, per: 'month', unit: 'Single room', dist: 12, avail: 8, total: 20, v: 0, rating: 0, n: 0, hue: 50, owner: 'R. Wasswa', am: ['Water', 'Shared compound'], desc: 'Listing submitted and waiting for document and site checks. It cannot be booked until an administrator verifies the owner and the property.' },
-  { id: 10, name: 'Nakasero Business Stay', type: 'airbnb', area: 'Nakasero', price: 340000, per: 'night', unit: 'Executive room', dist: 2.4, avail: 3, total: 9, v: 1, rating: 4.7, n: 98, hue: 250, owner: 'Nakasero Hosts', am: ['Desk', 'Wi-Fi', 'Air conditioning', 'Airport pickup'], desc: 'Executive rooms with a work desk, close to government offices and banks.' },
-  { id: 11, name: 'Kansanga Student Lodge', type: 'hostel', area: 'Kansanga', price: 290000, per: 'month', unit: 'Single room', dist: 1.4, avail: 9, total: 36, v: 1, rating: 4.0, n: 52, hue: 330, owner: 'Lodge Care', am: ['Wi-Fi', 'Water tank', 'Security guard'], desc: 'Budget single rooms for students at Makerere Business School and nearby colleges.' }
-];
+const L = [];
 const byId = id => L.find(x => x.id === id);
 let AREAS = [...new Set(L.map(l => l.area))].sort();
 
@@ -759,22 +785,18 @@ const S = {
   role: 'tenant', tab: 'home',
   user: null, profile: null,
   f: { type: 'all', q: '', area: '', max: 0 },
-  saved: store.get('saved', [4, 6]),
-  bookings: store.get('bookings2', [{ id: 'RP-2026-0412', lid: 1, room: 'A-09', start: iso(NOW - 52 * DAY), months: 6, amount: 2280000, fee: 68400, dep: 0, method: 'MTN MoMo', paidBy: 'Self', ts: NOW - 53 * DAY, listed: false, purpose: 'Rent, 6 months' }]),
-  prefs: store.get('prefs', { course: 'Computer Science', college: 'COCIS', gender: 'any', budget: 400000, sleep: 'early', clean: 4, study: 'quiet' }),
-  asked: store.get('asked', []),
-  transfers: store.get('transfers', []),
+  saved: [],
+  bookings: [],
+  prefs: { course: '', college: '', gender: 'any', budget: 0, sleep: 'early', clean: 3, study: 'quiet' },
+  asked: [],
+  transfers: [],
   page: null, sent: {}, owner: { sel: null }, admin: {}, matched: false
 };
-S.terms = store.get('terms', {});
+S.terms = {};
 S.rq = S.prefs.done ? 0 : 0;
-S.payments = store.get('payments2', [
-  { id: 'RP-2026-0412', lid: 1, room: 'A-09', ts: NOW - 53 * DAY, purpose: 'Rent, 6 months', start: iso(NOW - 52 * DAY), months: 6, nights: 0, amount: 2280000, fee: 68400, dep: 0, method: 'MTN MoMo', paidBy: 'Self' },
-  { id: 'RP-2026-0233', lid: 6, room: 'S-204', ts: NOW - 120 * DAY, purpose: 'Stay, 2 nights', start: iso(NOW - 122 * DAY), months: 0, nights: 2, amount: 520000, fee: 15600, dep: 0, method: 'Card', paidBy: 'Self' },
-  { id: 'RP-2026-0121', lid: 11, room: 'C-09', ts: NOW - 210 * DAY, purpose: 'Rent, 3 months', start: iso(NOW - 209 * DAY), months: 3, nights: 0, amount: 870000, fee: 26100, dep: 0, method: 'Airtel Money', paidBy: 'Mother, United States' }
-].map(p => Object.assign(p, { st: 'confirmed', tenant: 'Yokas Gero', fdn: efrisNo(p.id), vc: vcode(p.id) })));
-S.maint = store.get('maint2', []);
-const save = () => { store.set('terms', S.terms); store.set('payments2', S.payments); store.set('agreements2', S.agreements); store.set('maint2', S.maint); store.set('bills2', S.bills); store.set('saved', S.saved); store.set('bookings2', S.bookings); store.set('prefs', S.prefs); store.set('asked', S.asked); store.set('transfers', S.transfers) };
+S.payments = [];
+S.maint = [];
+const save = () => {}; // all records are persisted in Supabase
 const monthsLeft = b => Math.max(0, Math.ceil((new Date(b.start).getTime() + b.months * 30.4 * DAY - Date.now()) / (30.4 * DAY)));
 
 function toast(msg) {
@@ -934,7 +956,7 @@ function vRoommates() {
   return `<section class="sec">${head}
     ${inbox}
     <div class="card" style="padding:12px 14px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:10px"><div class="scrollrow" style="flex:1;min-width:0">${RQ.map((r, j) => `<button class="chip" data-rqgo="${j}" title="Change">${rqLabel(r, a[r.k])}</button>`).join('')}</div><button class="btn ghost sm" data-rqgo="0" style="flex:none">Edit</button></div></div>
-    <div class="sec-h"><h2 style="font-size:22px">${out.length} people to consider</h2><span class="pill mute">${S.user ? 'Verified profiles' : 'Sample profiles'}</span></div>
+    <div class="sec-h"><h2 style="font-size:22px">${out.length} people to consider</h2><span class="pill mute">Verified profiles</span></div>
     <div class="grid">${out.map((o, i) => { const p = o.p, asked = S.asked.includes(p.id || p.n); return `<div class="card stack" style="gap:10px">
       <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div class="row" style="flex-wrap:nowrap"><span class="avatar" style="background:hsl(${HUES[i % 6]},70%,75%)">${p.n[0]}</span><div><b>${p.n}</b><div class="muted" style="font-size:13px">${p.course}, year ${p.yr}</div></div></div><div style="text-align:right"><div class="match">${o.s}%</div><div class="muted" style="font-size:11px">match</div></div></div>
       <div class="row"><span class="pill ok">${ic('shield')}ID verified</span><span class="pill mute">${p.loc}</span></div>
@@ -1131,13 +1153,7 @@ function showReceipt(r, fresh) {
 
 /* ---------- tenant: payments, receipts (newest first), agreements ---------- */
 /* ---------- agreements: open, owner-side seeding ---------- */
-S.agreements = store.get('agreements2', null) || (() => {
-  const a = [], st = i => (i === 3 || i === 9) ? 'draft' : 'accepted';
-  occ.forEach((u, i) => a.push({ id: 'AG-2026-' + String(3000 + i), lid: 1, room: u.id, tenant: u.tenant, qty: 12, start: iso(NOW - (40 + i * 6) * DAY), status: st(i), issued: st(i) === 'draft' ? null : NOW - (46 + i * 6) * DAY, accepted: st(i) === 'accepted' ? NOW - (45 + i * 6) * DAY : null, paid: true }));
-  a.push({ id: 'AG-2026-3900', lid: 1, room: 'B-05', tenant: 'Brian Kigozi', qty: 5, start: iso(NOW + 8 * DAY), status: 'draft', issued: null, accepted: null, paid: false });
-  a.push({ id: 'AG-2026-3901', lid: 1, room: 'A-09', tenant: ME, qty: 6, start: iso(NOW - 52 * DAY), status: 'accepted', issued: NOW - 54 * DAY, accepted: NOW - 53 * DAY, paid: true });
-  return a;
-})();
+S.agreements = [];
 function openAgreement(id, mode) {
   const a = S.agreements.find(x => x.id === id), l = byId(a.lid), t = termsFor(a.lid);
   const st = { accepted: ['ok', 'Accepted'], sent: ['warn', 'Waiting for tenant'], draft: ['mute', 'Draft, not issued'] }[a.status];
@@ -1433,7 +1449,7 @@ function vPayments() {
 
 /* ---------- Bills: entered by the owner ---------- */
 const CAT = { water: ['Water', 'drop', 'var(--cw)'], power: ['Electricity', 'bolt', 'var(--cp)'], tv: ['TV', 'tv', 'var(--ct)'], staff: ['Workers', 'broom', 'var(--cs)'] };
-S.bills = store.get('bills2', null) || [];
+S.bills = [];
 const mk = d => String(d).slice(0, 7);
 const exampleBills = () => [
   { id: 'x1', cat: 'water', name: 'NWSC, main meter', ref: 'Meter 4471-2208', note: '96 m³ at UGX 6,700', amount: 643200, due: iso(NOW + 9 * DAY), st: 'due' },
@@ -1719,7 +1735,7 @@ function pgStatus() {
   return `<section class="sec">${stepsHTML(p.st === 'pending' ? 3 : 4)}
     <div class="card stack" style="align-items:center;text-align:center;gap:12px;max-width:640px;margin-inline:auto;padding:28px 20px"><span class="avatar" style="background:${view[1]};color:${view[2]};width:64px;height:64px">${ic(view[0])}</span><h1 style="font-size:clamp(26px,5vw,34px)">${view[3]}</h1><p class="muted" style="max-width:46ch">${view[4]}</p>
       <div class="stack" style="width:100%;gap:8px;text-align:left"><div class="kv"><span>Property</span><span>${esc(l.name)}</span></div><div class="kv"><span>For</span><span>${esc(p.purpose)}</span></div><div class="kv"><span>Amount</span><span class="num">${fmt(total)}</span></div><div class="kv"><span>Method</span><span>${p.method}</span></div><div class="kv"><span>Reference</span><span class="mono">${p.id}</span></div></div>
-      ${p.st === 'pending' ? `<p class="muted" style="font-size:13px">You get your receipt and room number as soon as they confirm. We will also notify you.</p><div class="row" style="justify-content:center"><button class="btn ghost" data-flowexit>Back to home</button><button class="btn sm ghost" data-role="owner">Demo: switch to owner to confirm</button></div>`
+      ${p.st === 'pending' ? `<p class="muted" style="font-size:13px">You get your receipt and room number as soon as they confirm. We will also notify you.</p><div class="row" style="justify-content:center"><button class="btn ghost" data-flowexit>Back to home</button></div>`
       : p.st === 'confirmed' ? `<div class="row" style="justify-content:center"><button class="btn" data-receipt="${p.id}">View receipt</button><button class="btn ghost" data-flowexit="wallet">See my room</button></div>` : `<div class="row" style="justify-content:center"><button class="btn" data-open="${l.id}">Try again</button><button class="btn ghost" data-flowexit>Back to home</button></div>`}</div></section>`;
 }
 
@@ -1735,8 +1751,7 @@ function gateHTML(p) {
       <div class="kv"><span>Paid with</span><span>${p.method}${p.from ? ' · ' + esc(p.from) : ''}</span></div><div class="kv"><span>Paid by</span><span>${esc(p.paidBy)}</span></div><div class="kv"><span>Reference</span><span class="mono">${p.id}</span></div><div class="kv"><span>Sent</span><span>${ago(p.ts)}</span></div>
       <div class="kv tot"><span style="color:var(--ink)">Amount to look for</span><span class="num">${fmt(total)}</span></div></div>
     ${vac.length ? `<div class="field"><label for="pc-unit">Give them this room</label><select class="inp" id="pc-unit">${vac.map(u => `<option value="${u.id}">${u.id}</option>`).join('')}</select></div>` : ''}
-    <button class="btn" data-pconfirm="${p.id}">Yes, I received it</button><button class="btn ghost" data-preject="${p.id}">I did not receive it</button>
-    <button class="linkbtn" style="font-weight:600;color:var(--muted);align-self:center" data-role="tenant">Demo: switch to tenant view</button></div></div></div>`;
+    <button class="btn" data-pconfirm="${p.id}">Yes, I received it</button><button class="btn ghost" data-preject="${p.id}">I did not receive it</button></div></div></div>`;
 }
 function syncGate() {
   const g = $('#gate'), p = S.role === 'owner' && ownerLid() ? pendingPays().find(x => x.lid === ownerLid()) : null;
@@ -1869,8 +1884,7 @@ function vKyc() {
   const k = S.kyc, step = (done, t, d) => `<div class="row" style="flex-wrap:nowrap;gap:12px;align-items:flex-start"><span class="avatar" style="width:30px;height:30px;flex:none;background:${done ? 'var(--ok-soft)' : 'var(--surface-2)'};color:${done ? 'var(--ok)' : 'var(--muted)'}">${ic(done ? 'check' : 'clock')}</span><div><b>${t}</b><div class="muted" style="font-size:13px">${d}</div></div></div>`;
   if (k.st !== 'none') return `<section class="sec"><div class="card stack" style="gap:14px"><div class="row" style="justify-content:space-between"><div><span class="eyebrow">Know your customer</span><h3 style="font-size:24px">${k.st === 'verified' ? 'You are verified' : 'Your ID is being checked'}</h3></div><span class="pill ${k.st === 'verified' ? 'ok' : 'warn'}">${ic(k.st === 'verified' ? 'shield' : 'clock')}${k.st === 'verified' ? 'Verified' : 'In review'}</span></div>
     <p class="muted">${k.st === 'verified' ? 'Owners see a verified badge on your applications, so they approve you faster.' : 'We usually check IDs within one working day. You can keep applying while you wait.'}</p>
-    <div class="stack" style="gap:8px"><div class="kv"><span>Name on ID</span><span>${esc(k.name)}</span></div><div class="kv"><span>${esc(k.type)}</span><span class="mono">${esc(k.mask)}</span></div><div class="kv"><span>Selfie</span><span>Received</span></div><div class="kv"><span>Student proof</span><span>${k.student ? 'Received' : 'Not a student'}</span></div><div class="kv"><span>Next of kin</span><span>${esc(k.kin)}</span></div><div class="kv"><span>Submitted</span><span>${fdt(k.ts)}</span></div></div>
-    ${k.st === 'review' && !S.user ? `<button class="btn sm ghost" style="align-self:flex-start" data-kycverify>Demo: mark as verified</button>` : ''}</div></section>`;
+    <div class="stack" style="gap:8px"><div class="kv"><span>Name on ID</span><span>${esc(k.name)}</span></div><div class="kv"><span>${esc(k.type)}</span><span class="mono">${esc(k.mask)}</span></div><div class="kv"><span>Selfie</span><span>Received</span></div><div class="kv"><span>Student proof</span><span>${k.student ? 'Received' : 'Not a student'}</span></div><div class="kv"><span>Next of kin</span><span>${esc(k.kin)}</span></div><div class="kv"><span>Submitted</span><span>${fdt(k.ts)}</span></div></div></div></section>`;
   return `<section class="sec"><div class="card stack" style="gap:16px"><div><span class="eyebrow">Know your customer</span><h3 style="font-size:24px">Verify who you are</h3><p class="muted" style="max-width:56ch;margin-top:4px">Owners and parents trust verified tenants. It takes about two minutes. Have your ID ready.</p></div>
     ${step(false, '1. Your ID', 'National ID, passport or student ID')}${step(false, '2. A selfie', 'So we know it is really you')}${step(false, '3. Next of kin', 'Someone we can call in an emergency')}
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))">
@@ -2105,7 +2119,7 @@ function vAdmProp() {
     <div class="row" style="justify-content:space-between;margin-top:6px"><b>Videos</b><span class="muted" style="font-size:13px">${vd.length} of 3</span></div>
     ${vd.length ? `<div class="stack" style="gap:10px">${vd.map((id, i) => `<div class="vt"><video src="${MEDIA[id]}" controls playsinline preload="metadata"></video><button class="rm" data-pp-rm="${id}:video" aria-label="Remove video ${i + 1}">${ic('trash')}</button></div>`).join('')}</div>` : `<p class="muted">A short walk-through video builds trust. Up to 60 MB each.</p>`}
     <label class="btn ghost sm upl">${ic('plus')} Add a video<input type="file" accept="video/*" data-pp-file="video" hidden></label>
-    <p class="muted" style="font-size:12.5px">Files stay on this device in this demo. A real launch would store them on the Rentpply servers.</p></div>`;
+    </div>`;
   if (tab === 'am') { const cur = l.am, all = [...new Set([...AM_CAT, ...cur])]; body = `<div class="card stack" style="gap:12px"><div class="row" style="justify-content:space-between"><b>What the property offers</b><span class="muted" style="font-size:13px">${cur.length} selected</span></div>
     <div class="amgrid">${all.map(a => `<button class="chip" data-pp-am="${esc(a)}" aria-pressed="${cur.includes(a)}">${cur.includes(a) ? ic('check') : ''}${esc(a)}</button>`).join('')}</div>
     <div class="row" style="flex-wrap:nowrap"><input class="inp" id="pp-amnew" placeholder="Something else, e.g. Rooftop terrace" maxlength="40" style="flex:1;min-width:0"><button class="btn sm" data-pp-amadd>Add</button></div>
@@ -2434,22 +2448,38 @@ function sceneSVG() {
     <g class="fl f4" opacity=".9">${island(300, 80, 36)}${bld(284, 38, 30, 42, 12, navy, '#78D5C6', { cols: 2, rows: 3, seed: 3 })}</g>
   </svg>`;
 }
+function landFeaturedHTML() {
+  const top = L.filter(l => l.v).sort((a, b) => (b.n ? b.rating : 0) - (a.n ? a.rating : 0))[0];
+  if (!top) return `<span class="lsearch-thumb">${ic('home2')}</span><span><b>Loading verified listings…</b><small>Live from Rentpply</small></span>`;
+  return `<span class="lsearch-thumb">${ic('home2')}</span><span><b>${esc(top.name)}</b><small>${esc(top.area)} · ${esc(TYPE_NAME[top.type] || top.type)} · From ${fmt(top.price)} / ${top.per}</small></span>${top.n ? `<span class="lsearch-rating">★ ${top.rating.toFixed(1)}</span>` : ''}`;
+}
+function updateLandingLive() {
+  const area = $('#landArea'), feat = $('#landFeatured'), count = $('#landCount'), chip = $('#landChip');
+  if (!area) return;
+  const cur = area.value;
+  area.innerHTML = '<option value="">Anywhere in Kampala</option>' + [...AREAS].sort().map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  area.value = cur;
+  if (feat) feat.innerHTML = landFeaturedHTML();
+  const open = L.filter(l => l.v).length;
+  if (count) count.textContent = open ? `${open} verified listing${open === 1 ? '' : 's'}` : 'Live listings';
+  if (chip && open) chip.textContent = `${open} verified listing${open === 1 ? '' : 's'}`;
+}
 function landingHTML() {
-  const steps = [['search', 'Find', 'Search sample hostels and rentals by area, type and budget.'], ['doc', 'Compare', 'Review the price, amenities and listing information together.'], ['wallet', 'Apply', 'Explore the agreement and payment steps in the demo.'], ['key', 'Move in', 'See how a stay, room details and requests can be managed.']];
-  const feat = [['shield', 'Review listing details', 'Check the information shown on each sample listing before you decide.'], ['doc', 'Understand the next steps', 'Explore agreement details before moving ahead in the demo.'], ['receipt', 'Keep rent details together', 'View sample payments and rental records in one place.'], ['users', 'Find compatible roommates', 'Compare preferences in the demo before sharing a place.']];
+  const steps = [['search', 'Find', 'Search hostels and rentals by area, type and budget.'], ['doc', 'Compare', 'Review the price, amenities and listing information together.'], ['wallet', 'Apply', 'Read the agreement and record your payment securely.'], ['key', 'Move in', 'See how a stay, room details and requests can be managed.']];
+  const feat = [['shield', 'Review listing details', 'Check the information shown on each verified listing before you decide.'], ['doc', 'Understand the next steps', 'Read the agreement details before you move ahead.'], ['receipt', 'Keep rent details together', 'View your payments and rental records in one place.'], ['users', 'Find compatible roommates', 'Compare preferences in the demo before sharing a place.']];
   return `<div class="lhead"><div class="lnav wrap"><a class="logo" href="#top" aria-label="Rentpply home"><b>${ic('home2')}</b><span>Rentpply</span></a><nav class="lhead-nav" aria-label="Landing page"><a href="#how-it-works">How it works</a><a href="#for-owners">For property owners</a></nav><button class="btn sm" data-land="tenant">Find a place</button></div>
   <header class="lhero wrap" id="top"><div class="ltext"><span class="lpill">${ic('home2')}Student housing in Kampala</span><h1>Find a place to <em>feel at home.</em></h1>
       <p>Compare student hostels and rentals by area, price and amenities, then explore the next steps in one place.</p>
       <div class="lcta"><button class="btn lg" data-land="tenant">Explore places <span aria-hidden="true">→</span></button><button class="ltext-link" data-land="owner">I’m a property owner <span aria-hidden="true">→</span></button></div>
-      <div class="ltrust"><span>${ic('check')}Search around Kampala</span><span>${ic('check')}Compare the details</span><span>${ic('check')}Demo experience</span></div></div>
-    <div class="lscene"><div class="lphoto"><img src="${PHOTO}" alt="Example apartment building with balconies and a paved compound" width="1000" height="750" fetchpriority="high">
-      <span class="chipf cf3">Example property</span></div>
-      <div class="lsearch-preview"><div class="lsearch-heading"><div><span class="eyebrow">Start your search</span><b>Find a stay that fits</b></div><span class="lsearch-sample">Sample listings</span></div>
+      <div class="ltrust"><span>${ic('check')}Search around Kampala</span><span>${ic('check')}Compare the details</span><span>${ic('check')}Verified listings</span></div></div>
+    <div class="lscene"><div class="lphoto"><img src="${PHOTO}" alt="Apartment building with balconies and a paved compound" width="1000" height="750" fetchpriority="high">
+      <span class="chipf cf3" id="landChip">Verified listings</span></div>
+      <div class="lsearch-preview"><div class="lsearch-heading"><div><span class="eyebrow">Start your search</span><b>Find a stay that fits</b></div><span class="lsearch-sample" id="landCount">Live listings</span></div>
         <form id="landingSearch" class="lsearch-form"><label class="lsearch-field"><span>Area or campus</span><select id="landArea"><option value="">Anywhere in Kampala</option>${AREAS.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select></label>
           <label class="lsearch-field"><span>Stay type</span><select id="landType"><option value="hostel">Student hostel</option><option value="rental">Rental</option><option value="all">Any stay</option></select></label>
           <label class="lsearch-field"><span>Monthly budget</span><select id="landBudget"><option value="0">Any budget</option><option value="350000">Up to UGX 350k</option><option value="600000">Up to UGX 600k</option><option value="1000000">Up to UGX 1M</option></select></label>
           <button class="btn lsearch-submit" type="submit">Search stays ${ic('arrow')}</button></form>
-        <div class="lsearch-result"><span class="lsearch-thumb">${ic('home2')}</span><span><b>Kikoni Scholars Hostel</b><small>Kikoni · Hostel · From UGX 380,000 / month</small></span><span class="lsearch-rating">★ 4.6</span></div>
+        <div class="lsearch-result" id="landFeatured">${landFeaturedHTML()}</div>
       </div></div></header></div>
   <section class="lproof wrap" aria-label="Rentpply features"><div><span>${ic('pin')}</span><b>Made for Kampala</b><small>Browse stays by area</small></div><div><span>${ic('search')}</span><b>Compare what matters</b><small>Price, amenities and details</small></div><div><span>${ic('users')}</span><b>Roommate matching</b><small>Explore shared living options</small></div></section>
   ${journeyHTML()}
@@ -2459,7 +2489,7 @@ function landingHTML() {
   <footer class="lfoot wrap"><div class="lband"><div class="lbtxt"><h2>Your next place starts with a clearer search.</h2><button class="btn lg" data-land="tenant">Find a place <span aria-hidden="true">→</span></button></div><div class="lbscene">${sceneSVG()}</div></div>
     <p class="muted">Rentpply connects tenants, students and property owners with verified rental records.</p></footer>`;
 }
-function showLanding() { const n = $('#landing'); n.innerHTML = landingHTML(); n.hidden = false; n.scrollTop = 0; document.body.classList.add('landing'); init3D(); startEngine(); }
+function showLanding() { const n = $('#landing'); n.innerHTML = landingHTML(); n.hidden = false; n.scrollTop = 0; document.body.classList.add('landing'); updateLandingLive(); init3D(); startEngine(); }
 function hideLanding() { $('#landing').hidden = true; document.body.classList.remove('landing'); store.set('landed1', 1); }
 function landGo(k) {
   if (k === 'owner' && S.profile?.role === 'owner') { hideLanding(); S.role = 'owner'; S.tab = FIRST.owner; render(true); return; }
@@ -2475,10 +2505,10 @@ function landGo(k) {
 
 /* ---------- landing: scroll-guided product tour ---------- */
 const JSTEPS = [
-  { title: 'Find a place', body: 'Start with where you study and what you can spend. Filter sample hostels and rentals to narrow your search.', points: ['Choose an area or campus', 'Set a monthly budget', 'Filter hostels or rentals'] },
+  { title: 'Find a place', body: 'Start with where you study and what you can spend. Filter hostels and rentals to narrow your search.', points: ['Choose an area or campus', 'Set a monthly budget', 'Filter hostels or rentals'] },
   { title: 'Compare the details', body: 'Open a listing to understand the monthly cost and what comes with the room before you decide.', points: ['Review rent and availability', 'Check room type and amenities', 'Read the listing notes'] },
   { title: 'Review the agreement', body: 'Read the rental terms before continuing. Confirm rent, dates, deposit and house rules with the owner.', points: ['Check rent and due date', 'Review dates, deposit and rules', 'Accept before continuing'] },
-  { title: 'Keep your stay details', body: 'The demo brings room information, rent records and repair requests together after a booking.', points: ['Find room and stay details', 'Review sample rent records', 'See how repair requests appear'] }
+  { title: 'Keep your stay details', body: 'Rentpply brings room information, rent records and repair requests together after a booking.', points: ['Find room and stay details', 'Review your rent records', 'See how repair requests appear'] }
 ];
 function init3D() {
   const root = $('#landing');
@@ -2509,7 +2539,7 @@ function init3D() {
   }
 }
 function journeyHTML() {
-  const property = byId(1) || L.find(item => item.type === 'hostel') || { name: 'Student housing in Kampala', price: 0, rating: 0, am: [] };
+  const property = L.find(item => item.type === 'hostel') || L[0] || { name: 'Student housing in Kampala', price: 0, rating: 0, am: [] };
   const booking = S.bookings.find(x => x.lid === property.id);
   return `<section class="jny" id="jny" aria-label="How Rentpply works">
     <div class="jstick" id="jstick" data-stage="0">
@@ -2526,7 +2556,7 @@ function journeyHTML() {
       <div class="jcontent">
         <header class="jtop"><span class="jeyebrow">A clearer way to find your next place</span><h2>From search to move-in,<br><em>know what comes next.</em></h2><div class="jstage-count"><span id="jcount">01</span><i>/</i>04</div></header>
         <div class="jbody">
-          <div class="jsteps" aria-live="polite">${JSTEPS.map((s, i) => `<article class="jc ${i ? '' : 'on'}" data-copy="${i}" aria-hidden="${i !== 0}"${i ? ' inert' : ''}><span class="jstep-no">STEP 0${i + 1} OF 04</span><h3>${s.title}</h3><p>${s.body}</p><ul class="jstep-points">${s.points.map(point => `<li>${esc(point)}</li>`).join('')}</ul><span class="jstep-demo">${i === 0 ? 'Sample listings · Demo experience' : 'Scroll to continue'}</span></article>`).join('')}</div>
+          <div class="jsteps" aria-live="polite">${JSTEPS.map((s, i) => `<article class="jc ${i ? '' : 'on'}" data-copy="${i}" aria-hidden="${i !== 0}"${i ? ' inert' : ''}><span class="jstep-no">STEP 0${i + 1} OF 04</span><h3>${s.title}</h3><p>${s.body}</p><ul class="jstep-points">${s.points.map(point => `<li>${esc(point)}</li>`).join('')}</ul><span class="jstep-demo">${i === 0 ? 'Live verified listings' : 'Scroll to continue'}</span></article>`).join('')}</div>
           <div class="jvisual" id="jvisual" aria-hidden="true">
             <div class="jvisual-halo"></div><div class="jvisual-floor"></div>
             <div class="jframe on" data-frame="0">
@@ -2553,14 +2583,14 @@ function journeyHTML() {
               <div class="jdoc-action"><span class="jdoc-check">✓</span><span>I have reviewed the agreement</span><b>Continue</b></div>
             </div>
             <div class="jframe" data-frame="3">
-              <div class="jappbar"><span class="jmark">r</span><b>Rentpply</b><span class="japp-tag">SAMPLE STAY</span></div>
+              <div class="jappbar"><span class="jmark">r</span><b>Rentpply</b><span class="japp-tag">YOUR STAY</span></div>
               <div class="jwelcome"><span class="jwelcome-icon">${ic('key')}</span><small>YOUR STAY DETAILS</small><h3>Everything in one place.</h3><p>Keep your room, rent records and requests close at hand.</p></div>
-              <div class="jstay-card"><div class="jstay-image"><img src="${PHOTO}" alt=""><span>EXAMPLE PROPERTY</span></div><div class="jstay-info"><div><small>PROPERTY</small><b>${esc(property.name)}</b></div><div><small>ROOM</small><b>${esc(booking?.room || 'Room details')}</b></div><div><small>MONTHLY RENT</small><b>${fmt(property.price)}</b></div></div></div>
-              <div class="jstay-footer"><span>${ic('receipt')} Rent records</span><span>${ic('bell')} Repair requests</span><span class="jstay-demo">DEMO</span></div>
+              <div class="jstay-card"><div class="jstay-image"><img src="${PHOTO}" alt=""><span>YOUR PROPERTY</span></div><div class="jstay-info"><div><small>PROPERTY</small><b>${esc(property.name)}</b></div><div><small>ROOM</small><b>${esc(booking?.room || 'Room details')}</b></div><div><small>MONTHLY RENT</small><b>${fmt(property.price)}</b></div></div></div>
+              <div class="jstay-footer"><span>${ic('receipt')} Rent records</span><span>${ic('bell')} Repair requests</span><span class="jstay-demo">LIVE</span></div>
             </div>
           </div>
         </div>
-        <footer class="jfooter"><div class="jprogress" aria-hidden="true"><i id="jbar"></i></div><span class="jscroll-hint"><i></i>Scroll at your pace to explore each step</span><span class="jfooter-note">Sample data · Demo actions only</span></footer>
+        <footer class="jfooter"><div class="jprogress" aria-hidden="true"><i id="jbar"></i></div><span class="jscroll-hint"><i></i>Scroll at your pace to explore each step</span><span class="jfooter-note">Records update live from your account</span></footer>
       </div>
     </div>
   </section>`;
@@ -2604,7 +2634,7 @@ function startEngine() {
 /* ---------- owner: the Board (walk-in booking, onboarding and part payments) ---------- */
 S.board = store.get('board1', []);
 const bdSave = () => store.set('board1', S.board);
-const bdRent = () => (byId(1) || {}).price || 380000;
+const bdRent = () => (L.find(l => l.type === 'hostel') || L[0] || {}).price || 0;
 const bdState = e => e.paid >= e.total ? 'full' : e.paid > 0 ? 'booked' : 'unpaid';
 function boardApply() {
   S.board.forEach(e => { const u = UNITS.find(x => x.id === e.room); if (!u) return;
@@ -2825,6 +2855,7 @@ async function loadPublicListings() {
   });
   L.splice(0, L.length, ...liveListings);
   AREAS.splice(0, AREAS.length, ...new Set(liveListings.map(item => item.area)));
+  updateLandingLive();
 }
 
 async function loadTenantData() {
@@ -2922,7 +2953,7 @@ function render(top) {
   updateUserInfo();
   syncGate(); if (typeof fpRestore === 'function') fpRestore();
   document.querySelectorAll('[data-role]').forEach(b => b.setAttribute('aria-pressed', b.dataset.role === S.role));
-  if (top) window.scrollTo({ top: 0 });
+  if (top) { window.scrollTo({ top: 0 }); const m = $('#main'); m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter'); }
 }
 function go(spec) {
   let [t, arg] = spec.split(':');
