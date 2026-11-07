@@ -663,6 +663,9 @@ code{background:var(--line);border-radius:6px;padding:1px 5px;font-size:12.5px}
   .jframe{padding:11px}
 }
 @media (prefers-reduced-motion:reduce){#landing .jstepsec{display:flex}}
+body.auth-page .dock,body.auth-page #user-info{display:none!important}
+body.auth-page #main{max-width:1080px}
+body.auth-page .top{position:relative}
 </style>
 <header class="top wrap">
   <div class="logo"><b><svg class="i" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></b><span class="wm">Rentpply</span></div>
@@ -2466,6 +2469,7 @@ function landGo(k) {
   if (k === 'owner') { showAuth('signin', 'owner'); return; }
   if (k === 'admin' && S.profile?.role !== 'admin') { toast('Administrator sign-in is required.'); return; }
   if (k === 'tenant' && S.profile?.role === 'owner') { toast('Property owners stay in their property workspace.'); return; }
+  if (k === 'tenant' && !S.user) { showAuth('signin', 'housing'); return; }
   hideLanding(); S.page = null;
   if (k === 'tenant') { S.role = S.profile?.role === 'student' ? 'student' : 'tenant'; S.tab = 'home'; } else if (k === 'admin') { S.role = 'admin'; S.tab = 'queue'; }
   document.querySelectorAll('[data-role]').forEach(b => b.setAttribute('aria-pressed', b.dataset.role === S.role)); render(true);
@@ -2689,16 +2693,49 @@ const NAV = {
   admin: [['queue', 'Onboard', 'shield', vQueue], ['units', 'Units', 'key', vAdmUnits], ['prop', 'Property', 'home', vAdmProp], ['listings', 'Listings', 'building', vListings], ['kpis', 'KPIs', 'chart', vKpis]]
 };
 const FIRST = { tenant: 'home', student: 'home', owner: 'overview', admin: 'queue' };
-function showAuth(mode = 'signin', preferredRole = 'tenant') {
+function showAuth(mode = 'signin', audience = 'housing') {
+  S.authPage = { mode, audience };
+  hideLanding();
+  render(true);
+}
+
+function authPageHTML() {
+  const { mode, audience } = S.authPage || { mode: 'signin', audience: 'housing' };
   const signup = mode === 'signup';
-  sheet(`<div class="stack" style="gap:4px"><h2 style="font-size:26px">${signup ? 'Create your Rentpply account' : 'Sign in'}</h2><p class="muted">${signup ? 'Your account opens the workspace for your role.' : 'Continue to your assigned workspace.'}</p></div>
-    <form class="stack" style="gap:12px" data-auth-form="${mode}" data-preferred-role="${preferredRole}">
-      ${signup ? '<div class="field"><label for="auth-name">Full name</label><input class="inp" id="auth-name" name="full_name" autocomplete="name" required></div>' : ''}
-      <div class="field"><label for="auth-email">Email</label><input class="inp" id="auth-email" name="email" type="email" autocomplete="email" required></div>
-      <div class="field"><label for="auth-password">Password</label><input class="inp" id="auth-password" name="password" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" minlength="6" required></div>
-      ${signup ? `<label class="field"><span>I am a</span><select class="inp" name="role">${[['tenant', 'Tenant'], ['student', 'Student'], ['owner', 'Property owner']].map(([value, label]) => `<option value="${value}" ${value === preferredRole ? 'selected' : ''}>${label}</option>`).join('')}</select></label>` : ''}
-      <button class="btn" type="submit">${signup ? 'Create account' : 'Sign in'}</button>
-    </form><p class="muted" style="font-size:13px;text-align:center">${signup ? 'Already registered?' : 'New to Rentpply?'} <button class="linkbtn" data-auth-switch="${signup ? 'signin' : 'signup'}">${signup ? 'Sign in' : 'Create an account'}</button></p>`, signup ? 'Create account' : 'Sign in');
+  const forgot = mode === 'forgot';
+  const reset = mode === 'reset';
+  const copy = {
+    housing: ['Welcome back', 'Sign in to find housing, manage your stay, and connect with verified students.', 'Housing and student access'],
+    owner: ['Your property, in one place', 'Sign in to manage your listings, rooms, payment requests, and tenant needs.', 'Property owner access'],
+    admin: ['Administrator sign in', 'Use your administrator account. Your backend profile determines your access.', 'Restricted administration']
+  }[audience] || ['Welcome back', 'Sign in to continue to your Rentpply workspace.', 'Rentpply account'];
+  const notice = S.authNotice ? `<div class="notice" role="status">${esc(S.authNotice)}</div>` : '';
+  return `<section class="sec" style="min-height:calc(100vh - 150px);display:grid;place-items:center;padding-block:28px 90px">
+    <div style="width:min(100%,980px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:clamp(24px,6vw,72px);align-items:center">
+      <div class="stack" style="gap:16px;max-width:48ch">
+        <button class="linkbtn" data-auth-back style="align-self:flex-start">← Back to Rentpply</button>
+        <span class="eyebrow">${esc(copy[2])}</span>
+        <h1 style="font-size:clamp(32px,5vw,48px);line-height:1.08">${signup ? 'Create your account.' : forgot ? 'Recover your account.' : reset ? 'Choose a new password.' : esc(copy[0])}</h1>
+        <p class="muted" style="font-size:16px">${signup ? 'Your account role is saved to your profile and controls which workspace you can access.' : forgot ? 'We will email a secure reset link to the address on your account.' : reset ? 'Set a new password for your Rentpply account.' : esc(copy[1])}</p>
+        <div class="card stack" style="background:var(--surface-2);gap:8px"><b>One sign-in. Your assigned workspace.</b><span class="muted" style="font-size:14px">Tenant, student, owner, or admin access is determined by your account profile, not by this page.</span></div>
+      </div>
+      <div class="stack" style="gap:18px;max-width:460px;width:100%;justify-self:center">
+        <div><span class="eyebrow">${signup ? 'Get started' : forgot || reset ? 'Account recovery' : 'Secure account access'}</span><h2 style="font-size:28px">${signup ? 'Create an account' : forgot ? 'Reset password' : reset ? 'New password' : 'Sign in'}</h2></div>
+        ${notice}
+        <form class="stack" style="gap:14px" data-auth-form="${mode}" data-auth-audience="${audience}">
+          ${signup ? '<label class="field"><span>Full name</span><input class="inp" name="full_name" autocomplete="name" required></label>' : ''}
+          ${signup || forgot || mode === 'signin' ? '<label class="field"><span>Email</span><input class="inp" name="email" type="email" autocomplete="email" required></label>' : ''}
+          ${signup || mode === 'signin' || reset ? `<label class="field"><span>${reset ? 'New password' : 'Password'}</span><input class="inp" name="password" type="password" autocomplete="${signup || reset ? 'new-password' : 'current-password'}" minlength="6" required></label>` : ''}
+          ${signup ? `<label class="field"><span>Account type</span><select class="inp" name="role">${[['tenant', 'Tenant'], ['student', 'Student'], ['owner', 'Property owner']].map(([value, label]) => `<option value="${value}" ${value === (audience === 'owner' ? 'owner' : 'tenant') ? 'selected' : ''}>${label}</option>`).join('')}</select></label>` : ''}
+          <button class="btn" type="submit">${signup ? 'Create account' : forgot ? 'Email reset link' : reset ? 'Save new password' : 'Sign in'}</button>
+        </form>
+        ${signup || (mode === 'signin' && audience !== 'admin') ? `<p class="muted" style="font-size:14px">${signup ? 'Already registered?' : 'New to Rentpply?'} <button class="linkbtn" data-auth-switch="${signup ? 'signin' : 'signup'}">${signup ? 'Sign in' : 'Create an account'}</button></p>` : ''}
+        ${mode === 'signin' ? '<button class="linkbtn" data-auth-forgot style="align-self:flex-start">Forgot password?</button>' : ''}
+        ${audience !== 'admin' && mode === 'signin' ? '<button class="linkbtn" data-auth-context="admin" style="align-self:flex-start">Administrator sign in</button>' : ''}
+        ${signup || audience === 'admin' ? '<p class="muted" style="font-size:12px">Administrator accounts are created or assigned by an existing administrator.</p>' : ''}
+      </div>
+    </div>
+  </section>`;
 }
 
 function updateUserInfo() {
@@ -2731,7 +2768,7 @@ async function syncLiveSession(session) {
     S.role = 'tenant'; S.tab = 'home';
     updateUserInfo();
     render(true);
-    if (store.get('landed1')) showLanding();
+    if (store.get('landed1') && !S.authPage) showLanding();
     return;
   }
   S.user = session.user;
@@ -2739,11 +2776,14 @@ async function syncLiveSession(session) {
   if (error) { toast(error.message || 'Could not load your account.'); return; }
   if (!profile?.role || !FIRST[profile.role]) { toast('Your account role is not configured. Contact Rentpply support.'); return; }
   S.profile = profile;
+  if (S.authPage?.mode !== 'reset') S.authPage = null;
+  S.authNotice = '';
   S.kyc = { st: profile.kyc_status || 'none', type: profile.id_type, mask: profile.id_number_masked, name: profile.full_name, student: profile.is_student, kin: profile.next_of_kin_name ? `${profile.next_of_kin_name}, ${profile.next_of_kin_phone || ''}` : '', ts: Date.parse(profile.updated_at || profile.created_at) };
   S.role = profile.role;
   S.viewRole = profile.role === 'admin' ? (S.viewRole || 'admin') : profile.role;
   S.role = S.viewRole;
-  S.tab = FIRST[S.role] || 'home';
+  S.tab = S.authNext && ['tenant', 'student'].includes(profile.role) ? S.authNext : FIRST[S.role] || 'home';
+  S.authNext = null;
   hideLanding();
   await loadPublicListings();
   if (['tenant', 'student'].includes(profile.role)) {
@@ -2799,7 +2839,10 @@ async function loadTenantData() {
 
 function initLiveAuth() {
   if (!supabase) { updateUserInfo(); return; }
-  auth.onAuthStateChange((_event, session) => { queueMicrotask(() => syncLiveSession(session)); });
+  auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') S.authPage = { mode: 'reset', audience: 'housing' };
+    queueMicrotask(() => syncLiveSession(session));
+  });
   auth.getSession().then(syncLiveSession).catch(error => toast(error.message || 'Could not check your session.'));
   loadPublicListings().then(() => { if (!S.user) render(); }).catch(error => console.error('Listings load failed:', error));
 }
@@ -2811,8 +2854,10 @@ function render(top) {
   if (pg && pg.name === 'listing' && !BK) initBK(pg.lid);
   const liveOwnerAdmin = S.profile && ['owner', 'admin'].includes(S.profile.role) && ['owner', 'admin'].includes(S.role);
   const ownerOut = S.role === 'owner' && !liveOwnerAdmin && !ownerLid();
+  if (ownerOut && !S.authPage) S.authPage = { mode: 'signin', audience: 'owner' };
   document.body.classList.toggle('flow', !!pg || ownerOut);
-  const draw = () => liveOwnerAdmin ? (S.liveError ? `<section class="sec"><div class="card"><b>Could not load live records</b><p class="muted">${esc(S.liveError)}</p><button class="btn" data-live-retry>Retry</button></div></section>` : renderPortal(S.role, S.tab, S.liveData, S.profile)) : pg ? ({ listing: pgListing, agreement: pgAgreement, payment: pgPayment, status: pgStatus })[pg.name]() : ownerOut ? vOwnerLogin() : S.role === 'owner' ? ownerBar() + (ownerLid() === 1 ? cur[3]() : ownerLite(cur[0])) : cur[3]();
+  const authVisible = S.authPage && (!S.user || S.authPage.mode === 'reset');
+  const draw = () => authVisible ? authPageHTML() : liveOwnerAdmin ? (S.liveError ? `<section class="sec"><div class="card"><b>Could not load live records</b><p class="muted">${esc(S.liveError)}</p><button class="btn" data-live-retry>Retry</button></div></section>` : renderPortal(S.role, S.tab, S.liveData, S.profile)) : pg ? ({ listing: pgListing, agreement: pgAgreement, payment: pgPayment, status: pgStatus })[pg.name]() : S.role === 'owner' ? ownerBar() + (ownerLid() === 1 ? cur[3]() : ownerLite(cur[0])) : cur[3]();
   try { $('#main').innerHTML = draw(); } catch (err) {
     console.error(err);
     ['units4', 'adm1', 'board1'].forEach(k => { try { localStorage.removeItem('rp_' + k); } catch (_) {} });
@@ -2820,6 +2865,7 @@ function render(top) {
   }
   if (pg && pg.name === 'agreement') { agrFill(); accSync(); }
   const badge = n => (S.role === 'owner' && ownerLid() !== 1) ? '' : (n[0] === 'units' && S.maint.some(m => m.st === 'open')) || (n[0] === 'requests' && S.owner.req.some(r => r.st === 'open')) || (n[0] === 'wallet' && S.role === 'tenant' && S.payments.some(p => p.st === 'pending')) ? '<i class="dot"></i>' : '';
+  document.body.classList.toggle('auth-page', !!authVisible);
   $('#dock').innerHTML = nav.map(n => `<button data-tab="${n[0]}" ${n[0] === S.tab ? 'aria-current="page"' : ''}>${ic(n[2])}<span>${n[1]}</span>${badge(n)}</button>`).join('');
   updateUserInfo();
   syncGate(); if (typeof fpRestore === 'function') fpRestore();
@@ -2842,9 +2888,12 @@ applyTheme(store.get('theme', null));
 document.addEventListener('click', async e => {
   const t = e.target, c = s => t.closest(s);
   let el;
-  if ((el = c('[data-auth-open]'))) { showAuth(el.dataset.authOpen); return; }
-  if ((el = c('[data-auth-switch]'))) { const preferred = $('form[data-auth-form]')?.dataset.preferredRole || 'tenant'; showAuth(el.dataset.authSwitch, preferred); return; }
-  if (c('[data-auth-signout]')) { await auth.signOut(); closeSheet(); return; }
+  if ((el = c('[data-auth-open]'))) { showAuth(el.dataset.authOpen, 'housing'); return; }
+  if ((el = c('[data-auth-switch]'))) { const audience = $('form[data-auth-form]')?.dataset.authAudience || 'housing'; showAuth(el.dataset.authSwitch, audience); return; }
+  if (c('[data-auth-forgot]')) { showAuth('forgot', $('form[data-auth-form]')?.dataset.authAudience || 'housing'); return; }
+  if ((el = c('[data-auth-context]'))) { showAuth('signin', el.dataset.authContext); return; }
+  if (c('[data-auth-back]')) { S.authPage = null; S.authNotice = ''; S.role = 'tenant'; S.tab = 'home'; showLanding(); render(true); return; }
+  if (c('[data-auth-signout]')) { await auth.signOut(); return; }
   if (c('[data-live-retry]')) { await refreshPortal(); return; }
   if (S.profile && ['owner', 'admin'].includes(S.profile.role)) {
     try { if (await handlePortalClick(t, refreshPortal)) { toast('Changes saved.'); return; } }
@@ -2961,11 +3010,35 @@ document.addEventListener('click', async e => {
 });
 document.addEventListener('submit', async e => {
   const form = e.target.closest('[data-auth-form], [data-live-form]');
+  if (form?.matches('[data-auth-form="forgot"]')) {
+    e.preventDefault();
+    const values = Object.fromEntries(new FormData(form));
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(values.email, { redirectTo: `${window.location.origin}/` });
+      if (error) throw error;
+      S.authNotice = 'If that email belongs to a Rentpply account, a secure reset link is on its way.';
+      render();
+    } catch (error) { S.authNotice = error.message || 'Could not send a reset email.'; render(); }
+    return;
+  }
+  if (form?.matches('[data-auth-form="reset"]')) {
+    e.preventDefault();
+    const values = Object.fromEntries(new FormData(form));
+    try {
+      const { error } = await supabase.auth.updateUser({ password: values.password });
+      if (error) throw error;
+      S.authPage = { mode: 'signin', audience: 'housing' };
+      S.authNotice = 'Password updated. Sign in with your new password.';
+      await auth.signOut();
+      render(true);
+    } catch (error) { S.authNotice = error.message || 'Could not update your password.'; render(); }
+    return;
+  }
   if (form?.matches('[data-auth-form="signin"]')) {
     e.preventDefault();
     const values = Object.fromEntries(new FormData(form));
-    try { await auth.signIn(values.email, values.password); closeSheet(); }
-    catch (error) { toast(error.message || 'Sign in failed.'); }
+    try { await auth.signIn(values.email, values.password); }
+    catch (error) { S.authNotice = error.message || 'Sign in failed.'; render(); }
     return;
   }
   if (form?.matches('[data-auth-form="signup"]')) {
@@ -2973,9 +3046,9 @@ document.addEventListener('submit', async e => {
     const values = Object.fromEntries(new FormData(form));
     try {
       await auth.signUp(values.email, values.password, { full_name: values.full_name, role: values.role });
-      closeSheet();
-      toast('Account created. Check your email to confirm it.');
-    } catch (error) { toast(error.message || 'Account creation failed.'); }
+      S.authNotice = 'Account created. Check your email to confirm it, then sign in.';
+      render();
+    } catch (error) { S.authNotice = error.message || 'Account creation failed.'; render(); }
     return;
   }
   if (form?.matches('[data-live-form]')) {
@@ -2989,7 +3062,8 @@ document.addEventListener('submit', async e => {
   if (e.target.id === 'landingSearch') {
     e.preventDefault();
     S.f = { type: $('#landType').value, q: $('#landArea').value, area: '', max: +$('#landBudget').value, sort: 'rec' };
-    hideLanding(); S.role = 'tenant'; S.tab = 'explore'; render(true); return;
+    if (!S.user) { S.authNext = 'explore'; showAuth('signin', 'housing'); return; }
+    hideLanding(); S.role = S.profile?.role === 'student' ? 'student' : 'tenant'; S.tab = 'explore'; render(true); return;
   }
   if (e.target.id === 'homeSearch') { e.preventDefault(); S.f = { type: $('#ht').value, q: $('#hq').value, area: '', max: 0 }; S.tab = 'explore'; render(true); }
 });
