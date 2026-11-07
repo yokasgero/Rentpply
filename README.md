@@ -20,3 +20,9 @@ The repository is configured for Workers Builds. Use build command `npm run buil
 ## Demo data
 
 Listings, people, payments, verification, messaging, and rental operations use browser-side sample data. These actions are demonstrations, not live services. Do not enter real payment details or confidential personal data.
+
+## Supabase connection
+
+The Supabase JavaScript client is installed and initialized by `src/lib/supabase.js`. To configure it locally, copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from your Supabase project's Connect panel. The browser client is available as `window.rentpplySupabase` when configured.
+
+For Cloudflare Workers Builds, add those same `VITE_` variables as build environment variables so Vite can include the project URL and publishable key in the static site. Never add a Supabase secret or service role key to browser code or a `VITE_` variable. Database tables and app workflows are not connected yet; add Row Level Security policies before exposing tables to the client.
