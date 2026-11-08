@@ -37,7 +37,7 @@
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 120px;min-height:100%}
+  padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-block:0;min-height:100%}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:var(--bg)}
 h1,h2,h3{font-family:var(--f-display);line-height:1.1;margin:0;text-wrap:balance;letter-spacing:-.02em}
 p{margin:0}
@@ -1174,6 +1174,20 @@ body:has(.gateveil) .dock{display:none}
   .fp-stat i svg{width:18px;height:18px}
   .fp-stat b{font-size:24px}
   .fp-stat span{font-size:12px;line-height:1.25;display:block}
+}
+
+/* ===== the app fills the screen: one gutter, no dead space above the dock ===== */
+main#main,header.top{padding-inline:clamp(12px,2.6vw,28px)}
+main#main{padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+body.flow main#main{padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+#main>.sec:last-child{padding-bottom:0;margin-bottom:0}
+@media (max-width:640px){
+  .card{padding:14px}
+  .sec{padding-block:10px;margin-block:2px;gap:12px}
+  .top{padding-block:8px}
+  .kgrid{gap:10px}
+  .kgrid .card.stat{padding:12px}
+  .mgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 }
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
