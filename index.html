@@ -3541,6 +3541,24 @@ body.auth-page #main{max-width:none;padding:0}
 .fp-node circle{r:20px}.fp-node text{font-size:20px}.fp-node .fp-nlabel{font-size:25px;stroke-width:6px}
 @media (max-width:980px){.fp-chip.c1{left:8px;top:6%}.fp-chip.c2{right:8px;top:30%}}
 @media (max-width:640px){.fp-node circle{r:26px}.fp-node text{font-size:28px}.fp-node .fp-nlabel{font-size:36px;stroke-width:8px}.fp-jgrid{padding-top:96px}}
+.aimg{width:100%;height:100%;object-fit:cover;display:block}
+.gal{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;border-radius:20px;-webkit-overflow-scrolling:touch}.gal .gi{flex:0 0 min(100%,640px);scroll-snap-align:start;border-radius:20px;overflow:hidden;aspect-ratio:16/10;background:var(--surface-2)}.gal img,.gal video{width:100%;height:100%;object-fit:cover;display:block}
+.mapbox{border-radius:16px;overflow:hidden;border:1px solid var(--line);aspect-ratio:16/9;margin-top:8px}.mapbox iframe{width:100%;height:100%;border:0;display:block}
+
+/* ===== platform logic: gate, floor pager, empty slots, board, heatmap, media ===== */
+.gateveil{position:fixed;inset:0;z-index:80;background:rgba(20,6,8,.55);display:grid;place-items:end center;animation:rpFade .25s ease both}
+.gatebox{width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:26px 26px 0 0;background:var(--bg)}.gatebox .in{display:flex;flex-direction:column;gap:14px;padding:22px 20px 26px}
+@media (min-width:720px){.gateveil{place-items:center}.gatebox{border-radius:26px}}
+body:has(.gateveil) .dock{display:none}
+.fpager{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}.fpager::-webkit-scrollbar{display:none}.fpage{flex:0 0 100%;scroll-snap-align:start;min-width:0}
+.fchips{display:flex;gap:8px;align-items:center;overflow-x:auto;padding-bottom:2px}.fchip{font:inherit;font-weight:700;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:8px 16px;cursor:pointer;white-space:nowrap}.fchip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}.fhint{font-size:12.5px;white-space:nowrap;margin-left:auto}
+.unit.empty{border:1.5px dashed var(--line);background:transparent;color:var(--muted);display:grid;place-items:center;min-height:70px;cursor:default}.unit.empty small{font-size:11px;opacity:.7}
+.needrow.quiet{background:var(--surface-2)!important;border-left-color:var(--line)!important}.needrow.quiet b{color:var(--muted)}.ric.mute{background:var(--surface);color:var(--muted)}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.mt{display:flex;flex-direction:column;gap:6px}.mt img,.mt video{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px;background:var(--surface-2)}
+.upl{cursor:pointer}
+.heat{display:flex;flex-direction:column;gap:4px;overflow-x:auto}.hrow{display:grid;grid-template-columns:42px repeat(6,minmax(30px,1fr));gap:4px;align-items:center;font-size:11.5px;color:var(--muted)}.hrow.hh span{text-align:center}.hc{display:block;height:24px;border-radius:6px;background:var(--s1);opacity:var(--a)}
+.ramp{display:inline-block;width:90px;height:8px;border-radius:4px;background:linear-gradient(90deg,color-mix(in srgb,var(--s1) 10%,transparent),var(--s1))}
+.conv{font-size:11.5px;color:var(--muted);margin:-2px 0 4px 2px}
 @keyframes rpUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 
 
@@ -3597,7 +3615,7 @@ body.auth-page #main{max-width:none;padding:0}
 <div id="toast-host" aria-live="polite"></div>
 <script type="module">
 import { supabase, auth } from './src/lib/supabase.js';
-import { handlePortalChange, handlePortalClick, handlePortalInput, handlePortalSubmit, loadPortalData, renderPortal } from './src/live-portal.js';
+import { currentPropertyName, handlePortalChange, handlePortalClick, handlePortalInput, handlePortalSubmit, loadPortalData, portalBind, renderPortal } from './src/live-portal.js';
 /* ---------- helpers ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const fmt = n => 'UGX ' + Math.round(n).toLocaleString('en-US');
@@ -3634,6 +3652,8 @@ const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="
 
 /* property art: generated skyline so every listing has a distinct picture until real photos are uploaded */
 let art = function (l, big) {
+  const photo = (l.media || []).find(m => m.type === 'photo');
+  if (photo) return `<img class="aimg" src="${esc(photo.url)}" alt="${esc(l.name)}" loading="lazy">`;
   const h = [352, 14, 28, 40, 338, 22, 6][Math.abs(Math.round(l.hue || 0)) % 7], r = n => { const x = Math.sin(l.id * 99.7 + n * 12.9898) * 43758.5453; return x - Math.floor(x) };
   let b = '';
   const n = 5 + Math.floor(r(1) * 3);
@@ -3657,8 +3677,6 @@ const store = {
 };
 const NOW = Date.now();
 const hash = str => { let h = 7; for (const c of str) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h };
-const efrisNo = id => String(1000000000 + hash(id) % 8000000000);
-const vcode = id => { const t = ((hash(id) * 2654435761) >>> 0).toString(36).toUpperCase().padStart(8, '0').slice(-8); return t.slice(0, 4) + '-' + t.slice(4) };
 const fdt = d => new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const S = {
   role: 'tenant', tab: 'home',
@@ -3896,15 +3914,23 @@ const DEFAULT_TERMS = l => ({
   deposit: l.type === 'rental' ? 2 : 0, late: 5, notice: l.per === 'night' ? 0 : 30,
   rules: l.type === 'hostel' ? 'Visitors leave by 10 pm. No cooking in rooms. Quiet hours are 10 pm to 6 am.' : 'Keep the compound clean and respect neighbours. No subletting without the landlord.'
 });
-const termsFor = lid => Object.assign({}, DEFAULT_TERMS(byId(lid)), S.terms[lid] || {});
+const termsFor = lid => { const l = byId(lid); return Object.assign({}, DEFAULT_TERMS(l), (l && l.terms) || {}); };
 const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
-const endOf = (l, start, qty) => new Date(new Date(start).getTime() + (l.per === 'night' ? qty * DAY : qty * 30.4 * DAY));
+// Hostels are booked per semester (4 months), rentals per month, short stays per night.
+const MONTHS_PER_SEMESTER = 4;
+const stayUnit = l => l.type === 'hostel' ? 'semester' : l.per === 'night' ? 'night' : 'month';
+const stayMonths = (l, qty) => stayUnit(l) === 'semester' ? qty * MONTHS_PER_SEMESTER : stayUnit(l) === 'night' ? 0 : qty;
+const periodPrice = l => stayUnit(l) === 'semester' ? l.price * MONTHS_PER_SEMESTER : l.price;
+const addMonths = (start, m) => { const d = new Date(start); d.setMonth(d.getMonth() + m); return d; };
+const endOf = (l, start, qty) => stayUnit(l) === 'night' ? new Date(new Date(start).getTime() + qty * DAY) : addMonths(start, stayMonths(l, qty));
+const recordEnd = (start, months, nights) => nights > 0 ? new Date(new Date(start).getTime() + nights * DAY) : addMonths(start, months);
+const roomLabel = room => !room || room === 'Unassigned' ? 'To be assigned' : room;
 
 function clauses(l, t, qty, start, generic) {
-  const night = l.per === 'night', per = night ? 'night' : 'month', total = l.price * qty, dep = l.price * t.deposit;
+  const night = l.per === 'night', per = night ? 'night' : 'month', unit = stayUnit(l), total = periodPrice(l) * qty, dep = l.price * t.deposit;
   return [
     ['Parties and property', `${l.owner} (the Landlord) lets the ${l.unit.toLowerCase()} at ${l.name}, ${l.area}, Kampala to the Tenant named on the Rentpply booking. Both sides have been identity checked by Rentpply.`],
-    ['Rent and period', generic ? `Rent is ${fmt(l.price)} per ${per}. The move-in date and the length of stay are the ones you choose on the payment step. This agreement then runs for exactly that period.` : `Rent is ${fmt(l.price)} per ${per}. The period is ${plural(qty, per)} from ${fdate(start)} to ${fdate(endOf(l, start, qty))}, a total of ${fmt(total)}.`],
+    ['Rent and period', generic ? `Rent is ${fmt(l.price)} per ${per}${unit === 'semester' ? `, paid per semester of ${MONTHS_PER_SEMESTER} months` : ''}. The move-in date and the length of stay are the ones you choose on the payment step. This agreement then runs for exactly that period.` : `Rent is ${fmt(l.price)} per ${per}${unit === 'semester' ? `, paid per semester of ${MONTHS_PER_SEMESTER} months (${fmt(periodPrice(l))})` : ''}. The period is ${plural(qty, unit)}${unit === 'semester' ? ` (${qty * MONTHS_PER_SEMESTER} months)` : ''} from ${fdate(start)} to ${fdate(endOf(l, start, qty))}, a total of ${fmt(total)}.`],
     ['Security deposit', t.deposit ? `A refundable deposit of ${fmt(dep)} (${plural(t.deposit, 'month')} of rent) is paid with the first payment. The Landlord returns it within 14 days of moving out, less any documented damage.` : 'No security deposit is required.'],
     ['Late payment', t.late ? `If rent is more than 7 days late, a fee of ${t.late}% of the overdue amount is added.` : 'No late fee applies.'],
     ['Ending the tenancy', night ? 'Cancel free of charge up to 48 hours before check-in. Later cancellations are charged the first night.' : `Either side gives ${t.notice} days written notice to end the tenancy early. The Tenant may instead pass the remaining paid months to a Rentpply-verified person with the Landlord's approval.`],
@@ -3916,13 +3942,13 @@ function clauses(l, t, qty, start, generic) {
 const agrHTML = cl => cl.map(c => `<div><h4>${esc(c[0])}</h4><p>${esc(c[1])}</p></div>`).join('');
 function keyTerms(l, t, qty, start, generic) {
   const per = l.per === 'night' ? 'night' : 'month';
-  return [`${fmt(l.price)} / ${per}`, ...(generic ? [] : [plural(qty, per)]), t.deposit ? `Deposit ${fmt(l.price * t.deposit)}` : 'No deposit', t.late ? `Late fee ${t.late}%` : 'No late fee', l.per === 'night' ? 'Free cancel 48h' : `${t.notice} days notice`].map(x => `<span>${x}</span>`).join('');
+  return [`${fmt(l.price)} / ${per}`, ...(stayUnit(l) === 'semester' ? [`Per semester ${fmt(periodPrice(l))}`] : []), ...(generic ? [] : [plural(qty, stayUnit(l))]), t.deposit ? `Deposit ${fmt(l.price * t.deposit)}` : 'No deposit', t.late ? `Late fee ${t.late}%` : 'No late fee', l.per === 'night' ? 'Free cancel 48h' : `${t.notice} days notice`].map(x => `<span>${x}</span>`).join('');
 }
-const calc = () => { const l = byId(BK.lid), t = termsFor(BK.lid), sub = l.price * BK.qty, fee = Math.round(sub * .03), dep = l.price * t.deposit; return { sub, fee, dep, tot: sub + fee + dep } };
+const calc = () => { const l = byId(BK.lid), t = termsFor(BK.lid), sub = periodPrice(l) * BK.qty, fee = Math.round(sub * .03), dep = l.price * t.deposit; return { sub, fee, dep, tot: sub + fee + dep } };
 /* ---------- receipt ---------- */
 function showReceipt(r, fresh) {
   r = S.payments.find(p => p.id === r.id) || S.bookings.find(p => p.id === r.id) || r;
-  const l = byId(r.lid), night = r.nights > 0, end = endOf(l, r.start, night ? r.nights : r.months), ag = S.agreements.find(a => a.id === r.agId);
+  const l = byId(r.lid), night = r.nights > 0, end = recordEnd(r.start, r.months, r.nights), ag = S.agreements.find(a => a.lid === r.lid && a.room === r.room) || null;
   const total = r.amount + r.fee + (r.dep || 0);
   sheet(`${fresh ? `<div class="stack" style="align-items:center;text-align:center;gap:8px;padding-top:6px"><span class="avatar" style="background:var(--ok-soft);color:var(--ok);width:60px;height:60px">${ic('check')}</span><h2 style="font-size:28px">Booking confirmed</h2><p class="muted">Your receipt was sent to your email. The owner has been told who is coming.</p></div>` : ''}
     <div class="receipt">
@@ -3930,10 +3956,10 @@ function showReceipt(r, fresh) {
       <div class="kv"><span>Receipt no.</span><span class="mono">${r.id}</span></div>
       <div class="kv"><span>Date</span><span>${fdt(r.ts)}</span></div>
       <div class="kv"><span>Property</span><span>${esc(l.name)}</span></div>
-      <div class="kv"><span>Unit</span><span class="mono">${r.room} · ${l.unit}</span></div>
+      <div class="kv"><span>Room</span><span class="mono">${esc(roomLabel(r.room))} · ${esc(l.unit)}</span></div>
       <div class="kv"><span>For</span><span>${esc(r.purpose || (night ? 'Stay' : 'Rent'))}</span></div>
       <div class="kv"><span>Period</span><span>${fdate(r.start)} to ${fdate(end)}</span></div>
-      <div class="kv"><span>Tenant</span><span>${ME} (ID verified)</span></div>
+      <div class="kv"><span>Tenant</span><span>${esc(ME)}${S.kyc.st === 'verified' ? ' (ID verified)' : ''}</span></div>
       <div class="kv"><span>Paid by</span><span>${esc(r.paidBy)}</span></div>
       <div class="kv"><span>Method</span><span>${r.method}</span></div>
       <div class="kv"><span>Rent</span><span class="num">${fmt(r.amount)}</span></div>
@@ -3941,11 +3967,11 @@ function showReceipt(r, fresh) {
       <div class="kv"><span>Service fee</span><span class="num">${fmt(r.fee)}</span></div>
       <div class="kv tot"><span style="color:var(--ink)">Total</span><span class="num">${fmt(total)}</span></div>
       <div style="border-top:1px dashed var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px">
-        <div class="row" style="justify-content:space-between"><b>EFRIS tax receipt</b><span class="pill ok">${ic('shield')}Issued</span></div>
-        <div class="kv"><span>Fiscal document no.</span><span class="mono">${r.fdn || efrisNo(r.id)}</span></div>
-        <div class="kv"><span>Verification code</span><span class="mono">${r.vc || vcode(r.id)}</span></div>
+        <div class="row" style="justify-content:space-between"><b>EFRIS tax receipt</b>${r.fdn ? `<span class="pill ok">${ic('shield')}Issued</span>` : '<span class="pill warn">Pending from the owner</span>'}</div>
+        <div class="kv"><span>Fiscal document no.</span><span class="mono">${r.fdn ? esc(r.fdn) : 'Not recorded yet'}</span></div>
+        ${r.vc ? `<div class="kv"><span>Verification code</span><span class="mono">${esc(r.vc)}</span></div>` : ''}
         <div class="kv"><span>Agreement</span><span>${ag ? `<span class="mono">${ag.id}</span> accepted ${fdate(ag.accepted)}` : 'Accepted at booking'}</span></div>
-        <p class="muted" style="font-size:12px">Sample EFRIS numbers for this demo. A live system receives them from URA when the landlord's receipt is submitted.</p>
+        ${r.fdn ? '' : '<p class="muted" style="font-size:12px">The owner issues the EFRIS e-invoice with the Uganda Revenue Authority and records its number here.</p>'}
       </div>
     </div>
     <button class="btn" data-close>Done</button>`, 'Receipt');
@@ -3977,7 +4003,7 @@ function sumInner() {
   const l = byId(BK.lid), c = calc(), night = l.per === 'night';
   return `<div class="row" style="flex-wrap:nowrap"><div style="width:84px;border-radius:12px;overflow:hidden;flex:none">${art(l)}</div><div style="min-width:0"><b>${esc(l.name)}</b><div class="muted" style="font-size:13px">${l.unit} · ${l.area}</div></div></div>
     <div class="kv"><span>${night ? 'Check-in' : 'Move-in'}</span><span>${fdate(BK.start)}</span></div><div class="kv"><span>${night ? 'Check-out' : 'Until'}</span><span>${fdate(endOf(l, BK.start, BK.qty))}</span></div>
-    <div class="kv"><span>${fmt(l.price)} × ${plural(BK.qty, night ? 'night' : 'month')}</span><span class="num">${fmt(c.sub)}</span></div>${c.dep ? `<div class="kv"><span>Refundable deposit</span><span class="num">${fmt(c.dep)}</span></div>` : ''}
+    <div class="kv"><span>${fmt(periodPrice(l))} × ${plural(BK.qty, stayUnit(l))}</span><span class="num">${fmt(c.sub)}</span></div>${c.dep ? `<div class="kv"><span>Refundable deposit</span><span class="num">${fmt(c.dep)}</span></div>` : ''}
     <div class="kv"><span>Rentpply service fee (3%)</span><span class="num">${fmt(c.fee)}</span></div><div class="kv tot"><span style="color:var(--ink)">Total</span><span class="num">${fmt(c.tot)}</span></div>`;
 }
 Object.assign(IC, {
@@ -4003,7 +4029,7 @@ function pgListing() {
   const rules = [night ? 'Free cancellation up to 48 hours before check-in' : 'Notice to leave: ' + t.notice + ' days', t.deposit ? 'Refundable deposit: ' + plural(t.deposit, 'month') : 'No deposit', t.late ? 'Late fee: ' + t.late + '% of the rent' : 'No late fee', ...t.rules.split(/(?<=\.)\s+/).filter(Boolean)];
   const ok = l.v;
   return `<section class="sec flatpg">${backBtn('Back to results')}${stepsHTML(0)}
-    <div class="heroart">${art(l, 1)}</div>
+    ${(l.media || []).length ? `<div class="gal" role="group" aria-label="Photos and videos of ${esc(l.name)}">${l.media.map((m, i) => m.type === 'video' ? `<div class="gi"><video src="${esc(m.url)}" controls playsinline preload="metadata"></video></div>` : `<div class="gi"><img src="${esc(m.url)}" alt="Photo ${i + 1} of ${esc(l.name)}" loading="lazy"></div>`).join('')}</div><div class="muted" style="font-size:13px;margin-top:-6px">${l.media.length} ${l.media.length === 1 ? 'photo or video' : 'photos and videos'}. Swipe to see them all.</div>` : `<div class="heroart">${art(l, 1)}</div>`}
     <div class="stack" style="gap:6px"><div class="row">${verifiedPill(l)}<span class="eyebrow">${l.type === 'airbnb' ? 'Short stay' : l.type} · ${l.unit}</span></div><h1 style="font-size:clamp(28px,5vw,38px)">${esc(l.name)}</h1>
       <div class="muted" style="display:flex;gap:6px;align-items:center">${ic('pin')}${l.area}, Kampala${l.n ? ` · <span class="stars" style="display:inline-flex">${ic('star')}${l.rating.toFixed(1)}</span> (${l.n})` : ''}</div>
       <div class="price" style="font-size:28px;margin-top:4px">${fmt(l.price)} <small>${unitLabel(l)}</small></div><div class="muted" style="font-size:14px">${l.avail} of ${l.total} ${night ? 'rooms' : 'units'} available now</div></div>
@@ -4013,7 +4039,7 @@ function pgListing() {
     ${lsec('doc', 'Rules and policies', bullets(rules, 4))}
     ${lsec('car', 'Parking', `<p class="muted">${hasPark ? 'Parking is available on site.' : 'No parking on site.'}</p>`)}
     ${lsec('phone', 'Contact information', `<p><b>${esc(l.owner)}</b>${l.v ? ' · verified owner' : ''}</p><p class="muted">Phone and email are shared once you apply, so scammers cannot copy them.</p>`)}
-    ${lsec('pin', 'Local information', `<div class="row" style="justify-content:space-between;gap:10px;margin-bottom:6px"><span class="muted">${l.area}, Kampala · ${l.dist} km ${l.type === 'hostel' ? 'to campus' : 'from the centre'}</span><a class="btn ghost sm" href="${mapsLink(l)}" target="_blank" rel="noopener">Open in Google Maps</a></div>`)}
+    ${lsec('pin', 'Local information', `<div class="row" style="justify-content:space-between;gap:10px;margin-bottom:6px"><span class="muted">${l.area}, Kampala · ${l.dist} km ${l.type === 'hostel' ? 'to campus' : 'from the centre'}</span><a class="btn ghost sm" href="${mapsLink(l)}" target="_blank" rel="noopener">Open in Google Maps</a></div>${l.loc ? `<div class="mapbox"><iframe title="Map of ${esc(l.name)}" loading="lazy" referrerpolicy="no-referrer" src="https://www.openstreetmap.org/export/embed.html?bbox=${(l.loc.lng - .006).toFixed(5)},${(l.loc.lat - .004).toFixed(5)},${(l.loc.lng + .006).toFixed(5)},${(l.loc.lat + .004).toFixed(5)}&amp;layer=mapnik&amp;marker=${l.loc.lat.toFixed(6)},${l.loc.lng.toFixed(6)}"></iframe></div>${l.loc.address ? `<p class="muted" style="font-size:13px">${esc(l.loc.address)}</p>` : ''}` : '<p class="muted" style="font-size:13px">The exact map pin has not been added yet.</p>'}`)}
     ${ok ? `<div class="actbar always"><div class="inner two"><button class="btn ghost" data-view="${l.id}">Book a viewing</button><button class="btn" data-apply>Apply now</button></div></div>` : ''}
   </section>`;
 }
@@ -4045,7 +4071,7 @@ function pgAgreement() {
   return `<section class="sec">${backBtn('Back to the property')}${stepsHTML(1)}
     <div class="lp"><div class="stack" style="gap:18px;min-width:0">
       <div class="stack" style="gap:6px"><span class="eyebrow">Step 2 of 4</span><h1 style="font-size:clamp(28px,5vw,38px)">Tenancy agreement</h1><p class="muted" style="max-width:60ch">Read it all the way through. You choose your dates on the next step, and you can only pay after you accept.</p></div>
-      <div class="card stack" style="gap:12px"><div class="row" style="justify-content:space-between"><div><b>Issued by ${esc(l.owner)}</b><div class="muted" style="font-size:13px">Ref AG-2026-${String(l.id * 37 + 4000)} · ${esc(l.name)}</div></div><span class="pill warn" id="agst">Waiting for your acceptance</span></div>
+      <div class="card stack" style="gap:12px"><div class="row" style="justify-content:space-between"><div><b>Issued by ${esc(l.owner)}</b><div class="muted" style="font-size:13px">${esc(l.name)} · reference issued with your payment</div></div><span class="pill warn" id="agst">Waiting for your acceptance</span></div>
         <div class="am" id="agchips"></div><div class="agrfull" id="agrbody"></div></div>
       <label class="chk card" for="acc" style="align-items:center"><input type="checkbox" id="acc"><span>I have read and accept this tenancy agreement and the Rentpply terms and conditions.</span></label>
     </div><aside class="lp-aside"><div class="card stack" style="gap:10px"><h3 style="font-size:19px">Your booking</h3><div class="stack" style="gap:10px" id="sumBox"></div></div></aside></div>
@@ -4054,21 +4080,18 @@ function pgAgreement() {
 }
 function goPayment() {
   if (!BK.acc) { toast('Accept the agreement to continue'); return; }
-  let a = S.agreements.find(x => x.id === BK.agId);
-  if (!a) { a = { id: 'AG-2026-' + String(4100 + S.agreements.length), lid: BK.lid, room: 'To be assigned', tenant: ME, qty: BK.qty, start: BK.start, status: 'accepted', issued: Date.now(), accepted: Date.now(), paid: false }; S.agreements.unshift(a); BK.agId = a.id; }
-  Object.assign(a, { qty: BK.qty, start: BK.start, status: 'accepted', accepted: Date.now() }); save();
   S.page = { name: 'payment', lid: BK.lid }; render(true);
 }
 
 /* ---------- page 3: payment methods ---------- */
 function pgPayment() {
-  const l = byId(BK.lid), night = l.per === 'night', a = S.agreements.find(x => x.id === BK.agId);
+  const l = byId(BK.lid), night = l.per === 'night';
   return `<section class="sec">${backBtn('Back to the agreement')}${stepsHTML(2)}
     <div class="lp"><div class="stack" style="gap:18px;min-width:0">
-      <div class="stack" style="gap:6px"><span class="eyebrow">Step 3 of 4</span><h1 style="font-size:clamp(28px,5vw,38px)">Payment</h1><div class="row"><span class="pill ok">${ic('check')}Agreement accepted</span>${a ? `<span class="muted mono" style="font-size:13px">${a.id}</span>` : ''}</div></div>
+      <div class="stack" style="gap:6px"><span class="eyebrow">Step 3 of 4</span><h1 style="font-size:clamp(28px,5vw,38px)">Payment</h1><div class="row"><span class="pill ok">${ic('check')}Agreement accepted</span><span class="muted" style="font-size:13px">Its reference is issued when you record your payment</span></div></div>
       <div class="card stack"><h3 style="font-size:19px">Your stay</h3><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))">
         <div class="field"><label for="bs">${night ? 'Check-in' : 'Move-in date'}</label><input class="inp" type="date" id="bs" value="${BK.start}" min="${iso(NOW)}"></div>
-        <div class="field"><label for="bq">${night ? 'Nights' : 'Months'}</label><select class="inp" id="bq">${(night ? [1, 2, 3, 5, 7, 14] : [1, 2, 3, 4, 6, 12]).map(n => `<option ${BK.qty === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div></div></div>
+        <div class="field"><label for="bq">${({ night: 'Nights', semester: 'Semesters', month: 'Months' })[stayUnit(l)]}</label><select class="inp" id="bq">${({ night: [1, 2, 3, 5, 7, 14], semester: [1, 2, 3, 4], month: [1, 2, 3, 4, 6, 12] })[stayUnit(l)].map(n => `<option value="${n}" ${BK.qty === n ? 'selected' : ''}>${stayUnit(l) === 'semester' ? `${plural(n, 'semester')} (${n * MONTHS_PER_SEMESTER} months)` : n}</option>`).join('')}</select></div></div></div>
       <div class="card stack"><span class="lbl">Who is paying</span><div class="row"><button class="chip" data-payer="Self" aria-pressed="${BK.paidBy === 'Self'}">I am paying</button><button class="chip" data-payer="Sponsor" aria-pressed="${BK.paidBy === 'Sponsor'}">A sponsor is paying</button></div>
         <div id="sp" ${BK.paidBy === 'Sponsor' ? '' : 'hidden'} class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))"><div class="field"><label for="spn">Sponsor name</label><input class="inp" id="spn" placeholder="e.g. Mother"></div><div class="field"><label for="spc">Paying from</label><input class="inp" id="spc" placeholder="e.g. United States"></div></div></div>
       <div class="card stack"><span class="lbl">Payment evidence</span><p class="muted">After sending money directly to the property owner, choose the method and enter the transaction reference. Card charging is not available here.</p>
@@ -4096,14 +4119,14 @@ async function doPay() {
   S.agreements.unshift({ id: acceptedAgreement.reference, dbId: acceptedAgreement.id, lid: l.id, room: 'Unassigned', tenant: S.profile.full_name, qty: BK.qty, start: BK.start, status: 'accepted', issued: Date.now(), accepted: Date.now(), paid: false });
   const { data, error } = await supabase.from('payments').insert({
     reference, listing_id: l.dbId, room_code: 'Unassigned', tenant_id: S.user.id,
-    tenant_name: S.profile.full_name, start_date: BK.start, months: night ? 0 : BK.qty,
+    tenant_name: S.profile.full_name, start_date: BK.start, months: stayMonths(l, BK.qty),
     nights: night ? BK.qty : 0, amount: costs.sub, fee: costs.fee, deposit: costs.dep,
     payment_method: BK.method, paid_by: spn, agreement_id: acceptedAgreement.id,
-    purpose: night ? 'Stay, ' + plural(BK.qty, 'night') : 'Rent, ' + plural(BK.qty, 'month'),
+    purpose: (night ? 'Stay, ' : 'Rent, ') + plural(BK.qty, stayUnit(l)),
     from_source: ph.trim()
   }).select().single();
   if (error) { b.disabled = false; b.textContent = 'Record payment request'; toast(error.message || 'Could not save your payment request.'); return; }
-  S.payments.unshift({ id: data.reference, dbId: data.id, lid: l.id, room: 'Unassigned', start: BK.start, months: night ? 0 : BK.qty, nights: night ? BK.qty : 0, amount: costs.sub, fee: costs.fee, dep: costs.dep, method: BK.method, purpose: data.purpose, paidBy: spn, ts: Date.now(), st: 'pending', tenant: S.profile.full_name });
+  S.payments.unshift({ id: data.reference, dbId: data.id, lid: l.id, room: 'Unassigned', start: BK.start, months: stayMonths(l, BK.qty), nights: night ? BK.qty : 0, amount: costs.sub, fee: costs.fee, dep: costs.dep, method: BK.method, purpose: data.purpose, paidBy: spn, ts: Date.now(), st: 'pending', tenant: S.profile.full_name });
   S.page = { name: 'status', lid: l.id, pid: data.reference }; render(true);
 }
 
@@ -4113,7 +4136,7 @@ function pgStatus() {
   const view = { pending: ['clock', 'var(--warn-soft)', 'var(--warn)', 'Payment sent', `Waiting for ${esc(l.owner)} to confirm they received ${fmt(total)}.`], confirmed: ['check', 'var(--ok-soft)', 'var(--ok)', 'Payment confirmed', `${esc(l.owner)} confirmed your payment. Your room is <b>${esc(p.room)}</b>.`], rejected: ['x', 'var(--bad-soft)', 'var(--bad)', 'Payment not found', `${esc(l.owner)} could not find this payment. Nothing was kept. Check your mobile money history and try again.`] }[p.st];
   return `<section class="sec">${stepsHTML(p.st === 'pending' ? 3 : 4)}
     <div class="card stack" style="align-items:center;text-align:center;gap:12px;max-width:640px;margin-inline:auto;padding:28px 20px"><span class="avatar" style="background:${view[1]};color:${view[2]};width:64px;height:64px">${ic(view[0])}</span><h1 style="font-size:clamp(26px,5vw,34px)">${view[3]}</h1><p class="muted" style="max-width:46ch">${view[4]}</p>
-      <div class="stack" style="width:100%;gap:8px;text-align:left"><div class="kv"><span>Property</span><span>${esc(l.name)}</span></div><div class="kv"><span>For</span><span>${esc(p.purpose)}</span></div><div class="kv"><span>Amount</span><span class="num">${fmt(total)}</span></div><div class="kv"><span>Method</span><span>${p.method}</span></div><div class="kv"><span>Reference</span><span class="mono">${p.id}</span></div></div>
+      <div class="stack" style="width:100%;gap:8px;text-align:left"><div class="kv"><span>Property</span><span>${esc(l.name)}</span></div><div class="kv"><span>For</span><span>${esc(p.purpose)}</span></div><div class="kv"><span>Amount</span><span class="num">${fmt(total)}</span></div><div class="kv"><span>Method</span><span>${p.method}</span></div><div class="kv"><span>Reference</span><span class="mono">${p.id}</span></div><div class="kv"><span>Room</span><span>${esc(roomLabel(p.room))}</span></div></div>
       ${p.st === 'pending' ? `<p class="muted" style="font-size:13px">You get your receipt and room number as soon as they confirm. We will also notify you.</p><div class="row" style="justify-content:center"><button class="btn ghost" data-flowexit>Back to home</button></div>`
       : p.st === 'confirmed' ? `<div class="row" style="justify-content:center"><button class="btn" data-receipt="${p.id}">View receipt</button><button class="btn ghost" data-flowexit="wallet">See my room</button></div>` : `<div class="row" style="justify-content:center"><button class="btn" data-open="${l.id}">Try again</button><button class="btn ghost" data-flowexit>Back to home</button></div>`}</div></section>`;
 }
@@ -4152,7 +4175,7 @@ async function sendReport() {
 
 /* ---------- tenant: Pay tab with current room ---------- */
 function roomInfo(b) {
-  const l = byId(b.lid), st = new Date(b.start).getTime(), en = endOf(l, b.start, b.nights || b.months).getTime(), now = Date.now(), total = Math.max(1, Math.round((en - st) / DAY));
+  const l = byId(b.lid), st = new Date(b.start).getTime(), en = recordEnd(b.start, b.months, b.nights).getTime(), now = Date.now(), total = Math.max(1, Math.round((en - st) / DAY));
   return { b, l, st, en, state: now < st ? 'upcoming' : now > en ? 'ended' : 'current', day: Math.max(0, Math.min(total, Math.floor((now - st) / DAY))), total, left: Math.ceil((en - now) / DAY), pct: Math.max(0, Math.min(100, (now - st) / (en - st) * 100)) };
 }
 function roomCard(r, first) {
@@ -4162,7 +4185,7 @@ function roomCard(r, first) {
   return `<div class="card stack roomcard ${cur ? 'cur' : ''}" style="gap:14px">
     <div class="row" style="justify-content:space-between;align-items:start"><div style="min-width:0"><span class="eyebrow">${cur ? 'Your current room' : r.state === 'upcoming' ? 'Upcoming room' : 'Past room'}</span><h3 style="font-size:24px">${esc(l.name)}</h3><div class="muted">Room <span class="mono">${b.room}</span> · ${l.unit} · ${l.area}</div></div><span class="pill ${cur ? 'ok' : 'mute'}">${cur ? 'Current room' : r.state === 'upcoming' ? 'Starts ' + fdate(b.start) : 'Ended'}</span></div>
     ${cur ? `<div class="stack" style="gap:6px"><div class="row" style="justify-content:space-between"><b>Day ${r.day} of ${r.total}</b><span class="muted num">${r.left} days left</span></div><div class="bar" role="img" aria-label="${Math.round(r.pct)}% of your stay has passed"><b style="width:${r.pct}%"></b></div></div>` : ''}
-    <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">${stat(l.per === 'night' ? 'Per night' : 'Rent per month', fmt(l.price))}${stat('Paid until', fdate(r.en))}${stat('Room', esc(b.room || 'Unassigned'))}${stat('Stay', b.nights ? plural(b.nights, 'night') : plural(b.months, 'month'))}</div>
+    <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">${stat(l.per === 'night' ? 'Per night' : 'Rent per month', fmt(l.price))}${stat('Paid until', fdate(r.en))}${stat('Room', esc(roomLabel(b.room)))}${stat('Stay', b.nights ? plural(b.nights, 'night') : plural(b.months, 'month'))}</div>
     <div class="row"><span class="pill ok">${ic('check')}Payment confirmed</span><span class="pill ${ag && ag.status === 'accepted' ? 'ok' : 'mute'}">${ic('key')}Agreement ${ag && ag.status === 'accepted' ? 'accepted' : 'on file'}</span><span class="pill ${openN ? 'warn' : 'ok'}">${ic(openN ? 'bell' : 'check')}${openN ? openN + ' repair' + (openN > 1 ? 's' : '') + ' open' : 'No repairs open'}</span></div>
     ${mine.length ? `<details class="rep"><summary><span class="lbl">Your repair requests (${mine.length})</span><span class="muted" style="font-size:13px">${openN ? openN + ' open' : 'All fixed'}</span>${ic('chevron')}</summary><div class="stack" style="gap:8px;margin-top:6px">${mine.slice(0, 4).map(m => `<div class="row" style="justify-content:space-between;flex-wrap:nowrap;border-top:1px solid var(--line);padding-top:8px"><div style="min-width:0"><b>${mtName(m.type)}</b>${m.urgent ? ' <span class="pill bad">Urgent</span>' : ''}<div class="muted" style="font-size:13px;overflow-wrap:anywhere">${esc(m.note)} · ${ago(m.ts)}</div></div><span class="pill ${pill.st[m.st][0]}">${pill.st[m.st][1]}</span></div>`).join('')}</div></details>` : ''}
     <div class="row">${cur ? `<button class="btn" data-report="${b.id}">${ic('bell')}Report a problem</button>` : ''}${ag ? `<button class="btn ghost" data-agview="${ag.id}">View agreement</button>` : ''}<button class="btn ghost" data-receipt="${b.id}">${ic('receipt')}Receipt</button></div></div>`;
@@ -4189,11 +4212,11 @@ function vWallet() {
       <span class="ric">${ic(s === 'pending' ? 'clock' : 'receipt')}</span>
       <div style="min-width:0"><div class="row" style="gap:8px"><b>${esc(l.name)}</b>${i === 0 ? '<span class="pill ok">Latest</span>' : ''}${s === 'pending' ? '<span class="pill warn">Waiting for owner</span>' : s === 'rejected' ? '<span class="pill bad">Not received</span>' : ''}</div>
         <div class="muted" style="font-size:13px">${esc(r.purpose || 'Rent')} · ${fdt(r.ts)}</div>
-        <div class="muted" style="font-size:12px"><span class="mono">${r.id}</span> · ${r.method}${s === 'confirmed' ? ` · EFRIS <span class="mono">${r.fdn || efrisNo(r.id)}</span>` : ''}</div></div>
+        <div class="muted" style="font-size:12px"><span class="mono">${r.id}</span> · ${r.method}${s === 'confirmed' ? ` · ${r.fdn ? `EFRIS <span class="mono">${esc(r.fdn)}</span>` : 'EFRIS pending'}` : ''}</div></div>
       <div class="rr"><b class="num">${fmt(r.amount + r.fee + (r.dep || 0))}</b>${s === 'confirmed' ? `<button class="btn ghost sm" data-receipt="${r.id}">View</button>` : `<button class="btn ghost sm" data-statuspage="${r.id}">Status</button>`}</div></div>`; }).join('')}</div>
     <h3 style="font-size:22px;margin-top:6px">Your agreements</h3>
     <div class="stack" style="gap:10px">${mine.map(a => { const l = byId(a.lid), s = st[a.status]; return `<div class="card row" style="justify-content:space-between;flex-wrap:nowrap">
-      <div style="min-width:0"><b>${esc(l.name)}</b><div class="muted" style="font-size:13px"><span class="mono">${a.id}</span> · room <span class="mono">${a.room}</span> · ${plural(a.qty, l.per === 'night' ? 'night' : 'month')} from ${fdate(a.start)}</div></div>
+      <div style="min-width:0"><b>${esc(l.name)}</b><div class="muted" style="font-size:13px"><span class="mono">${a.id}</span> · room <span class="mono">${esc(roomLabel(a.room))}</span> · ${plural(a.qty, l.per === 'night' ? 'night' : 'month')} from ${fdate(a.start)}</div></div>
       <div class="row" style="flex-wrap:nowrap"><span class="pill ${s[0]}">${s[1]}</span>${a.status === 'sent' ? `<button class="btn sm" data-agview="${a.id}">Review and accept</button>` : a.status === 'accepted' && !a.paid ? `<button class="btn sm" data-open="${a.lid}">Pay now</button><button class="btn ghost sm" data-agview="${a.id}">View</button>` : `<button class="btn ghost sm" data-agview="${a.id}">View</button>`}</div></div>`; }).join('') || '<div class="card"><p class="muted">Agreements you accept show up here.</p></div>'}</div>
   </section>`;
 }
@@ -4441,7 +4464,7 @@ function landGo(k) {
 const NAV = {
   tenant: [['home', 'Home', 'home', vHome], ['explore', 'Explore', 'search', vExplore], ['roommates', 'Roommates', 'users', vRoommates], ['wallet', 'My stay', 'key', vWallet]],
   student: [['home', 'Campus home', 'home', vHome], ['explore', 'Find housing', 'search', vExplore], ['roommates', 'Study partners', 'users', vRoommates], ['wallet', 'My housing', 'key', vWallet]],
-  owner: [['overview', 'Overview', 'chart'], ['units', 'Units', 'building'], ['payments', 'Payments', 'receipt'], ['terms', 'Agreements', 'doc'], ['requests', 'Requests', 'list'], ['tax', 'Tax records', 'receipt']],
+  owner: [['overview', 'Overview', 'chart'], ['units', 'Units', 'building'], ['payments', 'Payments', 'receipt'], ['terms', 'Board', 'key'], ['requests', 'Requests', 'list']],
   admin: [['queue', 'Onboard', 'shield'], ['units', 'Units', 'key'], ['prop', 'Property', 'home'], ['listings', 'Listings', 'building'], ['kpis', 'KPIs', 'chart']]
 };
 const FIRST = { tenant: 'home', student: 'home', owner: 'overview', admin: 'queue' };
@@ -4493,7 +4516,7 @@ function updateUserInfo() {
   const admin = S.profile.role === 'admin';
   const unread = (S.notifications || []).filter(notification => !notification.read).length;
   const views = admin ? `<label class="field" style="margin:0"><span class="sr-only">Platform view</span><select class="inp" data-admin-view aria-label="View platform">${[['admin', 'Admin'], ['owner', 'Property owner'], ['tenant', 'Tenant'], ['student', 'Student']].map(([value, label]) => `<option value="${value}" ${S.role === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>` : '';
-  el.innerHTML = `<span>${esc(S.profile.full_name || S.user.email)}</span>${views}<span class="pill ok">${admin ? 'Admin' : S.profile.role === 'student' ? 'Student' : S.profile.role === 'owner' ? 'Owner' : 'Tenant'}</span><button class="ibtn" data-notifications aria-label="Notifications${unread ? ', ' + unread + ' unread' : ''}">${ic('bell')}${unread ? `<small class="not-count">${unread}</small>` : ''}</button><button class="btn ghost sm" data-auth-signout>Sign out</button>`;
+  el.innerHTML = `<span>${esc(S.profile.role === 'owner' && S.liveData ? (currentPropertyName(S.liveData) || S.profile.full_name) : (S.profile.full_name || S.user.email))}</span>${views}<span class="pill ok">${admin ? 'Admin' : S.profile.role === 'student' ? 'Student' : S.profile.role === 'owner' ? 'Owner' : 'Tenant'}</span><button class="ibtn" data-notifications aria-label="Notifications${unread ? ', ' + unread + ' unread' : ''}">${ic('bell')}${unread ? `<small class="not-count">${unread}</small>` : ''}</button><button class="btn ghost sm" data-auth-signout>${S.profile.role === 'owner' ? 'Log out' : 'Sign out'}</button>`;
 }
 
 function showNotifications() {
@@ -4570,6 +4593,19 @@ async function loadPublicListings() {
     used.add(id);
     return { id, dbId: item.id, name: item.name, type: item.type, area: item.area, price: item.price, per: item.per, unit: item.unit_type, dist: Number(item.distance_km) || 0, avail: item.available_units, total: item.total_units, v: item.verified ? 1 : 0, rating: 0, n: 0, hue: item.hue || 168, owner: item.owner_name, am: item.amenities || [], desc: item.description || '' };
   });
+  const ids = data.map(item => item.id);
+  const [tpl, locs, media] = ids.length ? await Promise.all([
+    supabase.from('agreement_templates').select('listing_id, deposit_months, late_fee_percent, notice_days, house_rules').in('listing_id', ids),
+    supabase.from('listing_locations').select('listing_id, lat, lng, address').in('listing_id', ids),
+    supabase.from('listing_media').select('listing_id, type, url, sort_order').in('listing_id', ids).order('sort_order')
+  ]) : [{ data: [] }, { data: [] }, { data: [] }];
+  liveListings.forEach(l => {
+    const t = (tpl.data || []).find(x => x.listing_id === l.dbId);
+    if (t) l.terms = { deposit: t.deposit_months ?? 0, late: t.late_fee_percent ?? 0, notice: t.notice_days ?? 30, ...(t.house_rules && t.house_rules.trim() ? { rules: t.house_rules.trim() } : {}) };
+    const loc = (locs.data || []).find(x => x.listing_id === l.dbId);
+    if (loc && loc.lat != null && loc.lng != null) l.loc = { lat: Number(loc.lat), lng: Number(loc.lng), address: loc.address || '' };
+    l.media = (media.data || []).filter(x => x.listing_id === l.dbId && x.url);
+  });
   L.splice(0, L.length, ...liveListings);
   AREAS.splice(0, AREAS.length, ...new Set(liveListings.map(item => item.area)));
   updateLandingLive();
@@ -4589,7 +4625,7 @@ async function loadTenantData() {
   const listingId = id => L.find(item => item.dbId === id)?.id;
   S.saved = (saved.data || []).map(item => listingId(item.listing_id)).filter(Boolean);
   S.bookings = (bookings.data || []).map(item => ({ id: item.reference, dbId: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, ts: Date.parse(item.created_at), listed: item.listed_for_transfer, purpose: item.purpose })).filter(item => item.lid);
-  S.payments = (payments.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, purpose: item.purpose, ts: Date.parse(item.created_at), st: item.status, tenant: item.tenant_name, from: item.from_source, fdn: item.efris_document_no })).filter(item => item.lid);
+  S.payments = (payments.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, purpose: item.purpose, ts: Date.parse(item.created_at), st: item.status, tenant: item.tenant_name, from: item.from_source, fdn: item.efris_document_no, vc: item.verification_code })).filter(item => item.lid);
   S.agreements = (agreements.data || []).map(item => ({ id: item.reference, dbId: item.id, lid: listingId(item.listing_id), room: item.room_code, tenant: item.tenant_name, qty: item.quantity, start: item.start_date, status: item.status, issued: Date.parse(item.issued_at || item.created_at), accepted: item.accepted_at ? Date.parse(item.accepted_at) : null, paid: item.paid })).filter(item => item.lid);
   S.maint = (maintenance.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, tenant: item.tenant_name, type: item.type, urgent: item.urgent, note: item.note, ts: Date.parse(item.created_at), st: item.status })).filter(item => item.lid);
   const [roommates, sentRoommateRequests, receivedRoommateRequests, ownTransfers, openTransfers, transferRequests, notifications] = await Promise.all([
@@ -4665,6 +4701,7 @@ function render(top) {
   document.body.classList.toggle('auth-page', !!authVisible);
   $('#dock').innerHTML = nav.map(n => `<button data-tab="${n[0]}" ${n[0] === S.tab ? 'aria-current="page"' : ''}>${ic(n[2])}<span>${n[1]}</span>${badge(n)}</button>`).join('');
   updateUserInfo();
+  if (liveOwnerAdmin && S.liveData) portalBind();
   document.querySelectorAll('[data-role]').forEach(b => b.setAttribute('aria-pressed', b.dataset.role === S.role));
   if (top) { window.scrollTo({ top: 0 }); const m = $('#main'); m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter'); }
 }
@@ -4701,7 +4738,7 @@ document.addEventListener('click', async e => {
   }
   if (c('[data-live-retry]')) { await refreshPortal(); return; }
   if (S.profile && ['owner', 'admin'].includes(S.profile.role)) {
-    try { if (await handlePortalClick(t, refreshPortal, { rerender: () => render(), setTab: tab => { S.tab = tab; render(true); } })) { if (!t.closest('[data-p-prop],[data-p-unit],[data-p-floor],[data-p-paytab],[data-p-range],[data-p-hub],[data-p-adm-prop],[data-p-adm-back],[data-live-kyc-doc]')) toast('Changes saved.'); return; } }
+    try { if (await handlePortalClick(t, refreshPortal, { rerender: () => render(), setTab: tab => { S.tab = tab; render(true); }, data: S.liveData, toast })) { if (!t.closest('[data-p-prop],[data-p-unit],[data-p-floor],[data-p-paytab],[data-p-range],[data-p-hub],[data-p-adm-prop],[data-p-adm-back],[data-live-kyc-doc],[data-p-copy],[data-p-pwtoggle],[data-p-login-issue],[data-p-fill],[data-p-verify]')) toast('Changes saved.'); return; } }
     catch (error) { toast(error.message || 'Could not save that change.'); return; }
   }
   if (!c('.acwrap')) document.querySelectorAll('.acpop').forEach(x => { x.hidden = true; });
@@ -4882,7 +4919,7 @@ document.addEventListener('change', async e => {
     return;
   }
   if (S.profile && ['owner', 'admin'].includes(S.profile.role)) {
-    try { if (await handlePortalChange(e.target, refreshPortal)) { toast('Changes saved.'); return; } }
+    try { if (await handlePortalChange(e.target, refreshPortal, { rerender: () => render(), data: S.liveData })) { if (!e.target.matches('[data-p-ownerpick],[data-p-layfloor]')) toast('Changes saved.'); return; } }
     catch (error) { toast(error.message || 'Could not update that record.'); return; }
   }
   if (id === 'ky-stu') { $('#ky-stuf').hidden = !e.target.checked; return; }
