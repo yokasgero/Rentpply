@@ -17,7 +17,7 @@ const ICON = {
   bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0', list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', flag: 'M5 21V4m0 0h11l-2 4 2 4H5',
   receipt: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6', check: 'M5 12.5l4.5 4.5L19 7.5', arrow: 'M9 6l6 6-6 6', plus: 'M12 5v14M5 12h14', shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
   key: 'M7 14a4 4 0 1 1 3.9-5H21v3h-2v2h-3v-2h-5.1A4 4 0 0 1 7 14z', home: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
-  bolt: 'M13 2L4 14h7l-1 8 9-12h-7z', search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-4.3-4.3'
+  bolt: 'M13 2L4 14h7l-1 8 9-12h-7z', doc: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6', search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-4.3-4.3'
 };
 const icn = name => ic(ICON[name] || ICON.check);
 const pill = (value, tone) => `<span class="pill ${tone || (['verified', 'confirmed', 'accepted', 'paid', 'done', 'approved'].includes(String(value).toLowerCase()) ? 'ok' : ['rejected', 'declined', 'overdue'].includes(String(value).toLowerCase()) ? 'bad' : 'warn')}">${esc(value)}</span>`;
@@ -39,6 +39,7 @@ export async function loadPortalData(role, userId) {
   const { data: properties, error } = await query;
   if (error) throw error;
   const ids = (properties || []).map(item => item.id);
+  const none = Promise.resolve({ data: [] });
   const requests = ids.length ? [
     supabase.from('units').select('*').in('listing_id', ids).order('unit_code'),
     supabase.from('payments').select('*').in('listing_id', ids).order('created_at', { ascending: false }),
@@ -46,26 +47,36 @@ export async function loadPortalData(role, userId) {
     supabase.from('maintenance_requests').select('*').in('listing_id', ids).order('created_at', { ascending: false }),
     supabase.from('bills').select('*').in('listing_id', ids).order('due_date'),
     supabase.from('rent_transfers').select('*, bookings(reference, tenant_name, tenant_id)').in('listing_id', ids).order('created_at', { ascending: false }),
-    supabase.from('owner_requests').select('*').in('listing_id', ids).order('created_at', { ascending: false })
+    supabase.from('owner_requests').select('*').in('listing_id', ids).order('created_at', { ascending: false }),
+    supabase.from('board_entries').select('*').in('listing_id', ids).order('created_at', { ascending: false }),
+    supabase.from('property_layouts').select('*').in('listing_id', ids),
+    supabase.from('listing_media').select('*').in('listing_id', ids).order('sort_order'),
+    supabase.from('listing_locations').select('*').in('listing_id', ids),
+    supabase.from('agreement_templates').select('*').in('listing_id', ids),
+    supabase.rpc('payment_tenant_checks', { listing_ids: ids })
   ] : [];
-  const [detail, profileResult, queueResult, notificationsResult] = await Promise.all([
+  const [detail, profileResult, queueResult, notificationsResult, loginsResult] = await Promise.all([
     Promise.all(requests),
-    role === 'admin' ? supabase.from('profiles').select('*').order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
-    role === 'admin' ? supabase.from('admin_queue').select('*').order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
-    supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50)
+    role === 'admin' ? supabase.from('profiles').select('*').order('created_at', { ascending: false }) : none,
+    role === 'admin' ? supabase.from('admin_queue').select('*').order('created_at', { ascending: false }) : none,
+    supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50),
+    role === 'admin' ? supabase.from('owner_logins').select('*') : none
   ]);
-  const transferIds = detail[5]?.data?.map(item => item.id) || [];
-  const transferRequestsResult = transferIds.length
-    ? await supabase.from('rent_transfer_requests').select('*, requester:profiles!rent_transfer_requests_requester_id_fkey(full_name)').in('transfer_id', transferIds).order('created_at', { ascending: false })
-    : { data: [] };
-  const failure = detail.find(result => result.error) || profileResult.error || queueResult.error || notificationsResult.error || transferRequestsResult.error;
+  const at = i => detail[i]?.data || [];
+  const transferIds = at(5).map(item => item.id), entryIds = at(7).map(item => item.id);
+  const [transferRequestsResult, boardPaymentsResult] = await Promise.all([
+    transferIds.length ? supabase.from('rent_transfer_requests').select('*, requester:profiles!rent_transfer_requests_requester_id_fkey(full_name)').in('transfer_id', transferIds).order('created_at', { ascending: false }) : none,
+    entryIds.length ? supabase.from('board_payments').select('*').in('entry_id', entryIds).order('paid_at') : none
+  ]);
+  const failure = detail.find(result => result.error) || profileResult.error || queueResult.error || notificationsResult.error || transferRequestsResult.error || boardPaymentsResult.error || loginsResult.error;
   if (failure) throw failure.error || failure;
   return {
-    listings: (properties || []).slice().sort((x, y) => (Number(y.verified) - Number(x.verified)) || x.name.localeCompare(y.name)), units: detail[0]?.data || [], payments: detail[1]?.data || [],
-    agreements: detail[2]?.data || [], maintenance: detail[3]?.data || [], bills: detail[4]?.data || [],
-    transfers: detail[5]?.data || [], ownerRequests: detail[6]?.data || [],
-    transferRequests: transferRequestsResult.data || [], notifications: notificationsResult.data || [],
-    profiles: profileResult.data || [], queue: queueResult.data || []
+    listings: (properties || []).slice().sort((x, y) => (Number(y.verified) - Number(x.verified)) || x.name.localeCompare(y.name)),
+    units: at(0), payments: at(1), agreements: at(2), maintenance: at(3), bills: at(4), transfers: at(5), ownerRequests: at(6),
+    board: at(7), layouts: at(8), media: at(9), locations: at(10), templates: at(11),
+    kyc: Object.fromEntries(at(12).map(x => [x.tenant_id, x.kyc_status])),
+    boardPayments: boardPaymentsResult.data || [], transferRequests: transferRequestsResult.data || [], notifications: notificationsResult.data || [],
+    profiles: profileResult.data || [], queue: queueResult.data || [], logins: loginsResult.data || []
   };
 }
 
@@ -132,23 +143,23 @@ const propBar = l => `<div class="pbar"><button class="pback" data-p-adm-back>�
 /* ---------- needs-you list ---------- */
 function needsYou(data, lid) {
   const inP = x => !lid || x.listing_id === lid;
-  const mt = data.maintenance.filter(m => inP(m) && m.status === 'open').length, rq = data.ownerRequests.filter(r => inP(r) && r.status === 'open').length;
+  const mt = data.maintenance.filter(m => inP(m) && m.status === 'open').length, rq = data.ownerRequests.filter(r => inP(r) && r.status === 'open').length + data.transferRequests.filter(r => r.status === 'pending' && data.transfers.some(t => t.id === r.transfer_id && inP(t))).length;
   const od = data.units.filter(u => inP(u) && u.payment_status === 'overdue').length, dr = data.payments.filter(p => inP(p) && p.status === 'pending').length;
-  const rows = [[mt, 'bell', 'bad', `${mt} repair ${mt === 1 ? 'complaint' : 'complaints'}`, 'A tenant needs you to attend', 'units'], [rq, 'list', 'warn', `${rq} ${rq === 1 ? 'request' : 'requests'} to approve`, 'Viewings, transfers and roommates', 'requests'], [od, 'flag', 'bad', `${od} overdue ${od === 1 ? 'tenant' : 'tenants'}`, 'See who owes rent', 'payments'], [dr, 'receipt', 'warn', `${dr} ${dr === 1 ? 'payment' : 'payments'} to confirm`, 'Tenants say they have paid', 'payments']].filter(r => r[0] > 0);
-  if (!rows.length) return `<div class="card row" style="color:var(--ok)">${icn('check')}<b>You are all caught up.</b></div>`;
-  return `<div class="card stack needs" style="gap:2px;padding:8px"><span class="eyebrow" style="padding:8px 10px 2px">Needs you today</span>${rows.map(r => `<button class="needrow" data-tab="${r[5]}"><span class="ric ${r[2]}">${icn(r[1])}</span><span style="min-width:0;text-align:left"><b>${r[3]}</b><small class="muted" style="display:block">${r[4]}</small></span>${ic(ICON.arrow, 'i" style="margin-left:auto;flex:none')}</button>`).join('')}</div>`;
+  const rows = [[mt, 'bell', 'bad', `${mt} repair ${mt === 1 ? 'complaint' : 'complaints'}`, 'A tenant needs you to attend', 'units'], [rq, 'list', 'warn', `${rq} ${rq === 1 ? 'request' : 'requests'} to approve`, 'New tenants, transfers, roommates and viewings', 'requests'], [od, 'flag', 'bad', `${od} overdue ${od === 1 ? 'tenant' : 'tenants'}`, 'See who owes rent', 'payments']].filter(r => r[0] > 0);
+  const pay = dr ? `<button class="needrow" data-tab="payments"><span class="ric warn">${icn('receipt')}</span><span style="min-width:0;text-align:left"><b>Pending payment approval (${dr})</b><small class="muted" style="display:block">${dr} ${dr === 1 ? 'tenant has' : 'tenants have'} paid and ${dr === 1 ? 'is' : 'are'} waiting for you to confirm</small></span>${ic(ICON.arrow, 'i" style="margin-left:auto;flex:none')}</button>`
+    : `<button class="needrow quiet" data-tab="payments"><span class="ric mute">${icn('receipt')}</span><span style="min-width:0;text-align:left"><b>Pending payment approval</b><small class="muted" style="display:block">No payments waiting</small></span>${ic(ICON.arrow, 'i" style="margin-left:auto;flex:none')}</button>`;
+  return `<div class="card stack needs" style="gap:2px;padding:8px"><span class="eyebrow" style="padding:8px 10px 2px">Needs you today</span>${rows.map(r => `<button class="needrow" data-tab="${r[5]}"><span class="ric ${r[2]}">${icn(r[1])}</span><span style="min-width:0;text-align:left"><b>${r[3]}</b><small class="muted" style="display:block">${r[4]}</small></span>${ic(ICON.arrow, 'i" style="margin-left:auto;flex:none')}</button>`).join('')}${pay}</div>`;
 }
-
 /* ---------- OWNER: overview ---------- */
 function ownerOverview(data, profile) {
   const p = currentProp(data); if (!p) return noProps();
   const units = data.units.filter(u => u.listing_id === p.id), pays = data.payments.filter(x => x.listing_id === p.id && x.status === 'confirmed');
   const bk = buckets(6), series = bk.map(b => sum(pays.filter(x => inRange(when(x), b)).map(x => x.amount)));
-  const occ = units.filter(u => u.status === 'occupied').length, late = units.filter(u => u.payment_status && u.payment_status !== 'paid' && u.status === 'occupied');
+  const occ = units.filter(u => u.status === 'occupied').length, late = units.filter(u => u.payment_status && u.payment_status !== 'paid' && u.status !== 'vacant' && u.status !== 'maint');
   const owed = sum(units.map(u => u.balance)), free = units.filter(u => u.status === 'vacant' || u.status === 'reserved').length;
   const admin = profile.role === 'admin';
   return `<section class="sec">${head(admin ? 'Admin view · property owner' : 'Property owner', p.name, `<span class="pill ${p.verified ? 'ok' : 'warn'}">${icn('shield')}${p.verified ? 'Verified' : 'Pending check'}</span>`)}${propChips(data)}
-    ${needsYou(data, p.id)}
+    ${needsYou(data, p.id)}${boardStrip(data, p.id)}
     <div class="kgrid">
       <div class="card stat"><span class="eyebrow">Occupancy</span><b>${units.length ? Math.round(occ / units.length * 100) : 0}%</b><span class="muted">${occ} of ${units.length} units</span></div>
       <div class="card stat"><span class="eyebrow">Collected in ${MN[new Date().getMonth()]}</span><b class="num">${mil(series[series.length - 1])}</b><span class="muted">UGX, from confirmed payments</span></div>
@@ -189,27 +200,34 @@ function unitDetail(u, data) {
       ${hist.length ? `<div class="tablebox" style="max-height:340px"><table><thead><tr><th>For</th><th>Paid by</th><th class="r">Amount</th><th>Method</th><th>Receipt</th><th>EFRIS</th><th>Status</th></tr></thead><tbody>${hist.map(p => `<tr><td>${esc(p.purpose)}<div class="muted" style="font-size:12px">${date(p.created_at)}</div></td><td>${esc(p.paid_by)}</td><td class="r num">${money(p.amount + p.fee + p.deposit)}</td><td>${esc(p.payment_method)}</td><td class="mono">${esc(p.reference)}</td><td>${p.efris_document_no ? `<span class="mono">${esc(p.efris_document_no)}</span>` : '<span class="pill warn">Pending</span>'}</td><td>${pill(p.status)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No payments recorded for this unit yet.</p>'}</div></div>`;
 }
 function unitsView(data, p, adminMode) {
-  const units = data.units.filter(u => u.listing_id === p.id).sort((a, b) => a.floor - b.floor || a.unit_code.localeCompare(b.unit_code, undefined, { numeric: true }));
-  const floors = [...new Set(units.map(u => u.floor))].sort((a, b) => a - b);
+  const units = data.units.filter(u => u.listing_id === p.id).sort(byCode);
+  const floors = [...new Set([...units.map(u => u.floor), ...data.layouts.filter(x => x.listing_id === p.id).map(x => x.floor)])].sort((a, b) => a - b);
   if (ui.floor === null || !floors.includes(ui.floor)) ui.floor = floors[0] ?? 0;
   const n = k => units.filter(u => u.status === k).length, open = data.maintenance.filter(m => m.listing_id === p.id && m.status === 'open').length;
-  const sel = units.find(u => u.id === ui.unit), shown = units.filter(u => u.floor === ui.floor);
+  const sel = units.find(u => u.id === ui.unit);
+  const page = f => {
+    const us = units.filter(u => u.floor === f), lay = layoutOf(data, p.id, f), cols = lay ? lay.columns : 3, slots = lay ? Math.max(0, lay.columns * lay.rows - us.length) : 0;
+    return `<div class="fpage" data-fp="${f}"><div class="floorlbl-row"><b class="floorlbl">${floorName(f)}</b><span class="muted" style="font-size:13px">${us.length} rooms${slots ? ` · ${slots} empty ${slots === 1 ? 'position' : 'positions'}` : ''}</span></div>
+      <div class="units flr" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${us.map(u => unitTile(u, data)).join('')}${'<div class="unit empty" aria-hidden="true"><small>Empty</small></div>'.repeat(slots)}</div></div>`;
+  };
   return `<section class="sec">${head(p.name, 'Units')}${adminMode ? '' : propChips(data)}
     ${open ? `<div class="alertbar" role="alert"><span class="bell ring">${icn('bell')}</span><div><b>${open} maintenance ${open === 1 ? 'complaint needs' : 'complaints need'} attention</b><div style="font-size:13px">Look for the red bell on a unit and tap it.</div></div></div>` : ''}
-    <p class="muted" style="max-width:62ch">Tap a unit to see who lives there and change its status.</p>
+    <p class="muted" style="max-width:62ch">Tap a room to see who lives there. Press and hold a room to change its status.</p>
     <div class="legend"><span><i style="background:var(--ok-soft);border-color:var(--ok)"></i>Occupied ${n('occupied')}</span><span><i style="background:var(--warn-soft);border-color:var(--warn)"></i>Reserved ${n('reserved')}</span><span><i style="border-style:dashed"></i>Vacant ${n('vacant')}</span><span><i style="background:var(--bad-soft);border-color:var(--bad)"></i>Maintenance ${n('maint')}</span></div>
-    ${floors.length > 1 ? `<div class="fchips" role="tablist" aria-label="Floors">${floors.map(f => `<button class="fchip" role="tab" data-p-floor="${f}" aria-pressed="${f === ui.floor}">${f === 0 ? 'Ground' : floorName(f).replace(' floor', '')}</button>`).join('')}</div>` : ''}
-    ${units.length ? `<div class="floorlbl-row"><b class="floorlbl">${floorName(ui.floor)}</b><span class="muted" style="font-size:13px">${shown.length} rooms</span></div><div class="units flr">${shown.map(u => unitTile(u, data)).join('')}</div>` : '<div class="card"><p class="muted">No rooms yet. Add the first room below.</p></div>'}
-    ${sel ? unitDetail(sel, data) : units.length ? '<div class="card"><p class="muted">Select a unit to see the tenant, their payment history and any repair requests.</p></div>' : ''}
-    <form class="card stack" data-live-form="unit"><div><span class="eyebrow">Add a room</span><h3>New unit</h3></div><input type="hidden" name="listing_id" value="${esc(p.id)}"><div class="grid">${field('Room code', 'unit_code')}${field('Floor', 'floor', 'number', 'value="0" min="0"')}${field('Monthly rent (UGX)', 'rent', 'number', 'min="1"')}</div><button class="btn" type="submit">Add room</button></form></section>`;
+    ${floors.length > 1 ? `<div class="fchips" role="tablist" aria-label="Floors">${floors.map(f => `<button class="fchip" role="tab" data-p-floor="${f}" aria-pressed="${f === ui.floor}">${f === 0 ? 'Ground' : floorName(f).replace(' floor', '')}</button>`).join('')}<span class="muted fhint">Swipe for the next floor</span></div>` : ''}
+    ${floors.length ? `<div class="fpager" id="fpager">${floors.map(page).join('')}</div>` : '<div class="card"><p class="muted">No rooms yet.</p></div>'}
+    ${sel ? unitDetail(sel, data) : units.length ? '<div class="card"><p class="muted">Select a room to see the tenant, what they pay, their payment history and any repair requests.</p></div>' : ''}
+    ${adminMode ? `<form class="card stack" data-live-form="unit"><div><span class="eyebrow">Add a single room</span><h3>New room</h3></div><input type="hidden" name="listing_id" value="${esc(p.id)}"><div class="grid">${field('Room code', 'unit_code')}${field('Floor', 'floor', 'number', `value="${ui.floor ?? 0}" min="0"`)}${field('Monthly rent (UGX)', 'rent', 'number', `min="1" value="${p.price}"`)}</div><button class="btn" type="submit">Add room</button></form>` : ''}</section>`;
 }
+
 const ownerUnits = (data) => { const p = currentProp(data); return p ? unitsView(data, p, false) : noProps(); };
 
 /* ---------- OWNER: payments (students, bills, tax) ---------- */
 function paymentsTable(data, lid, withActions) {
   const list = data.payments.filter(p => !lid || p.listing_id === lid);
-  return table(['Reference', 'Tenant', 'Room', 'For', 'Total', 'Method', 'Status', withActions ? 'Review' : 'Receipt'], list.map(p => `<tr><td class="mono">${esc(p.reference)}</td><td>${esc(p.tenant_name)}</td><td class="mono">${esc(p.room_code)}</td><td>${esc(p.purpose)}</td><td class="num">${money(p.amount + p.fee + p.deposit)}</td><td>${esc(p.payment_method)}</td><td>${pill(p.status)}</td><td>${p.status === 'pending' && withActions ? `<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-live-payment="${esc(p.id)}:confirmed">Confirm</button><button class="btn ghost sm" data-live-payment="${esc(p.id)}:rejected">Reject</button></div>` : p.status === 'confirmed' ? `<span class="mono">${esc(p.efris_document_no || 'EFRIS pending')}</span>` : '-'}</td></tr>`), 'No payments yet. Payment requests from tenants appear here.');
+  return table(['Reference', 'Tenant', 'Room', 'For', 'Total', 'Method', 'Status', withActions ? 'Review' : 'Receipt'], list.map(p => `<tr><td class="mono">${esc(p.reference)}</td><td>${esc(p.tenant_name)}${kycBadge(data, p.tenant_id)}</td><td class="mono">${esc(p.room_code === 'Unassigned' ? 'To be assigned' : p.room_code)}</td><td>${esc(p.purpose)}</td><td class="num">${money(p.amount + p.fee + p.deposit)}</td><td>${esc(p.payment_method)}</td><td>${pill(p.status)}</td><td>${p.status === 'pending' && withActions ? `<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-live-payment="${esc(p.id)}:confirmed">Confirm</button><button class="btn ghost sm" data-live-payment="${esc(p.id)}:rejected">Reject</button></div>` : p.status === 'confirmed' ? `<span class="mono">${esc(p.efris_document_no || 'EFRIS pending')}</span>` : '-'}</td></tr>`), 'No payments yet. Payment requests from tenants appear here.');
 }
+
 function billsBlock(data, p) {
   const bills = data.bills.filter(b => b.listing_id === p.id);
   return `<section class="sec"><h3 style="font-size:22px">Bills and running costs</h3>${table(['Bill', 'Category', 'Amount', 'Due', 'Status'], bills.map(b => `<tr><td><b>${esc(b.name)}</b></td><td>${esc(b.category)}</td><td class="num">${money(b.amount)}</td><td>${date(b.due_date)}</td><td><select class="inp" style="width:auto" data-live-bill="${esc(b.id)}" aria-label="Bill status">${options(['due', 'paid', 'overdue'], b.status)}</select></td></tr>`), 'No bills recorded yet.')}
@@ -228,14 +246,7 @@ function ownerPayments(data) {
   const body = ui.pay === 'bills' ? billsBlock(data, p) : ui.pay === 'tax' ? taxBlock(data, p) : `<section class="sec">${head('Tenant payments', 'Payments')}${paymentsTable(data, p.id, true)}</section>`;
   return `<section class="sec" style="padding-bottom:0">${head(p.name, 'Payments')}${propChips(data)}<div class="paytabs" role="group" aria-label="Payment sections">${tabs.map(t => `<button class="ptab" data-p-paytab="${t[0]}" aria-pressed="${ui.pay === t[0]}">${icn(t[2])}<b>${t[1]}</b><small>${t[3]}</small></button>`).join('')}</div></section>${body}`;
 }
-const ownerTax = data => { const p = currentProp(data); return p ? `<section class="sec" style="padding-bottom:0">${head(p.name, 'Tax records')}${propChips(data)}</section>${taxBlock(data, p)}` : noProps(); };
-
 /* ---------- OWNER: agreements and requests ---------- */
-function ownerAgreements(data) {
-  const p = currentProp(data); if (!p) return noProps();
-  const list = data.agreements.filter(a => a.listing_id === p.id), tone = { accepted: 'ok', sent: 'warn', draft: 'mute' };
-  return `<section class="sec">${head(p.name, 'Agreements')}${propChips(data)}${table(['Reference', 'Tenant', 'Room', 'Stay', 'Start', 'Status'], list.map(a => `<tr><td class="mono">${esc(a.reference)}</td><td>${esc(a.tenant_name)}</td><td class="mono">${esc(a.room_code)}</td><td>${a.quantity}</td><td>${date(a.start_date)}</td><td><span class="pill ${tone[a.status] || 'mute'}">${esc(a.status)}</span></td></tr>`), 'Agreements appear here when tenants accept them.')}</section>`;
-}
 function requestCards(data, lid) {
   const reqs = data.ownerRequests.filter(r => r.listing_id === lid && r.kind !== 'Rent transfer'), mt = data.maintenance.filter(m => m.listing_id === lid);
   const trs = data.transferRequests.filter(r => data.transfers.some(t => t.id === r.transfer_id && t.listing_id === lid));
@@ -249,25 +260,25 @@ const ownerRequests = data => { const p = currentProp(data); return p ? `<sectio
 function ownerView(tab, data, profile) {
   if (tab === 'units') return ownerUnits(data);
   if (tab === 'payments') return ownerPayments(data);
-  if (tab === 'tax') return ownerTax(data);
   if (tab === 'requests') return ownerRequests(data);
-  if (tab === 'terms') return ownerAgreements(data);
+  if (tab === 'terms') return ownerBoard(data);
   return ownerOverview(data, profile);
 }
 
 /* ---------- ADMIN ---------- */
 function newPropertyForm(data) {
   const owners = data.profiles.filter(x => x.role === 'owner');
-  return `<form class="card stack" data-live-form="listing"><div><span class="eyebrow">Step 1</span><h3>Add a property</h3><p class="muted">It stays unverified, and hidden from tenants, until you verify it.</p></div>
-    <label class="field"><span>Owner</span><select class="inp" name="owner_id" required>${owners.map(x => `<option value="${esc(x.id)}">${esc(x.full_name)}</option>`).join('')}</select></label>
+  return `<form class="card stack" data-live-form="listing"><div><span class="eyebrow">Step 1</span><h3>Add a property</h3><p class="muted">It appears in the admin lists straight away and reaches tenants once it is verified.</p></div>
+    <label class="field"><span>Owner</span><select class="inp" name="owner_id" data-p-ownerpick required>${owners.map(x => `<option value="${esc(x.id)}">${esc(x.full_name)}</option>`).join('')}<option value="__new">+ A new owner</option></select></label>
+    <div class="grid" id="newOwner" hidden><label class="field"><span>Owner name</span><input class="inp" name="new_name"></label><label class="field"><span>Owner email (their username)</span><input class="inp" name="new_email" type="email"></label><label class="field"><span>Owner phone</span><input class="inp" name="new_phone" type="tel"></label></div>
     ${field('Property name', 'name')}<div class="grid">${field('Area', 'area')}${field('Price (UGX)', 'price', 'number', 'min="1"')}</div>
-    <div class="grid"><label class="field"><span>Type</span><select class="inp" name="type">${options(['hostel', 'rental', 'airbnb'], 'hostel')}</select></label>${field('Room type', 'unit_type')}</div>
+    <div class="grid"><label class="field"><span>Type</span><select class="inp" name="type">${options([['hostel', 'Hostel'], ['rental', 'Rental'], ['airbnb', 'Airbnb']], 'hostel')}</select></label>${field('Room type', 'unit_type')}</div>
     <label class="field"><span>Description</span><textarea class="inp" name="description" rows="3" required></textarea></label>
     <label class="field"><span>Amenities (comma separated)</span><input class="inp" name="amenities" placeholder="Wi-Fi, 24h security, Water tank"></label><button class="btn" type="submit">Add property</button></form>`;
 }
 function verifyHub(data) {
   const pending = data.listings.filter(l => !l.verified), reviews = data.profiles.filter(x => x.kyc_status === 'review'), q = data.queue;
-  return `<div class="stack"><h3 style="font-size:22px">Properties waiting for verification</h3>${pending.length ? pending.map(l => `<article class="card row" style="justify-content:space-between"><span><b>${esc(l.name)}</b><small class="muted">${esc(l.area)} · ${esc(l.owner_name)} · ${esc(TYPE[l.type] || l.type)}</small></span><div class="row"><button class="btn sm" data-live-verify="${esc(l.id)}">Verify</button><button class="btn ghost sm" data-live-delete-listing="${esc(l.id)}">Reject</button></div></article>`).join('') : '<div class="card"><p class="muted">Every property is verified.</p></div>'}
+  return `<div class="stack"><h3 style="font-size:22px">Properties to verify</h3><p class="muted">Ask the owner for two things: the LC1 letter and the property data consent agreement. Tick each when you have it, then verify.</p>${pending.length ? pending.map(verifyCard).join('') : '<div class="card"><p class="muted">Every property is verified.</p></div>'}
     <h3 style="font-size:22px;margin-top:8px">Identity reviews</h3>${reviews.length ? reviews.map(x => `<article class="card stack"><div class="row" style="justify-content:space-between"><span><b>${esc(x.full_name)}</b><small class="muted mono" style="display:block;word-break:break-all">${esc(x.id)}</small></span>${pill('In review', 'warn')}</div><div class="row"><button class="btn ghost sm" data-live-kyc-doc="${esc(x.id_document_url || '')}">View ID</button><button class="btn ghost sm" data-live-kyc-doc="${esc(x.selfie_url || '')}">View selfie</button><button class="btn sm" data-live-kyc="${esc(x.id)}:verified">Verify</button><button class="btn ghost sm" data-live-kyc="${esc(x.id)}:none">Request resubmission</button></div></article>`).join('') : '<div class="card"><p class="muted">No identity checks waiting.</p></div>'}
     <h3 style="font-size:22px;margin-top:8px">Queue items</h3>${table(['Type', 'Subject', 'Details', 'Status'], q.map(x => `<tr><td>${esc(x.kind)}</td><td><b>${esc(x.subject_name)}</b></td><td>${esc(x.details)}</td><td><select class="inp" style="width:auto" data-live-queue="${esc(x.id)}" aria-label="Queue status">${options(['open', 'resolved', 'dismissed'], x.status)}</select></td></tr>`), 'The queue is empty.')}</div>`;
 }
@@ -282,26 +293,42 @@ function accountsHub(data) {
 }
 function adminQueue(data) {
   const pend = data.listings.filter(l => !l.verified).length, kyc = data.profiles.filter(x => x.kyc_status === 'review').length, openQ = data.queue.filter(x => x.status === 'open').length;
+  const unsent = data.logins.filter(x => x.issued_at && !x.sent_at).length + data.profiles.filter(o => o.role === 'owner' && !(data.logins.find(x => x.owner_id === o.id) || {}).issued_at).length;
   const act = data.payments.filter(p => p.status === 'pending').length + data.maintenance.filter(m => m.status === 'open').length + data.transferRequests.filter(r => r.status === 'pending').length;
-  const hubs = [['add', 'plus', 'Add property', 0], ['verify', 'shield', 'Verification', pend + kyc + openQ], ['activity', 'receipt', 'Activity', act], ['accounts', 'users', 'Accounts', 0]];
+  const hubs = [['add', 'plus', 'Add property', 0], ['verify', 'shield', 'Verification', pend + kyc + openQ], ['logins', 'key', 'Owner logins', unsent], ['activity', 'receipt', 'Activity', act], ['accounts', 'users', 'Accounts', 0]];
   const hub = ui.hub;
   return `<section class="sec">${head('Admin', 'Onboarding')}
     <div class="kgrid"><div class="card stat"><span class="eyebrow">Pending properties</span><b>${pend}</b><span class="muted">waiting for verification</span></div><div class="card stat"><span class="eyebrow">Identity reviews</span><b>${kyc}</b><span class="muted">waiting for a decision</span></div><div class="card stat"><span class="eyebrow">Open queue items</span><b>${openQ}</b><span class="muted">needing follow-up</span></div><div class="card stat"><span class="eyebrow">Accounts</span><b>${data.profiles.length}</b><span class="muted">on the platform</span></div></div>
     <div class="hubs" role="group" aria-label="Onboarding steps">${hubs.map(h => `<button class="hubb" data-p-hub="${h[0]}" aria-pressed="${hub === h[0]}">${icn(h[1])}<b>${h[2]}</b>${h[3] ? `<i class="hbadge">${h[3]}</i>` : ''}</button>`).join('')}</div>
-    ${hub === 'add' ? newPropertyForm(data) : hub === 'verify' ? verifyHub(data) : hub === 'activity' ? activityHub(data) : accountsHub(data)}</section>`;
+    ${hub === 'add' ? newPropertyForm(data) : hub === 'verify' ? verifyHub(data) : hub === 'logins' ? loginsHub(data) : hub === 'activity' ? activityHub(data) : accountsHub(data)}</section>`;
 }
+
 function adminUnits(data) {
   const p = currentProp(data, 'admProp'); if (!p) return propPicker(data, 'units', 'Units');
-  return `<section class="sec" style="padding-bottom:0">${propBar(p)}</section>${unitsView(data, p, true)}`;
+  return `<section class="sec" style="padding-bottom:0">${propBar(p)}${layoutEditor(data, p)}</section>${unitsView(data, p, true)}`;
 }
+
 function adminProperty(data) {
   const p = currentProp(data, 'admProp'); if (!p) return propPicker(data, 'prop', 'Property');
-  return `<section class="sec" style="padding-bottom:0">${propBar(p)}</section><section class="sec">${head('Property details', p.name, `<span class="pill ${p.verified ? 'ok' : 'warn'}">${p.verified ? 'Verified' : 'Pending'}</span>`)}
-    <form class="card stack" data-live-form="edit-listing" data-listing-id="${esc(p.id)}"><div class="grid"><label class="field"><span>Property name</span><input class="inp" name="name" value="${esc(p.name)}" required></label><label class="field"><span>Area</span><input class="inp" name="area" value="${esc(p.area)}" required></label><label class="field"><span>Price (UGX)</span><input class="inp" name="price" type="number" min="1" value="${esc(p.price)}" required></label><label class="field"><span>Status</span><select class="inp" name="verified"><option value="true" ${p.verified ? 'selected' : ''}>Verified</option><option value="false" ${p.verified ? '' : 'selected'}>Pending</option></select></label></div>
+  const media = data.media.filter(m => m.listing_id === p.id).sort((a, b) => a.sort_order - b.sort_order), loc = data.locations.find(x => x.listing_id === p.id) || {}, t = data.templates.find(x => x.listing_id === p.id) || {};
+  return `<section class="sec" style="padding-bottom:0">${propBar(p)}</section><section class="sec">${head('What tenants see', p.name, `<span class="pill ${p.verified ? 'ok' : 'warn'}">${p.verified ? 'Verified' : 'Pending'}</span>`)}
+    <form class="card stack" data-live-form="edit-listing" data-listing-id="${esc(p.id)}"><h3>Details</h3><div class="grid"><label class="field"><span>Property name</span><input class="inp" name="name" value="${esc(p.name)}" required></label><label class="field"><span>Area</span><input class="inp" name="area" value="${esc(p.area)}" required></label><label class="field"><span>Price (UGX)</span><input class="inp" name="price" type="number" min="1" value="${esc(p.price)}" required></label></div>
       <label class="field"><span>Description</span><textarea class="inp" name="description" rows="4">${esc(p.description || '')}</textarea></label>
       <label class="field"><span>Amenities (comma separated)</span><input class="inp" name="amenities" value="${esc((p.amenities || []).join(', '))}"></label>
-      <div class="row"><button class="btn" type="submit">Save changes</button><button class="btn ghost" type="button" data-live-delete-listing="${esc(p.id)}">Delete property</button></div></form></section>`;
+      <div class="row"><button class="btn" type="submit">Save details</button><button class="btn ghost" type="button" data-live-delete-listing="${esc(p.id)}">Delete property</button></div></form>
+    <div class="card stack"><h3>Photos and videos</h3><p class="muted">These make up the gallery on the listing page. The first photo is also the cover.</p>
+      ${media.length ? `<div class="mgrid">${media.map((m, i) => `<div class="mt">${m.type === 'video' ? `<video src="${esc(m.url)}" preload="metadata" muted></video>` : `<img src="${esc(m.url)}" alt="Photo ${i + 1}" loading="lazy">`}<button class="btn ghost sm" type="button" data-p-media-del="${esc(m.id)}">Remove</button></div>`).join('')}</div>` : '<p class="muted">No photos or videos yet.</p>'}
+      <label class="btn ghost sm upl" style="align-self:flex-start">Add photos or videos<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple data-p-media-up="${esc(p.id)}" hidden></label></div>
+    <form class="card stack" data-live-form="location" data-listing-id="${esc(p.id)}"><h3>Location pin</h3><p class="muted">Paste a Google Maps link, or type the GPS coordinates. The listing then shows the property on a map.</p>
+      <label class="field"><span>Google Maps link (optional)</span><input class="inp" name="link" placeholder="https://www.google.com/maps/place/...@0.3348,32.5677..."></label>
+      <div class="grid"><label class="field"><span>Latitude</span><input class="inp" name="lat" type="number" step="any" value="${loc.lat ?? ''}"></label><label class="field"><span>Longitude</span><input class="inp" name="lng" type="number" step="any" value="${loc.lng ?? ''}"></label><label class="field"><span>Address or landmark</span><input class="inp" name="address" value="${esc(loc.address || '')}"></label></div>
+      <button class="btn" type="submit" style="align-self:flex-start">Save location</button></form>
+    <form class="card stack" data-live-form="agreement" data-listing-id="${esc(p.id)}"><h3>Agreement</h3><p class="muted">These clauses appear on the listing page as the rules and in the tenancy agreement tenants accept.${p.per === 'night' ? ' Short stays always show free cancellation up to 48 hours before check-in.' : ''}</p>
+      <div class="grid"><label class="field"><span>Notice period (days)</span><input class="inp" name="notice" type="number" min="0" max="365" value="${t.notice_days ?? 30}" required></label><label class="field"><span>Refundable deposit (months of rent)</span><input class="inp" name="deposit" type="number" min="0" max="6" value="${t.deposit_months ?? 0}" required></label><label class="field"><span>Late fee (% of overdue rent)</span><input class="inp" name="late" type="number" min="0" max="50" value="${t.late_fee_percent ?? 5}" required></label></div>
+      <label class="field"><span>House rules</span><textarea class="inp" name="rules" rows="3" placeholder="Visitors leave by 10 pm. Quiet hours are 10 pm to 6 am.">${esc(t.house_rules || '')}</textarea></label>
+      <button class="btn" type="submit" style="align-self:flex-start">Save agreement</button></form></section>`;
 }
+
 function adminListings(data) {
   return `<section class="sec">${head(`${data.listings.length} properties`, 'Listings')}${table(['Property', 'Type', 'Area', 'Owner', 'Units free', 'Status', ''], data.listings.map(l => `<tr><td><b>${esc(l.name)}</b></td><td>${esc(TYPE[l.type] || l.type)}</td><td>${esc(l.area)}</td><td>${esc(l.owner_name)}</td><td class="num">${l.available_units} / ${l.total_units}</td><td><span class="pill ${l.verified ? 'ok' : 'warn'}">${l.verified ? 'Verified' : 'Pending'}</span></td><td><div class="row" style="flex-wrap:nowrap"><button class="btn ghost sm" data-p-adm-prop="${esc(l.id)}" data-p-adm-tab="units">Manage units</button><button class="btn ghost sm" data-p-adm-prop="${esc(l.id)}" data-p-adm-tab="prop">Edit</button></div></td></tr>`), 'No properties yet.')}</section>`;
 }
@@ -328,6 +355,7 @@ function adminKpis(data) {
   const parts = Object.entries(methods).sort((a, b) => b[1] - a[1]).map(([n, v], i) => ({ n, c: Math.min(4, i + 1), v }));
   const top = verified.map(l => { const us = data.units.filter(u => u.listing_id === l.id), o = us.filter(u => u.status === 'occupied'); return { l, occ: us.length ? Math.round(o.length / us.length * 100) : 0, rent: sum(o.map(u => u.rent)) }; }).sort((a, b) => b.rent - a.rent).slice(0, 6);
   const tiles = [['Gross rent value', 'UGX ' + mil(sum(rev)), dl(sum(rev), prevRev), rev], ['Rentpply fees', 'UGX ' + mil(sum(fee)), dl(sum(rev), prevRev), fee], ['Confirmed bookings', String(sum(cnt)), dl(sum(cnt), prevCnt), cnt], ['Occupancy', (units.length ? Math.round(occ / units.length * 100) : 0) + '%', `<span class="muted" style="font-size:12px">${occ} of ${units.length} units</span>`, []], ['New users', String(nu), dl(nu, prevUsers), bk.map((_, i) => ten[i] + own[i])], ['Awaiting review', String(reviews), `<span class="muted" style="font-size:12px">properties and IDs</span>`, []]];
+  const extras = kpiExtras(data, bk);
   const cv = (title, sub, body) => `<div class="card cv"><div class="cvh"><div><b>${title}</b><small>${sub}</small></div></div>${body}</div>`;
   return `<section class="sec kpis">${head('Analytics', 'How Rentpply is doing', '<span class="pill ok">Live data</span>')}
     <div class="seg" role="group" aria-label="Time range"><button data-p-range="1" aria-pressed="${R === 1}">1 month</button><button data-p-range="6" aria-pressed="${R === 6}">6 months</button><button data-p-range="12" aria-pressed="${R === 12}">12 months</button></div>
@@ -336,6 +364,9 @@ function adminKpis(data) {
     ${cv('Bookings by property type', `Confirmed bookings per ${per}`, stackChart(bk.map(b => b.label), [{ n: 'Hostels', c: 1, v: byType('hostel') }, { n: 'Rentals', c: 2, v: byType('rental') }, { n: 'Airbnbs', c: 3, v: byType('airbnb') }], 'Bookings by type') + legend([{ n: 'Hostels', c: 1 }, { n: 'Rentals', c: 2 }, { n: 'Airbnbs', c: 3 }]))}
     ${cv('Occupancy by property', 'Live from unit data', hbars(occRows, v => v + '%', 3, 100))}
     ${cv('Monthly rent value by area', 'UGX millions from occupied units', hbars(areaRows, v => v + 'm', 1))}
+    ${cv('Booking funnel', `${span} · from viewing requests to confirmed bookings`, extras.funnel)}
+    ${cv('Payment status', `Payment requests made · ${span.toLowerCase()}`, extras.status)}
+    ${cv('When people apply', 'Payment requests and agreements by day and time of day', extras.heat)}
     ${cv('How tenants pay', `Share of confirmed payments · ${span.toLowerCase()}`, donut(parts))}
     ${cv('New users', `Sign-ups per ${per}`, stackChart(bk.map(b => b.label), [{ n: 'Tenants and students', c: 1, v: ten }, { n: 'Owners', c: 4, v: own }], 'New users') + legend([{ n: 'Tenants and students', c: 1 }, { n: 'Owners', c: 4 }]))}
     ${cv('Top properties', 'By monthly rent value from occupied units', top.length ? `<div class="tbl"><div class="tr th"><span>Property</span><span>Occ.</span><span>Rent</span></div>${top.map(t => `<div class="tr"><span class="tn"><b>${esc(t.l.name)}</b><small>${esc(t.l.area)}</small></span><span>${t.occ}%</span><span>${mil(t.rent)}</span></div>`).join('')}</div>` : '<p class="muted">No verified properties yet.</p>')}
@@ -349,23 +380,229 @@ function adminView(tab, data) {
   return adminQueue(data);
 }
 
-export function renderPortal(role, tab, data, profile) {
-  if (!data) return '<section class="sec"><div class="card skeleton" style="height:120px"></div><div class="tgrid"><div class="card skeleton" style="height:90px"></div><div class="card skeleton" style="height:90px"></div><div class="card skeleton" style="height:90px"></div></div></section>';
-  return role === 'admin' ? adminView(tab, data) : ownerView(tab, data, profile);
+const METHODS = ['Cash', 'MTN MoMo', 'Airtel Money', 'Bank transfer'];
+const today = () => new Date().toISOString().slice(0, 10);
+const byCode = (a, b) => a.floor - b.floor || a.unit_code.localeCompare(b.unit_code, undefined, { numeric: true });
+const layoutOf = (data, lid, floor) => data.layouts.find(x => x.listing_id === lid && x.floor === floor) || null;
+const kycBadge = (data, tenantId) => data.kyc[tenantId] === 'verified' ? `<span class="pill ok" style="margin-left:6px">${icn('shield')}ID verified</span>` : `<span class="pill mute" style="margin-left:6px">ID not verified</span>`;
+const layer = html => { const el = document.getElementById('layer'); if (el) el.innerHTML = html; };
+const sheetHTML = (title, inner) => `<div class="veil" data-veil><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="bar"><span class="eyebrow">${esc(title)}</span><button class="ibtn" data-close aria-label="Close">×</button></div><div class="in">${inner}</div></div></div>`;
+
+async function ownerLoginsCall(body) {
+  const { data, error } = await supabase.functions.invoke('owner-logins', { body });
+  if (error) { let msg = error.message; try { const j = await error.context.json(); if (j && j.error) msg = j.error; } catch (_) { /* keep the generic message */ } throw new Error(msg); }
+  return data;
+}
+function showCredentials(username, password, ownerId) {
+  layer(sheetHTML('Owner login', `<div class="stack" style="gap:14px"><h2 style="font-size:24px">Login for the owner</h2>
+    <p class="notice">Copy these now. For security the password is not stored, so it cannot be shown again. You can issue a new one at any time.</p>
+    <label class="field"><span>Username</span><div class="row" style="flex-wrap:nowrap"><input class="inp mono" readonly value="${esc(username)}"><button class="btn ghost sm" type="button" data-p-copy="${esc(username)}">Copy</button></div></label>
+    <label class="field"><span>Password</span><div class="row" style="flex-wrap:nowrap"><input class="inp mono" id="credPw" type="password" readonly value="${esc(password)}"><button class="btn ghost sm" type="button" data-p-pwtoggle>Show</button><button class="btn ghost sm" type="button" data-p-copy="${esc(password)}">Copy</button></div></label>
+    <button class="btn" type="button" data-p-logins-sent="${esc(ownerId)}">Mark as sent to the owner</button></div>`));
+}
+function quickMenu(unitId, code) {
+  layer(sheetHTML(`Room ${code}`, `<div class="stack" style="gap:10px"><h2 style="font-size:24px">Room ${esc(code)}</h2><p class="muted">Change the status of this room.</p>${STAT.map(([k, t]) => `<button class="opt" type="button" data-p-setst="${esc(unitId)}:${k}"><b>${t}</b></button>`).join('')}</div>`));
+}
+function parseMapsLink(text) {
+  const t = decodeURIComponent(String(text || ''));
+  const m = t.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || t.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || t.match(/[?&](?:q|query|ll|destination|center)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/) || t.match(/^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/);
+  return m ? { lat: Number(m[1]), lng: Number(m[2]) } : null;
+}
+export function currentPropertyName(data) { const p = data && currentProp(data); return p ? p.name : ''; }
+
+function boardTotals(data, lid) {
+  const e = data.board.filter(x => x.listing_id === lid && x.status !== 'cancelled');
+  return { n: e.length, booked: e.filter(x => x.status === 'booked').length, full: e.filter(x => x.status === 'full').length, owed: sum(e.filter(x => x.status !== 'full').map(x => x.total - x.paid)) };
+}
+function boardStrip(data, lid) {
+  const t = boardTotals(data, lid); if (!t.n) return '';
+  return `<div class="card stack" style="gap:10px"><div class="row" style="justify-content:space-between"><b>On the board</b><button class="btn ghost sm" data-tab="terms">Open board</button></div>
+    <div class="tgrid" style="grid-template-columns:repeat(3,1fr);gap:8px;margin:0"><div class="kmini"><span class="muted">Booked</span><b class="num">${t.booked}</b></div><div class="kmini"><span class="muted">Fully paid</span><b class="num">${t.full}</b></div><div class="kmini"><span class="muted">Still owed</span><b class="num">${mil(t.owed)}</b></div></div></div>`;
 }
 
+function paymentGate(data) {
+  const pend = data.payments.filter(p => p.status === 'pending').sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+  if (!pend.length) return '';
+  const p = pend[0], l = data.listings.find(x => x.id === p.listing_id) || {}, vac = data.units.filter(u => u.listing_id === p.listing_id && u.status === 'vacant').sort(byCode), total = p.amount + p.fee + p.deposit;
+  const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
+  return `<div class="gateveil"><div class="sheet gatebox" role="alertdialog" aria-modal="true" aria-label="Confirm a payment first"><div class="in" style="padding-top:22px">
+    <span class="pill warn" style="align-self:flex-start">${icn('bell')}Action needed${pend.length > 1 ? ` · ${pend.length} payments waiting` : ''}</span>
+    <div class="stack" style="gap:6px"><h2 style="font-size:28px">Confirm this payment first</h2><p class="muted">${esc(p.tenant_name)} says they have paid. Check your mobile money or bank, then answer. Your dashboard opens again once you do.</p></div>
+    <div class="card stack" style="gap:8px"><div class="row" style="flex-wrap:wrap;gap:4px"><b style="font-size:17px">${esc(p.tenant_name)}</b>${kycBadge(data, p.tenant_id)}</div>
+      ${kv('Property', esc(l.name || ''))}${kv('For', esc(p.purpose))}${kv(p.nights ? 'Check-in' : 'Move-in', date(p.start_date))}${kv('Paid with', esc(p.payment_method) + (p.from_source ? ' · ' + esc(p.from_source) : ''))}${kv('Paid by', esc(p.paid_by))}${kv('Reference', `<span class="mono">${esc(p.reference)}</span>`)}${kv('Sent', new Date(p.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}
+      <div class="kv tot"><span style="color:var(--ink)">Amount to look for</span><span class="num">${money(total)}</span></div></div>
+    ${vac.length ? `<label class="field"><span>Give them this room</span><select class="inp" id="gateRoom">${vac.map(u => `<option value="${esc(u.id)}">${esc(u.unit_code)} · ${floorName(u.floor)}</option>`).join('')}</select></label>` : '<p class="notice">There is no vacant room at this property. Free a room in Units before you confirm.</p>'}
+    <button class="btn" data-live-payment="${esc(p.id)}:confirmed" ${vac.length ? '' : 'disabled'}>Yes, I received it</button><button class="btn ghost" data-live-payment="${esc(p.id)}:rejected">I did not receive it</button></div></div></div>`;
+}
+
+function ownerBoard(data) {
+  const p = currentProp(data); if (!p) return noProps();
+  const entries = data.board.filter(e => e.listing_id === p.id && e.status !== 'cancelled').sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  const vac = data.units.filter(u => u.listing_id === p.id && u.status === 'vacant').sort(byCode), t = boardTotals(data, p.id);
+  const form = p.per !== 'month' ? '<div class="notice">The board is for monthly stays. Short-stay guests book through Rentpply.</div>'
+    : `<form class="card stack" data-live-form="board-onboard" data-listing-id="${esc(p.id)}"><div><span class="eyebrow">Walk-in tenant</span><h3>Onboard tenant</h3><p class="muted">For someone who viewed a room and paid you directly. The room follows what they have paid: Reserved while part paid, Occupied once paid in full.</p></div>
+      <div class="grid"><label class="field"><span>Room</span><select class="inp" name="unit_id" required>${vac.map(u => `<option value="${esc(u.id)}">${esc(u.unit_code)} · ${floorName(u.floor)}</option>`).join('')}</select></label>${field('Tenant name', 'tenant_name')}${field('Phone', 'phone', 'tel', 'placeholder="07XX XXX XXX"')}</div>
+      <div class="grid"><label class="field"><span>Months</span><input class="inp" name="months" type="number" min="1" max="24" value="4" required></label><label class="field"><span>Start date</span><input class="inp" name="start_date" type="date" value="${today()}" required></label><label class="field"><span>Rent per month</span><input class="inp" value="${money(p.price)}" disabled></label></div>
+      <label class="chk"><input type="checkbox" name="has_roommate"><span>They will have a roommate</span></label>
+      <label class="chk"><input type="checkbox" name="booking_fee" checked><span>This payment is a booking fee</span></label>
+      <div class="grid"><label class="field"><span>Amount paid now (UGX)</span><input class="inp" name="amount" type="number" min="0" step="1000" value="100000"></label><label class="field"><span>Paid with</span><select class="inp" name="method">${options(METHODS, 'Cash')}</select></label></div>
+      <button class="btn" type="submit" ${vac.length ? '' : 'disabled'}>Onboard tenant</button>${vac.length ? '' : '<p class="muted">There are no vacant rooms right now.</p>'}</form>`;
+  const card = e => {
+    const pays = data.boardPayments.filter(x => x.entry_id === e.id).sort((a, b) => Date.parse(a.paid_at) - Date.parse(b.paid_at)), pct = e.total ? Math.min(100, Math.round(e.paid / e.total * 100)) : 0;
+    const label = { unpaid: ['mute', 'Unpaid'], booked: ['warn', 'Booked'], full: ['ok', 'Full'] }[e.status];
+    return `<article class="card stack" style="gap:10px"><div class="row" style="justify-content:space-between;align-items:flex-start"><span style="min-width:0"><b>Room ${esc(e.unit_code)} · ${esc(e.tenant_name)}${e.has_roommate ? ' +1' : ''}</b><small class="muted" style="display:block">${esc(e.phone)} · ${e.months} ${e.months === 1 ? 'month' : 'months'} from ${date(e.start_date)}</small></span><span class="pill ${label[0]}">${label[1]}</span></div>
+      <div class="bar" role="img" aria-label="${pct}% paid"><b style="width:${pct}%"></b></div>
+      <div class="row" style="justify-content:space-between;font-size:14px"><span>Paid <b>${money(e.paid)}</b> of ${money(e.total)}</span>${e.total - e.paid > 0 ? `<span>Still owed <b style="color:var(--bad)">${money(e.total - e.paid)}</b></span>` : '<b style="color:var(--ok)">Paid in full</b>'}</div>
+      ${pays.length ? `<details><summary class="muted" style="cursor:pointer">Payment log (${pays.length})</summary><div class="stack" style="gap:6px;margin-top:8px">${pays.map(x => `<div class="kv"><span>${date(x.paid_at)} · ${esc(x.method)}${x.is_booking_fee ? ' · booking fee' : ''}</span><span class="num">${money(x.amount)}</span></div>`).join('')}</div></details>` : ''}
+      ${e.status !== 'full' ? `<form class="row" data-live-form="board-pay" data-entry-id="${esc(e.id)}" style="flex-wrap:wrap;gap:8px"><input class="inp" name="amount" type="number" min="1" max="${e.total - e.paid}" placeholder="Amount (UGX)" required style="flex:1;min-width:140px"><select class="inp" name="method" style="width:auto" aria-label="Paid with">${options(METHODS, 'Cash')}</select><button class="btn sm" type="submit">Record payment</button><button class="btn ghost sm" type="button" data-p-board-cancel="${esc(e.id)}">Remove</button></form>` : ''}</article>`;
+  };
+  const ags = data.agreements.filter(a => a.listing_id === p.id), tone = { accepted: 'ok', sent: 'warn', draft: 'mute' };
+  return `<section class="sec">${head(p.name, 'Board')}${propChips(data)}
+    <div class="tgrid"><div class="card tile2"><span class="muted">On the board</span><b class="num">${t.n}</b></div><div class="card tile2"><span class="muted">Booked (reserved)</span><b class="num">${t.booked}</b></div><div class="card tile2"><span class="muted">Fully paid</span><b class="num">${t.full}</b></div><div class="card tile2"><span class="muted">Still owed</span><b class="num">${money(t.owed)}</b></div></div>
+    ${form}<h3 style="font-size:22px">Tenants on the board</h3>${entries.length ? `<div class="stack">${entries.map(card).join('')}</div>` : '<div class="card"><p class="muted">Nobody is on the board yet.</p></div>'}
+    <h3 style="font-size:22px">Agreements from Rentpply bookings</h3>${table(['Reference', 'Tenant', 'Room', 'Stay', 'Start', 'Status'], ags.map(a => `<tr><td class="mono">${esc(a.reference)}</td><td>${esc(a.tenant_name)}</td><td class="mono">${esc(a.room_code === 'Unassigned' ? 'To be assigned' : a.room_code)}</td><td>${a.quantity} ${esc((a.terms && a.terms.stay_unit) || 'month')}${a.quantity === 1 ? '' : 's'}</td><td>${date(a.start_date)}</td><td><span class="pill ${tone[a.status] || 'mute'}">${esc(a.status)}</span></td></tr>`), 'Agreements appear here when tenants accept them.')}</section>`;
+}
+
+function verifyCard(l) {
+  const d = l.verification_docs && !Array.isArray(l.verification_docs) ? l.verification_docs : {}, st = d.state === 'rejected' ? 'rejected' : 'pending';
+  return `<article class="card stack" style="gap:12px" data-vcard="${esc(l.id)}"><div class="row" style="justify-content:space-between;align-items:flex-start"><span><b>${esc(l.name)}</b><small class="muted" style="display:block">${esc(l.area)} · ${esc(l.owner_name)} · ${esc(TYPE[l.type] || l.type)}</small></span>${st === 'rejected' ? pill('Rejected', 'bad') : pill('Waiting for documents', 'warn')}</div>
+    <label class="chk"><input type="checkbox" data-p-vdoc="${esc(l.id)}" data-doc="lc1" ${d.lc1 ? 'checked' : ''} ${st === 'rejected' ? 'disabled' : ''}><span>LC1 letter from the local council chairperson received</span></label>
+    <label class="chk"><input type="checkbox" data-p-vdoc="${esc(l.id)}" data-doc="consent" ${d.consent ? 'checked' : ''} ${st === 'rejected' ? 'disabled' : ''}><span>Property data consent agreement received</span></label>
+    <div class="row">${st === 'rejected' ? `<button class="btn sm" data-p-verify="${esc(l.id)}:reopen">Reopen</button>` : `<button class="btn sm" data-p-verify="${esc(l.id)}:verify" ${d.lc1 && d.consent ? '' : 'disabled'}>Verify and issue login</button><button class="btn ghost sm" data-p-verify="${esc(l.id)}:reject">Reject</button>`}</div></article>`;
+}
+function loginsHub(data) {
+  const owners = data.profiles.filter(x => x.role === 'owner');
+  return `<div class="stack"><h3 style="font-size:22px">Owner logins</h3><p class="muted">Each owner gets one username and password, and sees only their own properties. Passwords are shown once when issued; issue a new one if it is lost.</p>
+    ${table(['Owner', 'Properties', 'Username', 'Status', ''], owners.map(o => { const lg = data.logins.find(x => x.owner_id === o.id), props = data.listings.filter(l => l.owner_id === o.id);
+      const status = !lg || !lg.issued_at ? pill('Not issued', 'mute') : lg.sent_at ? pill('Sent ' + date(lg.sent_at), 'ok') : pill('Issued, not sent', 'warn');
+      return `<tr><td><b>${esc(o.full_name)}</b></td><td>${props.length ? props.map(l => esc(l.name)).join(', ') : '<span class="muted">None yet</span>'}</td><td class="mono">${esc(lg ? lg.username : '')}</td><td>${status}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-p-login-issue="${esc(o.id)}">${lg && lg.issued_at ? 'New password' : 'Issue login'}</button>${lg && lg.issued_at && !lg.sent_at ? `<button class="btn ghost sm" data-p-logins-sent="${esc(o.id)}">Mark as sent</button>` : ''}</div></td></tr>`; }), 'No owners yet.')}</div>`;
+}
+function layoutEditor(data, p) {
+  const units = data.units.filter(u => u.listing_id === p.id), floors = [...new Set([...units.map(u => u.floor), ...data.layouts.filter(x => x.listing_id === p.id).map(x => x.floor)])].sort((a, b) => a - b);
+  const f = ui.floor ?? floors[0] ?? 0, choices = [...floors, floors.length ? Math.max(...floors) + 1 : 0].filter((v, i, a) => a.indexOf(v) === i), lay = layoutOf(data, p.id, f), count = units.filter(u => u.floor === f).length, cap = lay ? lay.columns * lay.rows : 0;
+  return `<form class="card stack" data-live-form="layout" data-listing-id="${esc(p.id)}"><div><span class="eyebrow">Floor layout</span><h3>Rooms per floor</h3><p class="muted">Pick a floor and set its columns and rows. The owner's floor page uses this grid. Fill adds only the rooms that are missing.</p></div>
+    <div class="grid"><label class="field"><span>Floor</span><select class="inp" name="floor" data-p-layfloor>${choices.map(x => `<option value="${x}" ${x === f ? 'selected' : ''}>${floorName(x)}${floors.includes(x) ? '' : ' (new)'}</option>`).join('')}</select></label><label class="field"><span>Columns</span><input class="inp" name="columns" type="number" min="1" max="8" value="${lay ? lay.columns : 3}" required></label><label class="field"><span>Rows</span><input class="inp" name="rows" type="number" min="1" max="20" value="${lay ? lay.rows : Math.max(1, Math.ceil(count / 3))}" required></label></div>
+    <p class="muted" style="font-size:14px">${lay ? `${cap} positions on this floor: ${count} rooms, ${Math.max(0, cap - count)} empty.` : `No grid yet for this floor, so rooms show three to a row.`}</p>
+    <div class="row"><button class="btn" type="submit">Save layout</button><button class="btn ghost" type="button" data-p-fill="${esc(p.id)}:${f}" ${lay && cap > count ? '' : 'disabled'}>Fill ${lay && cap > count ? cap - count : ''} empty ${cap - count === 1 ? 'position' : 'positions'}</button></div></form>`;
+}
+function kpiExtras(data, bk) {
+  const start = bk[0].start, end = bk[bk.length - 1].end, inB = v => { const t = Date.parse(v); return t >= start && t < end; };
+  const ags = data.agreements.filter(a => inB(a.created_at));
+  const sentIds = new Set(data.payments.filter(p => p.agreement_id).map(p => p.agreement_id));
+  const views = data.ownerRequests.filter(r => r.kind === 'Viewing request' && inB(r.created_at)).length;
+  const steps = [['Agreements accepted', ags.length], ['Payment sent', ags.filter(a => a.paid || sentIds.has(a.id)).length], ['Confirmed by the owner', ags.filter(a => a.paid).length]];
+  const top = Math.max(1, steps[0][1]);
+  const funnel = `<div class="hb">${steps.map((s, i) => `<div class="hbr"><span class="hbl">${s[0]}</span><span class="hbt"><i style="width:${Math.max(2, s[1] / top * 100)}%;background:var(--s1);opacity:${1 - i * .2}"></i></span><b class="hbv">${s[1]}</b></div>${i && steps[i - 1][1] ? `<div class="conv">${Math.round(s[1] / steps[i - 1][1] * 100)}% of the step before</div>` : ''}`).join('')}</div><p class="muted" style="font-size:12px">${views} viewing ${views === 1 ? 'request' : 'requests'} in the same period. Viewings are optional and searches are not recorded, so the funnel starts when a tenant accepts an agreement.</p>`;
+  const stat = ['confirmed', 'pending', 'rejected'].map((k, i) => ({ n: k === 'confirmed' ? 'Confirmed' : k === 'pending' ? 'Waiting for the owner' : 'Not received', c: [3, 2, 1][i], v: data.payments.filter(p => p.status === k && inB(p.created_at)).length }));
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], slots = ['0–4', '4–8', '8–12', '12–16', '16–20', '20–24'], grid = days.map(() => slots.map(() => 0));
+  [...data.payments, ...data.agreements].forEach(x => { if (!inB(x.created_at)) return; const d = new Date(x.created_at); grid[(d.getDay() + 6) % 7][Math.floor(d.getHours() / 4)]++; });
+  const mx = Math.max(1, ...grid.flat());
+  const heat = `<div class="heat"><div class="hrow hh"><span></span>${slots.map(s => `<span>${s}</span>`).join('')}</div>${grid.map((row, i) => `<div class="hrow"><span>${days[i]}</span>${row.map((v, k) => `<i class="hc" style="--a:${(.08 + v / mx * .92).toFixed(2)}" title="${days[i]} ${slots[k]}h · ${v} ${v === 1 ? 'application' : 'applications'}"></i>`).join('')}</div>`).join('')}</div><div class="lg"><span class="muted">Fewer</span><span class="ramp"></span><span class="muted">More applications</span></div>`;
+  return { funnel, status: donut(stat.filter(s => s.v)), heat };
+}
+let pressTimer = 0, pressFired = false, pressBound = false;
+export function portalBind() {
+  const pager = document.getElementById('fpager');
+  if (pager) {
+    const pages = [...pager.querySelectorAll('.fpage')], target = pages.find(pg => Number(pg.dataset.fp) === ui.floor);
+    if (target) pager.scrollLeft = target.offsetLeft - pager.offsetLeft;
+    pager.addEventListener('scroll', () => {
+      clearTimeout(pager._t);
+      pager._t = setTimeout(() => {
+        const pg = pages[Math.round(pager.scrollLeft / Math.max(1, pager.clientWidth))];
+        if (!pg) return;
+        ui.floor = Number(pg.dataset.fp);
+        document.querySelectorAll('[data-p-floor]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.pFloor) === ui.floor)));
+      }, 120);
+    }, { passive: true });
+  }
+  if (pressBound) return;
+  pressBound = true;
+  document.addEventListener('pointerdown', e => {
+    const u = e.target.closest && e.target.closest('.unit[data-p-unit]'); if (!u) return;
+    pressFired = false; clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => { pressFired = true; quickMenu(u.dataset.pUnit, (u.querySelector('b') || {}).textContent || ''); }, 550);
+  });
+  ['pointerup', 'pointercancel', 'scroll'].forEach(ev => document.addEventListener(ev, () => clearTimeout(pressTimer), true));
+  document.addEventListener('click', e => { if (pressFired && e.target.closest && e.target.closest('.unit[data-p-unit]')) { e.stopPropagation(); e.preventDefault(); pressFired = false; } }, true);
+  document.addEventListener('contextmenu', e => { const u = e.target.closest && e.target.closest('.unit[data-p-unit]'); if (u) { e.preventDefault(); clearTimeout(pressTimer); pressFired = false; quickMenu(u.dataset.pUnit, (u.querySelector('b') || {}).textContent || ''); } });
+}
+
+async function issueLogin(ownerId) {
+  const out = await ownerLoginsCall({ action: 'issue_login', owner_id: ownerId });
+  showCredentials(out.username, out.password, ownerId);
+}
+
+export function renderPortal(role, tab, data, profile) {
+  if (!data) return '<section class="sec"><div class="card skeleton" style="height:120px"></div><div class="tgrid"><div class="card skeleton" style="height:90px"></div><div class="card skeleton" style="height:90px"></div><div class="card skeleton" style="height:90px"></div></div></section>';
+  if (role === 'admin') return adminView(tab, data);
+  // The gate only stops the signed-in owner, on their own property; an admin previewing the owner view is not gated.
+  return ownerView(tab, data, profile) + (profile.role === 'owner' ? paymentGate(data) : '');
+}
+
+/* long press on a room, and swiping between floors */
 /* ---------- actions ---------- */
 export async function handlePortalClick(target, refresh, ctx = {}) {
   const ui1 = (key, value, extra) => { ui[key] = value; if (extra) extra(); ctx.rerender && ctx.rerender(); return true; };
   let el;
   if ((el = target.closest('[data-p-prop]'))) return ui1('prop', el.dataset.pProp, () => { ui.unit = null; ui.floor = null; });
   if ((el = target.closest('[data-p-unit]'))) return ui1('unit', ui.unit === el.dataset.pUnit ? null : el.dataset.pUnit);
-  if ((el = target.closest('[data-p-floor]'))) return ui1('floor', Number(el.dataset.pFloor), () => { ui.unit = null; });
+  if ((el = target.closest('[data-p-floor]'))) {
+    ui.floor = Number(el.dataset.pFloor); ui.unit = null;
+    const pg = document.querySelector(`#fpager .fpage[data-fp="${ui.floor}"]`), pager = document.getElementById('fpager');
+    if (pg && pager) { pager.scrollTo({ left: pg.offsetLeft - pager.offsetLeft, behavior: 'smooth' }); document.querySelectorAll('[data-p-floor]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.pFloor) === ui.floor))); return true; }
+    ctx.rerender && ctx.rerender(); return true;
+  }
   if ((el = target.closest('[data-p-paytab]'))) return ui1('pay', el.dataset.pPaytab);
   if ((el = target.closest('[data-p-range]'))) return ui1('range', Number(el.dataset.pRange));
   if ((el = target.closest('[data-p-hub]'))) return ui1('hub', el.dataset.pHub);
   if ((el = target.closest('[data-p-adm-prop]'))) { ui.admProp = el.dataset.pAdmProp; ui.unit = null; ui.floor = null; if (el.dataset.pAdmTab && ctx.setTab) { ctx.setTab(el.dataset.pAdmTab); return true; } ctx.rerender && ctx.rerender(); return true; }
-  if (target.closest('[data-p-adm-back]')) { ui.admProp = null; ui.unit = null; ctx.rerender && ctx.rerender(); return true; }
+  if (target.closest('[data-p-adm-back]')) { ui.admProp = null; ui.unit = null; ui.floor = null; ctx.rerender && ctx.rerender(); return true; }
+  if ((el = target.closest('[data-p-copy]'))) { await navigator.clipboard.writeText(el.dataset.pCopy); el.textContent = 'Copied'; return true; }
+  if (target.closest('[data-p-pwtoggle]')) { const pw = document.getElementById('credPw'), btn = target.closest('[data-p-pwtoggle]'); if (pw) { pw.type = pw.type === 'password' ? 'text' : 'password'; btn.textContent = pw.type === 'password' ? 'Show' : 'Hide'; } return true; }
+  if ((el = target.closest('[data-p-login-issue]'))) {
+    const lg = (ctx.data && ctx.data.logins || []).find(x => x.owner_id === el.dataset.pLoginIssue);
+    if (lg && lg.issued_at && !window.confirm('This replaces the owner\'s current password. They will need the new one to sign in. Continue?')) return true;
+    await issueLogin(el.dataset.pLoginIssue); await refresh(); return true;
+  }
+  if ((el = target.closest('[data-p-logins-sent]'))) {
+    const { error } = await supabase.from('owner_logins').update({ sent_at: new Date().toISOString() }).eq('owner_id', el.dataset.pLoginsSent);
+    if (error) throw error;
+    layer(''); await refresh(); return true;
+  }
+  if ((el = target.closest('[data-p-verify]'))) {
+    const [id, action] = el.dataset.pVerify.split(':'), card = el.closest('[data-vcard]');
+    const tick = doc => !!(card && card.querySelector(`[data-doc="${doc}"]`) || {}).checked;
+    if (action === 'reject' && !window.confirm('Reject this property? It stays hidden from tenants until you reopen it.')) return true;
+    const { data: listing, error } = await supabase.rpc('set_listing_verification', { listing_uuid: id, lc1_received: tick('lc1'), consent_received: tick('consent'), verification_action: action });
+    if (error) throw error;
+    if (action === 'verify') {
+      const lg = (ctx.data && ctx.data.logins || []).find(x => x.owner_id === listing.owner_id);
+      if (!lg || !lg.issued_at) await issueLogin(listing.owner_id);
+    }
+    await refresh(); return true;
+  }
+  if ((el = target.closest('[data-p-fill]'))) {
+    const [id, floor] = el.dataset.pFill.split(':');
+    const { data: made, error } = await supabase.rpc('fill_floor_layout', { listing_uuid: id, floor_no: Number(floor) });
+    if (error) throw error;
+    await refresh(); ctx.toast && ctx.toast(`${made} ${made === 1 ? 'room' : 'rooms'} added.`); return true;
+  }
+  if ((el = target.closest('[data-p-media-del]'))) {
+    const m = (ctx.data && ctx.data.media || []).find(x => x.id === el.dataset.pMediaDel);
+    if (!window.confirm('Remove this from the listing gallery?')) return true;
+    const path = m && m.url.split('/listing-media/')[1];
+    if (path) { const rm = await supabase.storage.from('listing-media').remove([decodeURIComponent(path)]); if (rm.error) throw rm.error; }
+    const { error } = await supabase.from('listing_media').delete().eq('id', el.dataset.pMediaDel);
+    if (error) throw error;
+    await refresh(); return true;
+  }
+  if ((el = target.closest('[data-p-board-cancel]'))) {
+    if (!window.confirm('Remove this tenant from the board? A reserved room goes back to vacant.')) return true;
+    const { error } = await supabase.rpc('board_cancel', { entry_uuid: el.dataset.pBoardCancel });
+    if (error) throw error;
+    await refresh(); return true;
+  }
   const verify = target.closest('[data-live-verify]'), kyc = target.closest('[data-live-kyc]'), kycDoc = target.closest('[data-live-kyc-doc]'), payment = target.closest('[data-live-payment]');
   const remove = target.closest('[data-live-delete-listing]'), transferRequest = target.closest('[data-live-transfer-request]'), ownerRequest = target.closest('[data-live-owner-request]'), setst = target.closest('[data-p-setst]');
   let result;
@@ -380,17 +617,18 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
     window.open(data.signedUrl, '_blank', 'noopener');
     return true;
   } else if (payment) {
-    const [id, status] = payment.dataset.livePayment.split(':');
-    result = await supabase.rpc('resolve_payment', { payment_uuid: id, confirm_payment: status === 'confirmed' });
+    const [id, status] = payment.dataset.livePayment.split(':'), room = payment.closest('.gatebox') ? (document.getElementById('gateRoom') || {}).value : null;
+    result = await supabase.rpc('resolve_payment', { payment_uuid: id, confirm_payment: status === 'confirmed', chosen_unit: room || null });
   } else if (transferRequest) {
     const [id, approve] = transferRequest.dataset.liveTransferRequest.split(':');
     result = await supabase.rpc('resolve_rent_transfer_request', { transfer_request_uuid: id, approve_request: approve === '1' });
   } else if (ownerRequest) {
     const [id, status] = ownerRequest.dataset.liveOwnerRequest.split(':');
-    result = await supabase.from('owner_requests').update({ status, resolved_at: new Date().toISOString() }).eq('id', id);
+    result = await supabase.rpc('resolve_owner_request', { request_uuid: id, approve: status === 'approved' });
   } else if (setst) {
     const [id, status] = setst.dataset.pSetst.split(':');
     result = await supabase.rpc('set_unit_status', { unit_uuid: id, desired_status: status });
+    layer('');
   } else if (remove) {
     if (!window.confirm('Delete this property and everything attached to it? This cannot be undone.')) return true;
     result = await supabase.from('listings').delete().eq('id', remove.dataset.liveDeleteListing);
@@ -401,9 +639,25 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
   return true;
 }
 
-export async function handlePortalChange(target, refresh) {
+export async function handlePortalChange(target, refresh, ctx = {}) {
   let result;
-  if (target.matches('[data-live-role]')) result = await supabase.from('profiles').update({ role: target.value, updated_at: new Date().toISOString() }).eq('id', target.dataset.liveRole);
+  if (target.matches('[data-p-ownerpick]')) { const box = document.getElementById('newOwner'); if (box) box.hidden = target.value !== '__new'; return true; }
+  if (target.matches('[data-p-layfloor]')) { ui.floor = Number(target.value); ctx.rerender && ctx.rerender(); return true; }
+  if (target.matches('[data-p-vdoc]')) {
+    const card = target.closest('[data-vcard]'), tick = doc => !!(card.querySelector(`[data-doc="${doc}"]`) || {}).checked;
+    result = await supabase.rpc('set_listing_verification', { listing_uuid: target.dataset.pVdoc, lc1_received: tick('lc1'), consent_received: tick('consent'), verification_action: 'save' });
+  } else if (target.matches('[data-p-media-up]')) {
+    const id = target.dataset.pMediaUp, files = [...target.files], start = (ctx.data && ctx.data.media || []).filter(m => m.listing_id === id).length;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i], ext = (f.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, ''), path = `${id}/${crypto.randomUUID()}.${ext}`;
+      const up = await supabase.storage.from('listing-media').upload(path, f, { contentType: f.type, upsert: false });
+      if (up.error) throw up.error;
+      const url = supabase.storage.from('listing-media').getPublicUrl(path).data.publicUrl;
+      const ins = await supabase.from('listing_media').insert({ listing_id: id, type: f.type.startsWith('video') ? 'video' : 'photo', url, sort_order: start + i });
+      if (ins.error) throw ins.error;
+    }
+    await refresh(); return true;
+  } else if (target.matches('[data-live-role]')) result = await supabase.from('profiles').update({ role: target.value, updated_at: new Date().toISOString() }).eq('id', target.dataset.liveRole);
   else if (target.matches('[data-live-queue]')) result = await supabase.from('admin_queue').update({ status: target.value, resolved_at: target.value === 'open' ? null : new Date().toISOString() }).eq('id', target.dataset.liveQueue);
   else if (target.matches('[data-live-maint]')) result = await supabase.from('maintenance_requests').update({ status: target.value, updated_at: new Date().toISOString() }).eq('id', target.dataset.liveMaint);
   else if (target.matches('[data-live-bill]')) result = await supabase.from('bills').update({ status: target.value, paid_at: target.value === 'paid' ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq('id', target.dataset.liveBill);
@@ -413,7 +667,6 @@ export async function handlePortalChange(target, refresh) {
   return true;
 }
 
-/* live search in the admin property picker */
 export function handlePortalInput(target) {
   if (target.id !== 'admq') return false;
   const q = target.value.trim().toLowerCase(); let shown = 0;
@@ -425,9 +678,14 @@ export function handlePortalInput(target) {
 const amenityList = text => String(text || '').split(',').map(x => x.trim()).filter(Boolean);
 export async function handlePortalSubmit(form, role, user, profile, data, refresh) {
   const values = Object.fromEntries(new FormData(form));
+  const kind = form.dataset.liveForm;
   let result;
-  if (form.dataset.liveForm === 'listing') {
-    const owner = data.profiles.find(item => item.id === values.owner_id);
+  if (kind === 'listing') {
+    let owner = data.profiles.find(item => item.id === values.owner_id);
+    if (values.owner_id === '__new') {
+      const made = await ownerLoginsCall({ action: 'create_owner', full_name: values.new_name, email: values.new_email, phone: values.new_phone });
+      owner = { id: made.owner_id, full_name: made.full_name };
+    }
     if (!owner) throw new Error('Choose an owner for this property.');
     result = await supabase.from('listings').insert({
       name: values.name.trim(), type: values.type, area: values.area.trim(), price: Number(values.price),
@@ -435,18 +693,36 @@ export async function handlePortalSubmit(form, role, user, profile, data, refres
       amenities: amenityList(values.amenities), owner_id: owner.id, owner_name: owner.full_name,
       verified: false, total_units: 0, available_units: 0
     });
-  } else if (form.dataset.liveForm === 'edit-listing') {
+  } else if (kind === 'edit-listing') {
     const updates = { name: values.name.trim(), area: values.area.trim(), price: Number(values.price), updated_at: new Date().toISOString() };
     if (values.description !== undefined) updates.description = values.description.trim();
     if (values.amenities !== undefined) updates.amenities = amenityList(values.amenities);
-    if (role === 'admin' && values.verified !== undefined) updates.verified = values.verified === 'true';
     result = await supabase.from('listings').update(updates).eq('id', form.dataset.listingId);
-  } else if (form.dataset.liveForm === 'unit') {
+  } else if (kind === 'location') {
+    let lat = values.lat === '' ? NaN : Number(values.lat), lng = values.lng === '' ? NaN : Number(values.lng);
+    if (values.link && values.link.trim()) {
+      const got = parseMapsLink(values.link);
+      if (!got) throw new Error('That link has no coordinates in it. Short links cannot be read: open the link, then copy the full address from the browser bar, or type the coordinates.');
+      ({ lat, lng } = got);
+    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Enter a Google Maps link or both coordinates.');
+    if (lat < -1.6 || lat > 4.3 || lng < 29.5 || lng > 35.1) throw new Error('Those coordinates are outside Uganda. Check that latitude and longitude are not swapped.');
+    result = await supabase.from('listing_locations').upsert({ listing_id: form.dataset.listingId, lat, lng, address: (values.address || '').trim() || null, updated_at: new Date().toISOString() });
+  } else if (kind === 'agreement') {
+    result = await supabase.from('agreement_templates').upsert({ listing_id: form.dataset.listingId, notice_days: Number(values.notice), deposit_months: Number(values.deposit), late_fee_percent: Number(values.late), house_rules: (values.rules || '').trim() || null, updated_at: new Date().toISOString() });
+  } else if (kind === 'layout') {
+    result = await supabase.from('property_layouts').upsert({ listing_id: form.dataset.listingId, floor: Number(values.floor), columns: Number(values.columns), rows: Number(values.rows) }, { onConflict: 'listing_id,floor' });
+    ui.floor = Number(values.floor);
+  } else if (kind === 'unit') {
     result = await supabase.rpc('create_listing_unit', { listing_uuid: values.listing_id, requested_code: values.unit_code.trim(), requested_floor: Number(values.floor) || 0, requested_rent: Number(values.rent) });
-  } else if (form.dataset.liveForm === 'bill') {
+  } else if (kind === 'bill') {
     result = await supabase.from('bills').insert({ listing_id: values.listing_id, category: values.category, name: values.name.trim(), amount: Number(values.amount), due_date: values.due_date, status: 'due' });
-  } else if (form.dataset.liveForm === 'efris-reference') {
+  } else if (kind === 'efris-reference') {
     result = await supabase.from('payments').update({ efris_document_no: values.efris_document_no.trim() }).eq('id', form.dataset.paymentId).eq('status', 'confirmed');
+  } else if (kind === 'board-onboard') {
+    result = await supabase.rpc('board_onboard', { listing_uuid: form.dataset.listingId, unit_uuid: values.unit_id, tenant_name: values.tenant_name, tenant_phone: values.phone, has_roommate: values.has_roommate === 'on', stay_months: Number(values.months), start_on: values.start_date, first_amount: Number(values.amount) || 0, first_method: values.method, booking_fee: values.booking_fee === 'on' });
+  } else if (kind === 'board-pay') {
+    result = await supabase.rpc('board_record_payment', { entry_uuid: form.dataset.entryId, payment_amount: Number(values.amount), payment_method: values.method });
   } else return false;
   if (result.error) throw result.error;
   form.reset();
