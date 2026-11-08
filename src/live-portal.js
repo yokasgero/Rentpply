@@ -169,7 +169,7 @@ function ownerOverview(data, profile) {
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))">
       <div class="card stack" style="gap:8px"><span class="eyebrow">Rent collected per month, UGX millions</span><div class="scroll-x">${barChart(bk.map(b => b.label), series, 'Rent collected per month')}</div>${sum(series) ? '' : '<p class="muted" style="font-size:13px">No confirmed payments in the last 6 months yet.</p>'}</div>
       <div class="card stack" style="gap:10px"><span class="eyebrow">Needs a reminder</span>${late.length ? late.map(u => `<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div style="min-width:0"><b>${esc(u.tenant_name || 'Tenant')}</b><div class="muted" style="font-size:13px"><span class="mono">${esc(u.unit_code)}</span> · ${u.payment_status === 'overdue' ? 'overdue' : 'due'}${u.paid_through ? ' since ' + date(u.paid_through) : ''}</div></div><b class="num" style="color:var(--bad)">${money(u.balance)}</b></div>`).join('') : '<p class="muted">Everyone is paid up.</p>'}</div>
-    </div></section>`;
+    </div>${admin ? '' : mediaEditor(data, p, false)}</section>`;
 }
 
 /* ---------- OWNER / ADMIN: units ---------- */
@@ -308,17 +308,22 @@ function adminUnits(data) {
   return `<section class="sec" style="padding-bottom:0">${propBar(p)}${layoutEditor(data, p)}</section>${unitsView(data, p, true)}`;
 }
 
+function mediaEditor(data, p, admin) {
+  const media = data.media.filter(m => m.listing_id === p.id).sort((a, b) => a.sort_order - b.sort_order), cover = media.find(m => m.type === 'photo');
+  return `<div class="card stack" id="photos"><div class="row" style="justify-content:space-between;align-items:start"><div><span class="eyebrow">${admin ? 'Listing gallery' : 'What tenants see'}</span><h3>Photos and videos</h3></div><span class="pill mute">${media.length} ${media.length === 1 ? 'file' : 'files'}</span></div>
+    <p class="muted">${admin ? 'These make up the gallery on the listing page.' : 'Show tenants your real rooms and building. Changes appear on your listing and the home page straight away.'} The cover photo is shown first.</p>
+    ${media.length ? `<div class="mgrid">${media.map((m, i) => `<div class="mt" style="animation-delay:${Math.min(i, 8) * 40}ms">${m.type === 'video' ? `<video src="${esc(m.url)}" preload="metadata" muted playsinline></video>` : `<img src="${esc(m.url)}" alt="Photo ${i + 1} of ${esc(p.name)}" loading="lazy">`}${m === cover ? '<span class="mcov">Cover</span>' : ''}<div class="row">${m.type === 'photo' && m !== cover ? `<button class="btn ghost sm" type="button" data-p-media-cover="${esc(m.id)}">Make cover</button>` : ''}<button class="btn ghost sm" type="button" data-p-media-del="${esc(m.id)}">Remove</button></div></div>`).join('')}</div>` : '<p class="muted">No photos or videos yet. Tenants see an illustration until you add some.</p>'}
+    <label class="btn sm upl" style="align-self:flex-start">${icn('plus')}<span>Add photos or videos</span><input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple data-p-media-up="${esc(p.id)}" hidden></label></div>`;
+}
 function adminProperty(data) {
   const p = currentProp(data, 'admProp'); if (!p) return propPicker(data, 'prop', 'Property');
-  const media = data.media.filter(m => m.listing_id === p.id).sort((a, b) => a.sort_order - b.sort_order), loc = data.locations.find(x => x.listing_id === p.id) || {}, t = data.templates.find(x => x.listing_id === p.id) || {};
+  const loc = data.locations.find(x => x.listing_id === p.id) || {}, t = data.templates.find(x => x.listing_id === p.id) || {};
   return `<section class="sec" style="padding-bottom:0">${propBar(p)}</section><section class="sec">${head('What tenants see', p.name, `<span class="pill ${p.verified ? 'ok' : 'warn'}">${p.verified ? 'Verified' : 'Pending'}</span>`)}
     <form class="card stack" data-live-form="edit-listing" data-listing-id="${esc(p.id)}"><h3>Details</h3><div class="grid"><label class="field"><span>Property name</span><input class="inp" name="name" value="${esc(p.name)}" required></label><label class="field"><span>Area</span><input class="inp" name="area" value="${esc(p.area)}" required></label><label class="field"><span>Price (UGX)</span><input class="inp" name="price" type="number" min="1" value="${esc(p.price)}" required></label></div>
       <label class="field"><span>Description</span><textarea class="inp" name="description" rows="4">${esc(p.description || '')}</textarea></label>
       <label class="field"><span>Amenities (comma separated)</span><input class="inp" name="amenities" value="${esc((p.amenities || []).join(', '))}"></label>
       <div class="row"><button class="btn" type="submit">Save details</button><button class="btn ghost" type="button" data-live-delete-listing="${esc(p.id)}">Delete property</button></div></form>
-    <div class="card stack"><h3>Photos and videos</h3><p class="muted">These make up the gallery on the listing page. The first photo is also the cover.</p>
-      ${media.length ? `<div class="mgrid">${media.map((m, i) => `<div class="mt">${m.type === 'video' ? `<video src="${esc(m.url)}" preload="metadata" muted></video>` : `<img src="${esc(m.url)}" alt="Photo ${i + 1}" loading="lazy">`}<button class="btn ghost sm" type="button" data-p-media-del="${esc(m.id)}">Remove</button></div>`).join('')}</div>` : '<p class="muted">No photos or videos yet.</p>'}
-      <label class="btn ghost sm upl" style="align-self:flex-start">Add photos or videos<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple data-p-media-up="${esc(p.id)}" hidden></label></div>
+    ${mediaEditor(data, p, true)}
     <form class="card stack" data-live-form="location" data-listing-id="${esc(p.id)}"><h3>Location pin</h3><p class="muted">Paste a Google Maps link, or type the GPS coordinates. The listing then shows the property on a map.</p>
       <label class="field"><span>Google Maps link (optional)</span><input class="inp" name="link" placeholder="https://www.google.com/maps/place/...@0.3348,32.5677..."></label>
       <div class="grid"><label class="field"><span>Latitude</span><input class="inp" name="lat" type="number" step="any" value="${loc.lat ?? ''}"></label><label class="field"><span>Longitude</span><input class="inp" name="lng" type="number" step="any" value="${loc.lng ?? ''}"></label><label class="field"><span>Address or landmark</span><input class="inp" name="address" value="${esc(loc.address || '')}"></label></div>
@@ -385,7 +390,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const byCode = (a, b) => a.floor - b.floor || a.unit_code.localeCompare(b.unit_code, undefined, { numeric: true });
 const layoutOf = (data, lid, floor) => data.layouts.find(x => x.listing_id === lid && x.floor === floor) || null;
 const kycBadge = (data, tenantId) => data.kyc[tenantId] === 'verified' ? `<span class="pill ok" style="margin-left:6px">${icn('shield')}ID verified</span>` : `<span class="pill mute" style="margin-left:6px">ID not verified</span>`;
-const layer = html => { const el = document.getElementById('layer'); if (el) el.innerHTML = html; };
+const layer = html => { if (window.rpLayer) return window.rpLayer(html); const el = document.getElementById('layer'); if (el) el.innerHTML = html; };
 const sheetHTML = (title, inner) => `<div class="veil" data-veil><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="bar"><span class="eyebrow">${esc(title)}</span><button class="ibtn" data-close aria-label="Close">×</button></div><div class="in">${inner}</div></div></div>`;
 
 async function ownerLoginsCall(body) {
@@ -588,6 +593,11 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
     if (error) throw error;
     await refresh(); ctx.toast && ctx.toast(`${made} ${made === 1 ? 'room' : 'rooms'} added.`); return true;
   }
+  if ((el = target.closest('[data-p-media-cover]'))) {
+    const { error } = await supabase.rpc('set_media_cover', { media_uuid: el.dataset.pMediaCover });
+    if (error) throw error;
+    await refresh(); ctx.toast && ctx.toast('Cover photo changed.'); return true;
+  }
   if ((el = target.closest('[data-p-media-del]'))) {
     const m = (ctx.data && ctx.data.media || []).find(x => x.id === el.dataset.pMediaDel);
     if (!window.confirm('Remove this from the listing gallery?')) return true;
@@ -595,7 +605,7 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
     if (path) { const rm = await supabase.storage.from('listing-media').remove([decodeURIComponent(path)]); if (rm.error) throw rm.error; }
     const { error } = await supabase.from('listing_media').delete().eq('id', el.dataset.pMediaDel);
     if (error) throw error;
-    await refresh(); return true;
+    await refresh(); ctx.toast && ctx.toast('Removed from the gallery.'); return true;
   }
   if ((el = target.closest('[data-p-board-cancel]'))) {
     if (!window.confirm('Remove this tenant from the board? A reserved room goes back to vacant.')) return true;
@@ -648,7 +658,14 @@ export async function handlePortalChange(target, refresh, ctx = {}) {
     result = await supabase.rpc('set_listing_verification', { listing_uuid: target.dataset.pVdoc, lc1_received: tick('lc1'), consent_received: tick('consent'), verification_action: 'save' });
   } else if (target.matches('[data-p-media-up]')) {
     const id = target.dataset.pMediaUp, files = [...target.files], start = (ctx.data && ctx.data.media || []).filter(m => m.listing_id === id).length;
+    const lab = target.closest('label'), txt = lab && lab.querySelector('span');
+    const bad = files.find(f => f.size > 50 * 1024 * 1024 || !/^(image\/(jpeg|png|webp)|video\/(mp4|webm|quicktime))$/.test(f.type));
+    if (bad) { target.value = ''; throw new Error(`${bad.name} is not a JPEG, PNG or WebP photo or an MP4, WebM or MOV video under 50 MB.`); }
+    if (!files.length) return true;
+    if (lab) lab.classList.add('busy');
+    try {
     for (let i = 0; i < files.length; i++) {
+      if (txt) txt.textContent = `Uploading ${i + 1} of ${files.length}…`;
       const f = files[i], ext = (f.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, ''), path = `${id}/${crypto.randomUUID()}.${ext}`;
       const up = await supabase.storage.from('listing-media').upload(path, f, { contentType: f.type, upsert: false });
       if (up.error) throw up.error;
@@ -656,7 +673,8 @@ export async function handlePortalChange(target, refresh, ctx = {}) {
       const ins = await supabase.from('listing_media').insert({ listing_id: id, type: f.type.startsWith('video') ? 'video' : 'photo', url, sort_order: start + i });
       if (ins.error) throw ins.error;
     }
-    await refresh(); return true;
+    } finally { if (lab) lab.classList.remove('busy'); if (txt) txt.textContent = 'Add photos or videos'; target.value = ''; }
+    await refresh(); ctx.toast && ctx.toast(files.length === 1 ? 'Added to the gallery.' : `${files.length} files added to the gallery.`); return true;
   } else if (target.matches('[data-live-role]')) result = await supabase.from('profiles').update({ role: target.value, updated_at: new Date().toISOString() }).eq('id', target.dataset.liveRole);
   else if (target.matches('[data-live-queue]')) result = await supabase.from('admin_queue').update({ status: target.value, resolved_at: target.value === 'open' ? null : new Date().toISOString() }).eq('id', target.dataset.liveQueue);
   else if (target.matches('[data-live-maint]')) result = await supabase.from('maintenance_requests').update({ status: target.value, updated_at: new Date().toISOString() }).eq('id', target.dataset.liveMaint);
