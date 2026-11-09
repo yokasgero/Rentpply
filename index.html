@@ -1252,10 +1252,72 @@ body.flow main#main{padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
 }
 @media (prefers-reduced-motion:no-preference){@media (min-width:700px){.veil.acctv .sheet{animation:rpDrop .28s var(--ease) both;transform-origin:top right}}}
 html.theming *,html.theming *::before,html.theming *::after{transition:background-color .4s,color .4s,border-color .4s!important}
+/* ===== landing scrolls the page itself (lets phone browsers hide their toolbars) ===== */
+#landing{position:relative!important;inset:auto!important;overflow:visible!important;z-index:1!important;min-height:100vh;min-height:100svh}
+body.landing{overflow:visible!important;background:#fbf8f7}
+body.landing>header.top,body.landing>#main,body.landing>.dock,body.landing::before{display:none!important}
+html:has(body.landing){scroll-behavior:smooth}
+
+/* ===== listing viewer: photos, map, street view ===== */
+.lview{position:relative;border-radius:22px;overflow:hidden;aspect-ratio:16/9;background:var(--surface-2);box-shadow:0 10px 30px rgba(60,12,20,.12)}
+@media (max-width:640px){.lview{aspect-ratio:4/3;border-radius:18px}}
+.lv-pane{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity .35s var(--ease),visibility 0s linear .35s}
+.lv-pane.on{opacity:1;visibility:visible;transition:opacity .35s var(--ease)}
+.lv-pane iframe{width:100%;height:100%;border:0;display:block;background:var(--surface-2)}
+.lv-track{display:flex;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;outline:none}
+.lv-track::-webkit-scrollbar{display:none}
+.lv-slide{flex:0 0 100%;height:100%;scroll-snap-align:start;scroll-snap-stop:always}
+.lv-slide img,.lv-slide video,.lv-slide>svg{width:100%;height:100%;object-fit:cover;display:block}
+.lv-count{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(20,10,12,.55);color:#fff;font-weight:700;font-size:13px;padding:5px 12px;border-radius:999px;backdrop-filter:blur(6px);pointer-events:none}
+.lv-arr{position:absolute;top:50%;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.94);color:#2a1d20;display:grid;place-items:center;box-shadow:0 6px 16px rgba(0,0,0,.18);transform:translateY(-50%);transition:transform .2s var(--ease)}
+.lv-arr.l{left:12px}.lv-arr.r{right:12px}
+.lv-arr:hover{transform:translateY(-50%) scale(1.08)}
+.lv-arr:active{transform:translateY(-50%) scale(.92)}
+.lv-arr svg{width:20px;height:20px;stroke-width:2.4}
+.lv-link{position:absolute;right:10px;bottom:10px;display:inline-flex;align-items:center;gap:6px;background:#fff;color:#2a1d20;font-weight:700;font-size:12.5px;padding:7px 12px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.18);text-decoration:none}
+.lv-link svg{width:15px;height:15px}
+.lv-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;height:100%;text-align:center;padding:20px;color:var(--muted)}
+.lv-empty b{color:var(--ink)}
+.lv-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.lv-tabs button{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 8px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:13.5px;color:var(--muted);box-shadow:0 2px 8px rgba(60,12,20,.05);transition:background-color .25s,color .25s,border-color .25s,box-shadow .25s,transform .15s}
+.lv-tabs button:active{transform:scale(.97)}
+.lv-tabs button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 8px 18px rgba(255,90,54,.28)}
+.lv-tabs svg{width:17px;height:17px}
+
+/* ===== slimmer, more refined containers ===== */
+.card{border-radius:18px;box-shadow:0 1px 2px rgba(60,12,20,.04),0 6px 18px rgba(60,12,20,.05)}
+.chip{padding:6px 13px;font-size:13px;min-height:32px;display:inline-flex;align-items:center;gap:6px;transition:background-color .2s,border-color .2s,color .2s,transform .15s}
+.chip:active{transform:scale(.96)}
+.inp{min-height:42px;padding:9px 13px;border-radius:12px;border-width:1px;transition:border-color .2s,box-shadow .2s}
+.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent);outline:none}
+.field label,.lbl{font-size:11px}
+@media (max-width:640px){.btn{min-height:44px}.btn.sm{min-height:36px}.tile{padding:13px 6px}.inp{min-height:42px}}
+.search{gap:6px;padding:6px;border-radius:16px;box-shadow:0 10px 26px rgba(0,0,0,.18)}
+.search .inp{background:var(--surface-2);border-radius:11px;min-height:42px}
+.search .btn{min-height:42px;padding:9px 18px;border-radius:11px}
+@media (max-width:700px){.search{grid-template-columns:1fr auto}.search .inp{padding-top:8px;padding-bottom:8px}}
+.fpanel.slim{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end}
+.fpanel.slim>.field:first-child{grid-column:1/-1}
+.fpanel.slim>.row{display:contents}
+.fpanel.slim .field>label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.fpanel.slim [data-clearall]{grid-column:1/-1;justify-self:start}
+@media (min-width:860px){.fpanel.slim{grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) auto}.fpanel.slim>.field:first-child{grid-column:auto}.fpanel.slim [data-clearall]{grid-column:auto}}
+.sbox .inp{padding-left:40px}
+.prefbar{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:6px 6px 6px 8px;box-shadow:0 1px 2px rgba(60,12,20,.04),0 6px 18px rgba(60,12,20,.05)}
+.prefbar .scrollrow{padding-bottom:0;gap:6px}
+.prefbar .chip{border-width:1px;background:var(--surface-2);border-color:transparent;min-height:30px;padding:5px 11px}
+.fadeedge{-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
+.editbtn{flex:none;border:0;border-radius:999px;background:var(--accent);color:#fff;font-weight:700;font-size:13px;padding:7px 14px;min-height:32px;box-shadow:0 4px 12px rgba(255,90,54,.25)}
+
+/* ===== home category tiles, slightly smaller ===== */
+.tiles .tile{padding:12px 6px;gap:7px;font-size:12.5px;border-radius:16px;box-shadow:0 1px 2px rgba(60,12,20,.04),0 6px 16px rgba(60,12,20,.05);transition:transform .2s var(--ease),box-shadow .2s}
+.tiles .tile .ico{width:38px;height:38px;border-radius:12px}
+.tiles .tile .ico svg{width:19px;height:19px}
+.tiles .tile:active{transform:scale(.97)}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
-  <div class="logo" role="link" tabindex="0" aria-label="Rentpply home"><b><svg class="lm" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3.5 44 19.6V40a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V19.6z" fill="url(#rpg)"/><path d="M17.5 36.5V20.5h8a5.8 5.8 0 0 1 1.4 11.4l4.8 4.6" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/></svg></b><span class="wm">rent<em>pply</em></span></div>
+  <div class="logo" role="link" tabindex="0" aria-label="Rentpply home"><b><svg class="lm" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3.5 44 19.6V40a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V19.6z" fill="url(#rpg)"/><path d="M17.5 36.5V20.5h8a5.8 5.8 0 0 1 1.4 11.4l4.8 4.6" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/></svg></b><span class="wm">Rent<em>pply</em></span></div>
   <div id="user-info" style="display:flex;align-items:center;gap:10px;margin-right:auto;color:var(--muted);font-size:13px"><span>Connecting…</span></div>
 </header>
 <main class="wrap" id="main"></main>
@@ -1274,6 +1336,7 @@ const DAY = 864e5;
 const fdate = d => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const iso = d => new Date(d).toISOString().slice(0, 10);
 const IC = {
+  walk: 'M13 4.5a1.5 1.5 0 1 0 0-.01M9 21l3-7 2.5 2.5V21M8 12l2-4.5 3 1 2 3.5 3 1M10 7.5 7 9.5V13',
   plus: 'M12 5v14M5 12h14', doc: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h6', chevL: 'M15 18l-6-6 6-6', chevR: 'M9 18l6-6-6-6', image: 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15.5 9.5h.01',
   home: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
   search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-4.3-4.3',
@@ -1442,9 +1505,9 @@ function vExplore() {
   return `<section class="sec">
     <div class="sec-h"><div><span class="eyebrow" id="exCount">${list.length} ${list.length === 1 ? 'place' : 'places'}</span><h2>Explore stays</h2></div></div>
     <div class="row">${chip('all', 'All')}${chip('hostel', 'Hostels')}${chip('rental', 'Rentals')}${chip('airbnb', 'Airbnbs')}</div>
-    <div class="card fpanel">
+    <div class="fpanel slim">
       <div class="field"><label for="fq">Search</label><div class="acwrap"><div class="sbox">${ic('search')}<input class="inp" id="fq" value="${esc(f.q)}" placeholder="Name, area or amenity" autocomplete="off" aria-label="Search by name, area or amenity" aria-autocomplete="list" aria-controls="acArea">${f.q ? `<button class="xbtn" data-clear="q" aria-label="Clear search">${ic('x')}</button>` : ''}</div><div class="acpop" id="acArea" role="listbox" hidden></div></div></div>
-      <div class="field"><label>Budget per ${f.type === 'airbnb' ? 'night or month' : 'month'}</label><div class="acwrap"><button class="inp selbtn" data-budtoggle aria-haspopup="listbox" aria-expanded="false"><span>${(BUDGETS.find(o => o[0] === (f.max || 0)) || BUDGETS[0])[1]}</span>${ic('chevron')}</button><div class="acpop" id="acBud" role="listbox" hidden>${BUDGETS.map(o => `<button class="acopt" role="option" data-max="${o[0]}" aria-selected="${(f.max || 0) === o[0]}">${o[1]}${(f.max || 0) === o[0] ? ic('check') : ''}</button>`).join('')}</div></div></div>
+      <div class="field"><label>Budget per ${f.type === 'airbnb' ? 'night or month' : 'month'}</label><div class="acwrap"><button class="inp selbtn" data-budtoggle aria-haspopup="listbox" aria-expanded="false"><span>${f.max ? (BUDGETS.find(o => o[0] === f.max) || BUDGETS[0])[1] : 'Any budget'}</span>${ic('chevron')}</button><div class="acpop" id="acBud" role="listbox" hidden>${BUDGETS.map(o => `<button class="acopt" role="option" data-max="${o[0]}" aria-selected="${(f.max || 0) === o[0]}">${o[1]}${(f.max || 0) === o[0] ? ic('check') : ''}</button>`).join('')}</div></div></div>
       <div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:12px"><div class="field" style="flex:1;min-width:0"><label for="fs">Sort by</label><select class="inp" id="fs">${SORTS.map(o => `<option value="${o[0]}" ${so === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></div>${active ? `<button class="btn ghost sm" data-clearall style="align-self:flex-end">Clear all (${active})</button>` : ''}</div>
     </div>
     <div id="exList">${exploreBody(list)}</div>
@@ -1515,7 +1578,7 @@ const RQ = [
   { k: 'study', q: 'How is home for you?', sub: 'Where you rest, study or work.', o: [['quiet', 'Calm and quiet', '🤫'], ['group', 'Lively, friends over', '🎉']] },
   { k: 'clean', q: 'How tidy are you?', sub: '1 is relaxed, 5 is spotless.', o: [[1, '1', ''], [2, '2', ''], [3, '3', ''], [4, '4', ''], [5, '5', '']] }
 ];
-const rqLabel = (r, v) => { const o = r.o.find(x => String(x[0]) === String(v)); return o ? (o[2] ? o[2] + ' ' : '') + o[1] : '-'; };
+const rqLabel = (r, v) => { if (r.k === 'clean' && v) return '🧹 Tidy ' + v + ' of 5'; const o = r.o.find(x => String(x[0]) === String(v)); if (o) return (o[2] ? o[2] + ' ' : '') + o[1]; if (v === undefined || v === null || v === '') return 'Not set'; if (r.k === 'budget') return '💼 UGX ' + Math.round(Number(v) / 1000) + 'k'; return String(v); };
 function rqCard() {
   const i = S.rq, r = RQ[i], cur = S.prefs[r.k];
   return `<div class="card rq" role="group" aria-label="Question ${i + 1} of ${RQ.length}"><div class="rqtop"><div class="rqdots" aria-hidden="true">${RQ.map((_, j) => `<i class="${j < i ? 'on' : j === i ? 'cur' : ''}"></i>`).join('')}</div><span class="muted" style="font-size:13px">${i + 1} of ${RQ.length}</span></div>
@@ -1530,7 +1593,7 @@ function vRoommates() {
   if (!done) return `<section class="sec">${head}${inbox}<p class="muted" style="max-width:60ch">Five quick questions. Verified profiles are shown after identity review.</p>${rqCard()}</section>`;
   return `<section class="sec">${head}
     ${inbox}
-    <div class="card" style="padding:12px 14px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:10px"><div class="scrollrow" style="flex:1;min-width:0">${RQ.map((r, j) => `<button class="chip" data-rqgo="${j}" title="Change">${rqLabel(r, a[r.k])}</button>`).join('')}</div><button class="btn ghost sm" data-rqgo="0" style="flex:none">Edit</button></div></div>
+    <div class="prefbar"><div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:8px"><div class="scrollrow fadeedge" style="flex:1;min-width:0">${RQ.map((r, j) => `<button class="chip" data-rqgo="${j}" title="Change">${rqLabel(r, a[r.k])}</button>`).join('')}</div><button class="editbtn" data-rqgo="0" aria-label="Edit your preferences">Edit</button></div></div>
     <div class="sec-h"><h2 style="font-size:22px">${out.length} people to consider</h2><span class="pill mute">Verified profiles</span></div>
     <div class="grid">${out.map((o, i) => { const p = o.p, asked = S.asked.includes(p.id || p.n); return `<div class="card stack" style="gap:10px">
       <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div class="row" style="flex-wrap:nowrap"><span class="avatar" style="background:hsl(${HUES[i % 6]},70%,75%)">${p.n[0]}</span><div><b>${p.n}</b><div class="muted" style="font-size:13px">${p.course}, year ${p.yr}</div></div></div><div style="text-align:right"><div class="match">${o.s}%</div><div class="muted" style="font-size:11px">match</div></div></div>
@@ -1700,6 +1763,33 @@ function bullets(items, n = 5) {
   const first = items.slice(0, n), rest = items.slice(n);
   return `<ul class="bul">${first.map(x => `<li>${esc(x)}</li>`).join('')}${rest.map(x => `<li class="more" hidden>${esc(x)}</li>`).join('')}</ul>${rest.length ? `<button class="showmore" data-more>Show more</button>` : ''}`;
 }
+function viewerHTML(l) {
+  const media = l.media || [], n = media.length;
+  const slides = n ? media.map((m, i) => `<div class="lv-slide">${m.type === 'video' ? `<video src="${esc(m.url)}" controls playsinline preload="metadata"></video>` : `<img src="${esc(m.url)}" alt="Photo ${i + 1} of ${esc(l.name)}" loading="${i ? 'lazy' : 'eager'}" decoding="async">`}</div>`).join('') : `<div class="lv-slide">${art(l, 1)}</div>`;
+  const tabs = [['photos', 'Photos', 'image'], ['map', 'Map', 'pin'], ['street', 'Street view', 'walk']];
+  return `<div class="lview" id="lview" data-lid="${esc(String(l.id))}">
+      <div class="lv-pane on" data-pane="photos"><div class="lv-track" id="lvTrack" tabindex="0" aria-label="Photos of ${esc(l.name)}">${slides}</div>
+        ${n > 1 ? `<span class="lv-count"><b id="lvIdx">1</b> / ${n}</span><button class="lv-arr l" data-lv-step="-1" aria-label="Previous photo">${ic('chevL')}</button><button class="lv-arr r" data-lv-step="1" aria-label="Next photo">${ic('chevR')}</button>` : n ? '' : '<span class="lv-count">Photos coming soon</span>'}</div>
+      <div class="lv-pane" data-pane="map"></div><div class="lv-pane" data-pane="street"></div></div>
+    <div class="lv-tabs" role="tablist" aria-label="Photos, map and street view">${tabs.map(([k, t, i]) => `<button role="tab" data-lv-tab="${k}" aria-selected="${k === 'photos'}">${ic(i)}<span>${t}</span></button>`).join('')}</div>`;
+}
+function lvTab(k) {
+  const v = $('#lview'); if (!v) return;
+  const l = L.find(x => String(x.id) === v.dataset.lid), pane = v.querySelector(`[data-pane="${k}"]`); if (!l || !pane) return;
+  if (k !== 'photos' && !pane.dataset.ready) {
+    pane.dataset.ready = 1;
+    if (!l.loc) pane.innerHTML = `<div class="lv-empty">${ic('pin')}<b>The map pin has not been added yet</b><p>You can still look up the area.</p><a class="btn sm" href="${mapsLink(l)}" target="_blank" rel="noopener">Search ${esc(l.area)} in Google Maps</a></div>`;
+    else {
+      const lat = +l.loc.lat, lng = +l.loc.lng, la = lat.toFixed(6), ln = lng.toFixed(6);
+      pane.innerHTML = k === 'map'
+        ? `<iframe title="Map of ${esc(l.name)}" loading="lazy" referrerpolicy="no-referrer" src="https://www.openstreetmap.org/export/embed.html?bbox=${(lng - .006).toFixed(5)},${(lat - .004).toFixed(5)},${(lng + .006).toFixed(5)},${(lat + .004).toFixed(5)}&amp;layer=mapnik&amp;marker=${la},${ln}"></iframe><a class="lv-link" href="${mapsLink(l)}" target="_blank" rel="noopener">${ic('pin')}Open in Google Maps</a>`
+        : `<iframe title="Street view near ${esc(l.name)}" loading="lazy" allowfullscreen allow="accelerometer; gyroscope; fullscreen" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed?origin=mfe&amp;pb=!6m6!1m5!2m2!1d${la}!2d${ln}!4f-0!5f1"></iframe><a class="lv-link" href="https://www.google.com/maps/@?api=1&amp;map_action=pano&amp;viewpoint=${la},${ln}" target="_blank" rel="noopener">${ic('walk')}Full screen</a>`;
+    }
+  }
+  v.querySelectorAll('.lv-pane').forEach(p => p.classList.toggle('on', p === pane));
+  document.querySelectorAll('[data-lv-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.lvTab === k));
+}
+document.addEventListener('scroll', e => { const t = e.target; if (t && t.id === 'lvTrack') { const i = Math.round(t.scrollLeft / Math.max(1, t.clientWidth)) + 1, b = document.getElementById('lvIdx'); if (b && b.textContent !== String(i)) b.textContent = i; } }, true);
 function pgListing() {
   const l = byId(S.page.lid), t = termsFor(l.id), night = l.per === 'night', names = [...new Set([...l.am, ...(l.type === 'hostel' ? ['Common room TV', 'Laundry area'] : [])])];
   const comm = names.filter(n => COMM.test(n)), inter = [l.unit, ...names.filter(n => !COMM.test(n))];
@@ -1707,7 +1797,7 @@ function pgListing() {
   const rules = [night ? 'Free cancellation up to 48 hours before check-in' : 'Notice to leave: ' + t.notice + ' days', t.deposit ? 'Refundable deposit: ' + plural(t.deposit, 'month') : 'No deposit', t.late ? 'Late fee: ' + t.late + '% of the rent' : 'No late fee', ...t.rules.split(/(?<=\.)\s+/).filter(Boolean)];
   const ok = l.v;
   return `<section class="sec flatpg">${backBtn('Back to results')}${stepsHTML(0)}
-    ${(l.media || []).length ? `<div class="gal" role="group" aria-label="Photos and videos of ${esc(l.name)}">${l.media.map((m, i) => m.type === 'video' ? `<div class="gi"><video src="${esc(m.url)}" controls playsinline preload="metadata"></video></div>` : `<div class="gi"><img src="${esc(m.url)}" alt="Photo ${i + 1} of ${esc(l.name)}" loading="lazy"></div>`).join('')}</div><div class="muted" style="font-size:13px;margin-top:-6px">${l.media.length} ${l.media.length === 1 ? 'photo or video' : 'photos and videos'}. Swipe to see them all.</div>` : `<div class="heroart">${art(l, 1)}</div>`}
+    ${viewerHTML(l)}
     <div class="stack" style="gap:6px"><div class="row">${verifiedPill(l)}<span class="eyebrow">${l.type === 'airbnb' ? 'Short stay' : l.type} · ${l.unit}</span></div><h1 style="font-size:clamp(28px,5vw,38px)">${esc(l.name)}</h1>
       <div class="muted" style="display:flex;gap:6px;align-items:center">${ic('pin')}${l.area}, Kampala${l.n ? ` · <span class="stars" style="display:inline-flex">${ic('star')}${l.rating.toFixed(1)}</span> (${l.n})` : ''}</div>
       <div class="price" style="font-size:28px;margin-top:4px">${fmt(l.price)} <small>${unitLabel(l)}</small></div><div class="muted" style="font-size:14px">${l.avail} of ${l.total} ${night ? 'rooms' : 'units'} available now</div></div>
@@ -1717,7 +1807,7 @@ function pgListing() {
     ${lsec('doc', 'Rules and policies', bullets(rules, 4))}
     ${lsec('car', 'Parking', `<p class="muted">${hasPark ? 'Parking is available on site.' : 'No parking on site.'}</p>`)}
     ${lsec('phone', 'Contact information', `<p><b>${esc(l.owner)}</b>${l.v ? ' · verified owner' : ''}</p><p class="muted">Phone and email are shared once you apply, so scammers cannot copy them.</p>`)}
-    ${lsec('pin', 'Local information', `<div class="row" style="justify-content:space-between;gap:10px;margin-bottom:6px"><span class="muted">${l.area}, Kampala · ${l.dist} km ${l.type === 'hostel' ? 'to campus' : 'from the centre'}</span><a class="btn ghost sm" href="${mapsLink(l)}" target="_blank" rel="noopener">Open in Google Maps</a></div>${l.loc ? `<div class="mapbox"><iframe title="Map of ${esc(l.name)}" loading="lazy" referrerpolicy="no-referrer" src="https://www.openstreetmap.org/export/embed.html?bbox=${(l.loc.lng - .006).toFixed(5)},${(l.loc.lat - .004).toFixed(5)},${(l.loc.lng + .006).toFixed(5)},${(l.loc.lat + .004).toFixed(5)}&amp;layer=mapnik&amp;marker=${l.loc.lat.toFixed(6)},${l.loc.lng.toFixed(6)}"></iframe></div>${l.loc.address ? `<p class="muted" style="font-size:13px">${esc(l.loc.address)}</p>` : ''}` : '<p class="muted" style="font-size:13px">The exact map pin has not been added yet.</p>'}`)}
+    ${lsec('pin', 'Local information', `<div class="row" style="justify-content:space-between;gap:10px;margin-bottom:6px"><span class="muted">${l.area}, Kampala · ${l.dist} km ${l.type === 'hostel' ? 'to campus' : 'from the centre'}</span><a class="btn ghost sm" href="${mapsLink(l)}" target="_blank" rel="noopener">Open in Google Maps</a></div>${l.loc && l.loc.address ? `<p class="muted" style="font-size:13px">${esc(l.loc.address)}</p>` : ''}<button class="btn ghost sm" data-lv-tab="map" data-lv-up style="align-self:flex-start;margin-top:6px">${ic('pin')}See it on the map</button>`)}
     ${ok ? `<div class="actbar always"><div class="inner two"><button class="btn ghost" data-view="${l.id}">Book a viewing</button><button class="btn" data-apply>Apply now</button></div></div>` : ''}
   </section>`;
 }
@@ -1996,7 +2086,7 @@ const IMG = { home: '/img/home.jpg', aerial: '/img/kampala-aerial.jpg', blocks: 
 /* Photos of Kampala from Wikimedia Commons (resized). Listing photos are replaced by admins and owners from their dashboards. */
 const PHOTO_CREDITS = [["Ariel view of Kampala Urban suburb, Uganda", "Chapelle musa", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Ariel_view_of_Kampala_Urban_suburb,_Uganda.jpg"], ["Apartment block in kololo Kampala", "Alvinategyeka", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Apartment_block_in_kololo_Kampala.jpg"], ["My neighnourhood Home and Habitat", "Muyindi", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:My_neighnourhood_Home_and_Habitat.jpg"], ["Students hostels in Katanga", "Faintsmoke", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Students_hostels_in_Katanga.JPG"], ["Makerere, Kikoni", "Timothy Akolamazima", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Makerere,_Kikoni.jpg"], ["Apartments Found In Kololo", "Matovu Trevor", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Apartments_Found_In_Kololo.jpg"], ["Shopping Arcade, Apartments, KAMPALA, Uganda", "Chapelle musa", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Shopping_Arcade,_Apartments,_KAMPALA,_Uganda.jpg"], ["A mansion in Uganda", "Okware timothy", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:A_mansion_in_Uganda.jpg"], ["Apartments in Kampala City, Uganda", "Chapelle musa", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Apartments_in_Kampala_City,_Uganda.jpg"], ["Uganda-Development", "Andrew Regan", "CC BY-SA 3.0", "https://commons.wikimedia.org/wiki/File:Uganda-Development.JPG"], ["Good Looking Homeland", "Matovu Trevor", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Good_Looking_Homeland.jpg"], ["Residence in Lower Naguru", "Micheal Kaluba", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Residence_in_Lower_Naguru.jpg"], ["Over the roofs of Kamokya, Kampala (4331540123)", "SuSanA Secretariat", "CC BY 2.0", "https://commons.wikimedia.org/wiki/File:Over_the_roofs_of_Kamokya,_Kampala_(4331540123).jpg"]];
 const logoMark = (cls = 'lm') => `<svg class="${cls}" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3.5 44 19.6V40a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V19.6z" fill="url(#rpg)"/><path d="M17.5 36.5V20.5h8a5.8 5.8 0 0 1 1.4 11.4l4.8 4.6" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const wordmark = () => '<span class="wm">rent<em>pply</em></span>';
+const wordmark = () => '<span class="wm">Rent<em>pply</em></span>';
 
 /* ---------- landing page with floating buildings ---------- */
 
@@ -2133,19 +2223,19 @@ let landScrollFn = null;
 function landBind() {
   const root = $('#landing'); if (!root) return;
   const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
-  if (landScrollFn) root.removeEventListener('scroll', landScrollFn);
+  if (landScrollFn) removeEventListener('scroll', landScrollFn);
   if (reduce || !('IntersectionObserver' in window)) root.querySelectorAll('.fp-reveal').forEach(e => e.classList.add('in'));
-  else { const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { root, threshold: .12 }); root.querySelectorAll('.fp-reveal').forEach(e => io.observe(e)); }
+  else { const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 }); root.querySelectorAll('.fp-reveal').forEach(e => io.observe(e)); }
   const road = $('#fpRoad', root), fill = $('#fpRoadFill', root), car = $('#fpCar', root), stage = $('#fpStage', root), jny = $('#how-it-works', root), prog = $('#fpProg', root), jbar = $('#fpJbar', root);
   const nodes = [...root.querySelectorAll('.fp-node')], cards = [...root.querySelectorAll('.fp-jc')];
   const len = road ? road.getTotalLength() : 0;
   if (road) { fill.style.strokeDasharray = len; nodes.forEach((n, i) => { const pt = road.getPointAtLength(len * i / (nodes.length - 1)); n.setAttribute('transform', `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`); }); }
   let raf = 0;
   const update = () => {
-    raf = 0; const st = root.scrollTop, max = Math.max(1, root.scrollHeight - root.clientHeight);
+    raf = 0; const st = scrollY, vh = innerHeight, max = Math.max(1, document.documentElement.scrollHeight - vh);
     root.style.setProperty('--sy', st.toFixed(0)); if (prog) prog.style.transform = `scaleX(${(st / max).toFixed(4)})`;
     if (!road || !jny) return;
-    const span = Math.max(1, jny.offsetHeight - root.clientHeight), p = reduce ? 1 : Math.max(0, Math.min(1, (st - jny.offsetTop) / span));
+    const span = Math.max(1, jny.offsetHeight - vh), p = reduce ? 1 : Math.max(0, Math.min(1, (st - jny.offsetTop) / span));
     stage.style.setProperty('--p', p.toFixed(4)); fill.style.strokeDashoffset = (len * (1 - p)).toFixed(1);
     const pt = road.getPointAtLength(len * p); car.setAttribute('transform', `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`);
     if (jbar) jbar.style.transform = `scaleX(${p.toFixed(4)})`;
@@ -2174,11 +2264,11 @@ function landBind() {
     });
   });
   landScrollFn = () => { if (!raf) raf = requestAnimationFrame(update); };
-  root.addEventListener('scroll', landScrollFn, { passive: true });
+  addEventListener('scroll', landScrollFn, { passive: true });
   update();
 }
-function showLanding() { const n = $('#landing'); n.innerHTML = landingHTML(); n.hidden = false; n.scrollTop = 0; document.body.classList.add('landing'); updateLandingLive(); landBind(); }
-function hideLanding() { $('#landing').hidden = true; document.body.classList.remove('landing'); store.set('landed1', 1); }
+function showLanding() { const n = $('#landing'); n.innerHTML = landingHTML(); n.hidden = false; document.body.classList.add('landing'); scrollTo(0, 0); updateLandingLive(); landBind(); }
+function hideLanding() { $('#landing').hidden = true; document.body.classList.remove('landing'); if (landScrollFn) removeEventListener('scroll', landScrollFn); scrollTo(0, 0); store.set('landed1', 1); }
 function landGo(k) {
   if (k === 'owner' && S.profile?.role === 'owner') { hideLanding(); S.role = 'owner'; S.tab = FIRST.owner; render(true); return; }
   if (k === 'owner' && S.profile?.role === 'admin') { hideLanding(); S.role = 'owner'; S.viewRole = 'owner'; S.tab = FIRST.owner; render(true); return; }
@@ -2496,6 +2586,8 @@ document.addEventListener('click', async e => {
   if (!c('.acwrap')) document.querySelectorAll('.acpop').forEach(x => { x.hidden = true; });
   if ((el = c('[data-budtoggle]'))) { const pop = $('#acBud'); pop.hidden = !pop.hidden; el.setAttribute('aria-expanded', !pop.hidden); return; }
   if (c('[data-account]')) { setLayer(accountHTML()); return; }
+  if ((el = c('[data-lv-tab]'))) { lvTab(el.dataset.lvTab); if (el.hasAttribute('data-lv-up')) $('#lview')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  if ((el = c('[data-lv-step]'))) { const t = $('#lvTrack'); if (t) t.scrollBy({ left: Number(el.dataset.lvStep) * t.clientWidth, behavior: 'smooth' }); return; }
   if ((el = c('[data-theme-set]'))) { const n = el.dataset.themeSet === 'dark' ? 'dark' : 'light'; document.documentElement.classList.add('theming'); applyTheme(n); store.set('theme', n); setTimeout(() => document.documentElement.classList.remove('theming'), 450); setLayer(accountHTML()); return; }
   if ((el = c('[data-role]'))) { if (S.profile?.role !== 'admin') return; S.page = null; S.role = el.dataset.role; S.viewRole = S.role; S.tab = FIRST[S.role]; render(true); return; }
   if ((el = c('[data-tab]'))) { S.page = null; S.tab = el.dataset.tab; render(true); return; }
