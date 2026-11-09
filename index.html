@@ -1,5 +1,12 @@
 <!doctype html><html><head><meta charset=utf8><link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2048%2048%22%3E%3Cdefs%3E%3ClinearGradient%20id=%22g%22%20x1=%220%22%20y1=%220%22%20x2=%221%22%20y2=%221%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%238f1d2c%22/%3E%3Cstop%20offset=%22.55%22%20stop-color=%22%23c2332f%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%23ff6a3d%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath%20d=%22M24%203.5%2044%2019.6V40a5%205%200%200%201-5%205H9a5%205%200%200%201-5-5V19.6z%22%20fill=%22url(%23g)%22/%3E%3Cpath%20d=%22M17.5%2036.5V20.5h8a5.8%205.8%200%200%201%201.4%2011.4l4.8%204.6%22%20fill=%22none%22%20stroke=%22%23fff%22%20stroke-width=%224.2%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Rentpply</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<meta name="theme-color" content="#fbf8f7">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rentpply">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Find verified hostels, rentals and short stays across Uganda, agree the terms and keep every rent record in one place.">
 <script>try{document.documentElement.setAttribute("data-theme",JSON.parse(localStorage.getItem("rp_theme")||"null")==="dark"?"dark":"light")}catch(e){document.documentElement.setAttribute("data-theme","light")}</script>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -1410,6 +1417,9 @@ html:has(body.landing){scroll-behavior:smooth}
   #printArea footer{margin-top:12px;color:#777;font-size:10.5px}
   @page{margin:10mm}
 }
+
+/* the places strip loops on its own, so it moves freely instead of snapping card by card */
+.fp-rail.auto{scroll-snap-type:none}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -2211,13 +2221,14 @@ const coverOf = l => (l.media || []).find(m => m.type === 'photo');
 function landPlacesHTML() {
   const type = S.landType || 'all', list = L.filter(l => l.v && (type === 'all' || l.type === type));
   if (!list.length) return L.length ? '<div class="fp-empty">No places of this type are listed yet.</div>' : '<div class="fp-pc sk"></div>'.repeat(4);
-  return list.map((l, i) => { const c = coverOf(l), dist = l.dist ? ` · ${l.dist} km ${l.type === 'hostel' ? 'to campus' : 'from centre'}` : '';
-    return `<article class="fp-pc" style="--d:${Math.min(i, 6)}"><button class="fp-pcin" data-land="tenant" aria-label="View ${esc(l.name)}">
+  const one = (copy) => list.map((l, i) => { const c = coverOf(l), dist = l.dist ? ` · ${l.dist} km ${l.type === 'hostel' ? 'to campus' : 'from centre'}` : '';
+    return `<article class="fp-pc${copy ? ' dup' : ''}" style="--d:${Math.min(i, 6)}"${copy ? ' aria-hidden="true"' : ''}><button class="fp-pcin" data-land="tenant" ${copy ? 'tabindex="-1"' : `aria-label="View ${esc(l.name)}"`}>
       <div class="fp-ph">${c ? `<img src="${esc(sized(c.url, 960))}" alt="" loading="${i < 4 ? 'eager' : 'lazy'}" decoding="async">` : art(l)}</div>
       <span class="fp-ptag">${esc(TYPE_NAME[l.type] || l.type)}</span><span class="fp-popen ${l.avail > 0 ? '' : 'full'}"><i></i>${l.avail > 0 ? l.avail + ' open' : 'Full'}</span>
       <div class="fp-pbody"><h3>${esc(l.name)}</h3><p>${ic('pin')}${esc(l.area)}${dist}</p>
         <div class="fp-pams">${(l.am || []).slice(0, 3).map(a => `<span>${esc(a)}</span>`).join('')}</div>
         <div class="fp-pfoot"><b>${fmt(l.price)}<small> / ${l.per}</small></b><span class="fp-pgo">View${ic('arrow')}</span></div></div></button></article>`; }).join('');
+  return one(false) + (list.length > 1 ? one(true) : '');
 }
 function fadeImgs(root) { root.querySelectorAll('.fp-ph img:not(.ok), .fp-fade:not(.ok)').forEach(img => { const ok = () => img.classList.add('ok'); if (img.complete && img.naturalWidth) ok(); else { img.addEventListener('load', ok, { once: true }); img.addEventListener('error', ok, { once: true }); } }); }
 function railSwap(html) {
@@ -2226,11 +2237,39 @@ function railSwap(html) {
   rail.classList.add('out');
   setTimeout(() => { rail.innerHTML = html; rail.scrollLeft = 0; rail.classList.remove('out'); rail.classList.add('swap'); fadeImgs(rail); railSync(); setTimeout(() => rail.classList.remove('swap'), 900); }, 220);
 }
+/* Width of one full set of cards: scrolling by this much shows the same picture again. */
+function railPeriod(rail) { const a = rail.querySelector('.fp-pc:not(.dup)'), d = rail.querySelector('.fp-pc.dup'); return a && d ? d.offsetLeft - a.offsetLeft : 0; }
+/* The places strip drifts right to left on its own and loops forever; it pauses while someone touches, drags or hovers. */
+let railRaf = 0;
+function railAutoplay() {
+  const rail = $('#fpPlaces'); if (!rail || rail.dataset.auto) return;
+  if (matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  rail.dataset.auto = 1; rail.classList.add('auto');
+  let pos = rail.scrollLeft, last = performance.now();
+  const hold = ms => { rail._hold = performance.now() + ms; };
+  ['pointerdown', 'touchstart', 'wheel', 'focusin', 'keydown'].forEach(ev => rail.addEventListener(ev, () => { rail.dataset.moved = 1; hold(3000); }, { passive: true }));
+  rail.addEventListener('mouseenter', () => { rail._hover = true; });
+  rail.addEventListener('mouseleave', () => { rail._hover = false; hold(500); });
+  const step = now => {
+    railRaf = requestAnimationFrame(step);
+    const dt = Math.min(50, now - last); last = now;
+    if (!rail.isConnected) { cancelAnimationFrame(railRaf); return; }
+    const per = railPeriod(rail);
+    if (!per || rail._hover || now < (rail._hold || 0) || rail.classList.contains('out') || document.hidden) { pos = rail.scrollLeft; return; }
+    if (Math.abs(rail.scrollLeft - pos) > 3) pos = rail.scrollLeft;
+    pos += dt * 0.045;
+    if (pos >= per) pos -= per;
+    rail.scrollLeft = pos;
+  };
+  railRaf = requestAnimationFrame(step);
+}
 function railSync() {
   const rail = $('#fpPlaces'), bar = $('#fpRailBar'); if (!rail) return;
-  const max = rail.scrollWidth - rail.clientWidth, k = max > 0 ? rail.scrollLeft / max : 1;
-  if (bar) { bar.style.width = Math.max(14, rail.clientWidth / Math.max(rail.scrollWidth, 1) * 100) + '%'; bar.style.transform = `translateX(${(k * (100 / (parseFloat(bar.style.width) / 100) - 100)).toFixed(2)}%)`; }
-  document.querySelectorAll('[data-rail]').forEach(b => { b.disabled = max <= 2 || (b.dataset.rail === '-1' ? rail.scrollLeft < 4 : rail.scrollLeft > max - 4); });
+  const per = railPeriod(rail), max = rail.scrollWidth - rail.clientWidth;
+  if (per) { if (rail.scrollLeft >= per) rail.scrollLeft -= per; else if (rail.scrollLeft <= 0 && rail.dataset.moved) rail.scrollLeft += per; }
+  const k = per ? (rail.scrollLeft % per) / per : (max > 0 ? rail.scrollLeft / max : 1);
+  if (bar) { const w = per ? Math.max(14, Math.min(60, rail.clientWidth / per * 100)) : Math.max(14, rail.clientWidth / Math.max(rail.scrollWidth, 1) * 100); bar.style.width = w + '%'; bar.style.transform = `translateX(${(k * (100 / (w / 100) - 100)).toFixed(2)}%)`; }
+  document.querySelectorAll('[data-rail]').forEach(b => { b.disabled = !per && (max <= 2 || (b.dataset.rail === '-1' ? rail.scrollLeft < 4 : rail.scrollLeft > max - 4)); });
   const mid = rail.getBoundingClientRect().left + rail.clientWidth / 2;
   rail.querySelectorAll('.fp-pc').forEach(c => { const r = c.getBoundingClientRect(), off = (r.left + r.width / 2 - mid) / rail.clientWidth; c.style.setProperty('--px', Math.max(-1, Math.min(1, off)).toFixed(3)); });
 }
@@ -2356,7 +2395,7 @@ function landBind() {
     addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x; if (Math.abs(dx) > 4) drag.moved = true; rail.scrollLeft = drag.l - dx; }, { passive: true });
     addEventListener('pointerup', () => { if (!drag) return; const moved = drag.moved; drag = null; rail.classList.remove('grab'); if (moved) rail.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); }, { capture: true, once: true }); });
     addEventListener('resize', railSync, { passive: true });
-    fadeImgs(root); railSync();
+    fadeImgs(root); railSync(); railAutoplay();
   }
   root.querySelectorAll('.fp-faq details').forEach(d => {
     const sm = d.querySelector('summary'), body = d.querySelector('.fp-ans');
@@ -2720,7 +2759,7 @@ document.addEventListener('click', async e => {
     return;
   }
   if ((el = c('[data-ltype]'))) { if (S.landType === el.dataset.ltype || (!S.landType && el.dataset.ltype === 'all')) return; S.landType = el.dataset.ltype; document.querySelectorAll('[data-ltype]').forEach(b => b.setAttribute('aria-pressed', b === el)); railSwap(landPlacesHTML()); return; }
-  if ((el = c('[data-rail]'))) { const r = $('#fpPlaces'), card = r && r.querySelector('.fp-pc'); if (r) r.scrollBy({ left: Number(el.dataset.rail) * Math.max((card ? card.offsetWidth + 18 : 320), r.clientWidth * .8), behavior: 'smooth' }); return; }
+  if ((el = c('[data-rail]'))) { const r = $('#fpPlaces'), card = r && r.querySelector('.fp-pc'); if (r) { r._hold = performance.now() + 3500; r.dataset.moved = 1; } if (r) r.scrollBy({ left: Number(el.dataset.rail) * Math.max((card ? card.offsetWidth + 18 : 320), r.clientWidth * .8), behavior: 'smooth' }); return; }
   if (c('.top .logo')) { showLanding(); return; }
   if ((el = c('[data-wtab]'))) { S.wtab = el.dataset.wtab; render(); return; }
   if ((el = c('[data-go]'))) { go(el.dataset.go); return; }
