@@ -1,5 +1,7 @@
 <!doctype html><html><head><meta charset=utf8><link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2048%2048%22%3E%3Cdefs%3E%3ClinearGradient%20id=%22g%22%20x1=%220%22%20y1=%220%22%20x2=%221%22%20y2=%221%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%238f1d2c%22/%3E%3Cstop%20offset=%22.55%22%20stop-color=%22%23c2332f%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%23ff6a3d%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath%20d=%22M24%203.5%2044%2019.6V40a5%205%200%200%201-5%205H9a5%205%200%200%201-5-5V19.6z%22%20fill=%22url(%23g)%22/%3E%3Cpath%20d=%22M17.5%2036.5V20.5h8a5.8%205.8%200%200%201%201.4%2011.4l4.8%204.6%22%20fill=%22none%22%20stroke=%22%23fff%22%20stroke-width=%224.2%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Rentpply</title>
+<meta name="description" content="Find verified hostels, rentals and short stays across Uganda, agree the terms and keep every rent record in one place.">
+<script>try{document.documentElement.setAttribute("data-theme",JSON.parse(localStorage.getItem("rp_theme")||"null")==="dark"?"dark":"light")}catch(e){document.documentElement.setAttribute("data-theme","light")}</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,21 +20,13 @@
   --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
   --r:16px; --r-sm:10px;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#150a0b; --surface:#211113; --surface-2:#2c181a; --ink:#f2e7e9; --muted:#a98f92; --line:#382224;
-  --accent:#FF6B4A; --accent-ink:#1A0A06; --accent-soft:#3A1E17;
-  --ok:#4cc38a; --ok-soft:#12311f; --brand:#e0566a; --brand-2:#c93c4d; --brand-soft:#351014; --warn:#F2B04A; --warn-soft:#3A2B0E; --bad:#FF7A74; --bad-soft:#3E1917;
-  --hero:#220c0e; --hero-ink:#f6eaec; --hero-muted:#b58d92; --hero-line:#442125;
-  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
-  --cw:#6AA6F2; --cp:#F2C14A; --ct:#B290F0; --cs:#c93c4d;
-  color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#150a0b; --surface:#211113; --surface-2:#2c181a; --ink:#f2e7e9; --muted:#a98f92; --line:#382224;
-  --accent:#FF6B4A; --accent-ink:#1A0A06; --accent-soft:#3A1E17;
-  --ok:#4cc38a; --ok-soft:#12311f; --brand:#e0566a; --brand-2:#c93c4d; --brand-soft:#351014; --warn:#F2B04A; --warn-soft:#3A2B0E; --bad:#FF7A74; --bad-soft:#3E1917;
-  --hero:#220c0e; --hero-ink:#f6eaec; --hero-muted:#b58d92; --hero-line:#442125;
-  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
-  --cw:#6AA6F2; --cp:#F2C14A; --ct:#B290F0; --cs:#c93c4d;
+  --bg:#211a1c; --surface:#2c2427; --surface-2:#382f32; --ink:#f8f1f2; --muted:#cdbdc0; --line:#4d4144;
+  --accent:#ff7b59; --accent-ink:#ffffff; --accent-soft:#4b2b23;
+  --ok:#62d6a0; --ok-soft:#1f3d2f; --brand:#ff94a3; --brand-2:#f36d80; --brand-soft:#4d252c; --warn:#ffc864; --warn-soft:#47381c; --bad:#ff8f88; --bad-soft:#4d2724;
+  --hero:#3b1e24; --hero-ink:#fff5f6; --hero-muted:#e6c1c6; --hero-line:#5e3239;
+  --shadow:0 1px 2px rgba(0,0,0,.25),0 10px 28px rgba(0,0,0,.25);
+  --cw:#7db3f5; --cp:#f5ca5c; --ct:#bf9ff5; --cs:#f36d80;
   color-scheme:dark}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -346,7 +340,6 @@ body.landing{overflow:hidden}
 #landing .wrap{padding-inline:max(18px,env(safe-area-inset-left,0px))}
 code{background:var(--line);border-radius:6px;padding:1px 5px;font-size:12.5px}
 :root{--s1:#2a78d6;--s2:#eb6834;--s3:#a42639;--s4:#6250d6}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--s1:#3987e5;--s2:#d95926;--s3:#942334;--s4:#9085e9}}
 :root[data-theme="dark"]{--s1:#3987e5;--s2:#d95926;--s3:#942334;--s4:#9085e9}
 .tgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .tile2{display:flex;flex-direction:column;gap:4px;padding:12px;min-width:0}
@@ -647,7 +640,6 @@ td{padding:11px 12px;border-top:1px solid var(--line);vertical-align:middle}
 .logo b svg{width:19px;height:19px;fill:#fff;stroke:none}
 .logo .wm,.logo span{background:linear-gradient(90deg,var(--brand),#c2332f);-webkit-background-clip:text;background-clip:text;color:transparent}
 #landing .logo span{background:none;color:#fff;-webkit-text-fill-color:#fff}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo span{background:none;color:var(--ink)}}
 :root[data-theme="dark"] .logo span{background:none;color:var(--ink)}
 .btn{background:linear-gradient(135deg,var(--accent),#ff7a4d);box-shadow:0 4px 14px rgba(255,90,54,.28)}
 .btn.ghost,.btn.dark{background:transparent;box-shadow:none}
@@ -862,7 +854,6 @@ body.auth-page #main{max-width:none;padding:0}
 /* chart colours in the Rentpply palette */
 :root{--s1:#7d1d28;--s2:#ff5a36;--s3:#1b8a5a;--s4:#c9778a}
 
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--s1:#e0566a;--s2:#ff6b4a;--s3:#4cc38a;--s4:#e3a0b0}}
 
 :root[data-theme="dark"]{--s1:#e0566a;--s2:#ff6b4a;--s3:#4cc38a;--s4:#e3a0b0}
 
@@ -963,7 +954,6 @@ body:has(.gateveil) .dock{display:none}
 .logo .wm em{font-style:normal;color:var(--accent)!important;-webkit-text-fill-color:var(--accent)!important}
 #landing .fp-nav .logo .wm{color:var(--fi)!important}
 #landing .fp-foot .logo .wm{color:#fff!important}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo .wm{color:var(--ink)!important}}
 :root[data-theme="dark"] .logo .wm{color:var(--ink)!important}
 .logo b svg.lm{transition:transform .5s var(--ease-spring)}
 .logo:hover b svg.lm{transform:rotate(-6deg) scale(1.06)}
@@ -1166,7 +1156,7 @@ body:has(.gateveil) .dock{display:none}
 .hubs .hubb{flex:1 1 140px}
 .aimg{opacity:0;transition:opacity .6s var(--ease),transform .6s var(--ease)}
 .aimg.ok{opacity:1}
-#landing .fp-nav .logo .wm{display:inline!important}
+#landing .logo .wm{display:inline!important}
 @media (max-width:640px){
   .fp-stats{grid-template-columns:repeat(3,1fr);gap:8px;margin-top:26px;padding-top:16px}
   .fp-stat{flex-direction:column;align-items:flex-start;gap:8px;background:rgba(255,255,255,.94);border:1px solid var(--fline);border-radius:16px;padding:12px;box-shadow:0 8px 20px rgba(60,12,20,.08)}
@@ -1189,6 +1179,52 @@ body.flow main#main{padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
   .kgrid .card.stat{padding:12px}
   .mgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 }
+
+/* ===== moving banner at the top of the landing page ===== */
+.fp-ann{overflow:hidden;padding:0!important;text-align:left}
+.fp-anntrack{display:flex;width:max-content;animation:fpAnn 46s linear infinite}
+.fp-ann:hover .fp-anntrack{animation-play-state:paused}
+.fp-annrun{display:flex;align-items:center;flex:none}
+.fp-annrun span{white-space:nowrap;padding:10px 0}
+.fp-annrun i{font-style:normal;color:#ffb199;margin:0 22px;font-size:11px}
+@keyframes fpAnn{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.fp-anntrack{animation:none;width:auto;justify-content:center}.fp-annrun+.fp-annrun{display:none}.fp-annrun{flex-wrap:wrap;justify-content:center}}
+
+/* ===== centred where it reads better ===== */
+.fp-phead{flex-direction:column;align-items:center;text-align:center}
+#landing .fp-phead p{margin-inline:auto}
+@media (max-width:980px){
+  .fp-copy{text-align:center;align-items:center}
+  .fp-copy .fp-pill{margin-inline:auto}
+  #landing .fp-copy p{margin-inline:auto}
+  .fp-copy .fp-cta{justify-content:center}
+  .fp-faqh{align-items:center;text-align:center}
+  #landing .fp-faqh p{margin-inline:auto}
+  .fp-ocopy{align-items:center;text-align:center}
+  #landing .fp-owners p{margin-inline:auto}
+  .fp-ol li{text-align:left}
+  .fp-cta2in{align-items:center;text-align:center;margin-inline:auto}
+  .fp-cta2in .fp-cta{justify-content:center}
+  .fp-cta2{justify-content:center}
+  .fp-footgrid{flex-direction:column;text-align:center;justify-content:center}
+  .fp-footgrid p{flex:none}
+  .fp-flinks{justify-content:center}
+  .fp-copy2{align-items:center;text-align:center}
+  .fp-credits summary{text-align:center}
+  #landing .fp-jhead{text-align:center}
+}
+.empty,.card>p.muted:only-child{text-align:center}
+
+/* ===== dark mode, softer and readable ===== */
+:root[data-theme="dark"] .card,:root[data-theme="dark"] .lcard,:root[data-theme="dark"] .tile{border-color:var(--line)}
+:root[data-theme="dark"] .top{background:color-mix(in srgb,var(--bg) 88%,transparent)}
+:root[data-theme="dark"] .inp,:root[data-theme="dark"] input,:root[data-theme="dark"] select,:root[data-theme="dark"] textarea{background:var(--surface-2);border-color:var(--line);color:var(--ink)}
+:root[data-theme="dark"] .inp::placeholder{color:#a8989b}
+:root[data-theme="dark"] table th{color:var(--muted)}
+:root[data-theme="dark"] .veil{background:rgba(10,6,7,.6)}
+:root[data-theme="dark"] .fchip[aria-pressed="true"],:root[data-theme="dark"] .btn.dark{background:#b23a4c;border-color:#b23a4c;color:#fff}
+:root[data-theme="dark"] .chip[aria-pressed="true"],:root[data-theme="dark"] .hubb[aria-pressed="true"],:root[data-theme="dark"] .steps li.cur span{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .toast,:root[data-theme="dark"] #vtip{background:#f8f1f2;color:#2a1d20}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -1350,7 +1386,7 @@ function vHome() {
   </section>
   <section class="sec"><div class="tiles">${tiles}</div></section>
   <section class="sec">
-    <div class="sec-h"><div><span class="eyebrow">${student ? 'Campus housing' : 'Student living'}</span><h2>Closest to Makerere</h2></div><button class="btn ghost sm" data-go="explore:hostel">All hostels</button></div>
+    <div class="sec-h"><div><span class="eyebrow">${student ? 'Campus housing' : 'Near campus'}</span><h2>Closest to Makerere</h2></div><button class="btn ghost sm" data-go="explore:hostel">All hostels</button></div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr))">${near.map(card).join('')}</div>
   </section>
   <section class="sec">
@@ -1987,13 +2023,22 @@ function landCount(el, to) {
 function updateLandingLive() {
   const root = $('#landing'); if (!root || !$('#fpPlaces', root)) return;
   const s = landStats();
-  $('#fpAnn').textContent = s.n ? `${s.n} verified place${s.n === 1 ? '' : 's'} live in Uganda · Student housing made simple` : 'Student housing in Uganda, made simple';
+  $('#fpAnn').innerHTML = annHTML();
   root.querySelectorAll('[data-stat]').forEach(el => landCount(el, s[el.dataset.stat] || 0));
   $('#fpRows').innerHTML = landRowsHTML();
   const rail = $('#fpPlaces'), wasSk = !!rail.querySelector('.sk'); rail.innerHTML = landPlacesHTML(); fadeImgs(root); railSync();
   if (wasSk && !rail.querySelector('.sk')) { rail.classList.add('swap'); setTimeout(() => rail.classList.remove('swap'), 1100); }
   $('#fpLive').innerHTML = landLiveHTML();
   $('#fpTrack').innerHTML = landTrackHTML();
+}
+function annHTML() {
+  const s = landStats(), items = [
+    s.n ? `${s.n} verified place${s.n === 1 ? '' : 's'} live across Uganda` : 'Verified places across Uganda',
+    s.rooms ? `${s.rooms.toLocaleString('en-US')} rooms open right now` : 'Rooms open right now',
+    'Hostels, rentals and short stays in one place', 'Read the agreement before you pay', 'Owners confirm every payment',
+    'Find a roommate who fits', 'Property owners: run your rooms from one workspace'];
+  const run = items.map(t => `<span>${esc(t)}</span><i aria-hidden="true">✦</i>`).join('');
+  return `<div class="fp-anntrack"><div class="fp-annrun">${run}</div><div class="fp-annrun" aria-hidden="true">${run}</div></div>`;
 }
 function landLiveHTML() {
   const top = L.filter(l => l.v).sort((a, b) => b.avail - a.avail)[0];
@@ -2020,14 +2065,14 @@ function landingHTML() {
     ['How does payment work?', 'Rentpply records your payment request and transaction reference. You send the money to the owner directly, and the owner confirms they received it before your room is assigned. Rentpply does not charge your card or mobile money.'],
     ['Are the places verified?', 'Only places that an administrator has verified appear here. Owners are checked before a listing can take bookings.'],
     ['Are my ID documents safe?', 'Identity documents are kept in a private store. Only you and Rentpply administrators can open them.'],
-    ['Can I find a roommate?', 'Yes. Verified students and tenants can set their preferences, match with others and send roommate requests.'],
+    ['Can I find a roommate?', 'Yes. Verified tenants and students can set their preferences, match with others and send roommate requests.'],
     ['Can I pass my room on?', 'Yes. If you are leaving early, you can list the remaining months for another tenant. The owner approves the transfer.']
   ];
   return `<i class="fp-prog" id="fpProg" aria-hidden="true"></i>
-  <div class="fp-ann" id="fpAnn">Student housing in Uganda, made simple</div>
+  <div class="fp-ann" id="fpAnn" role="marquee" aria-label="Rentpply news">${annHTML()}</div>
   <nav class="fp-nav" aria-label="Main">${logo}<div class="fp-links"><a href="#why">Why Rentpply</a><a href="#how-it-works">How it works</a><a href="#places">Places</a><a href="#for-owners">For owners</a><a href="#faq">FAQ</a></div><button class="fp-ghost" data-auth-open="signin">Sign in</button><button class="fp-btn sm" data-land="tenant">Find a place</button></nav>
   <header class="fp-hero" id="top"><div class="fp-bg" aria-hidden="true"><div class="fp-bgphoto" style="background-image:url(${IMG.home})"></div><span class="fp-orb o1"></span><span class="fp-orb o2"></span></div>
-    <div class="fp-wrap fp-herogrid"><div class="fp-copy"><span class="fp-pill">${ic('pin')}Student housing in Uganda</span><h1>${h1}</h1><p>Compare verified hostels, rentals and short stays, agree the terms and keep every rent record in one place.</p><div class="fp-cta"><button class="fp-btn lg" data-land="tenant">Find a place</button><button class="fp-line lg" data-land="owner">I'm a property owner</button></div></div>
+    <div class="fp-wrap fp-herogrid"><div class="fp-copy"><span class="fp-pill">${ic('pin')}Hostels, rentals and stays in Uganda</span><h1>${h1}</h1><p>Compare verified hostels, rentals and short stays, agree the terms and keep every rent record in one place.</p><div class="fp-cta"><button class="fp-btn lg" data-land="tenant">Find a place</button><button class="fp-line lg" data-land="owner">I'm a property owner</button></div></div>
       <div class="fp-visual"><div class="fp-chip c1">${ic('shield')}<span>Verified owners only</span></div><div class="fp-chip c2">${ic('key')}<span>Rent records in one place</span></div><div class="fp-live" id="fpLive">${landLiveHTML()}</div></div></div>
     <div class="fp-wrap fp-stats"><div class="fp-stat"><i>${ic('building')}</i><div><b data-stat="n">0</b><span>Verified places</span></div></div><div class="fp-stat"><i>${ic('key')}</i><div><b data-stat="rooms">0</b><span>Rooms available now</span></div></div><div class="fp-stat"><i>${ic('pin')}</i><div><b data-stat="areas">0</b><span>Areas covered</span></div></div></div></header>
   <div class="fp-marq" aria-label="Areas with verified places"><div class="fp-track" id="fpTrack">${landTrackHTML()}</div></div>
@@ -2054,8 +2099,8 @@ function landingHTML() {
       <div class="fp-ocard k3"><span>${ic('bell')}</span><div><b>New viewing request</b><small>Approve or decline in one tap</small></div></div></div></div></section>
   <section class="fp-wrap fp-sec" id="faq"><div class="fp-faqgrid"><div class="fp-faqh fp-reveal"><span class="fp-eye">FAQ</span><h2>Good to know</h2><p>Straight answers about payments, verification and your documents.</p><button class="fp-line" data-auth-open="signup">Create an account</button></div>
     <div class="fp-faq fp-reveal" style="--d:120ms">${faq.map(([q, a]) => `<details><summary>${q}<i>${ic('plus')}</i></summary><div class="fp-ans"><p>${a}</p></div></details>`).join('')}</div></div></section>
-  <section class="fp-wrap fp-sec fp-last"><div class="fp-cta2 fp-reveal"><div class="fp-cta2bg"><img class="fp-fade" src="${IMG.hood}" alt="" loading="lazy" decoding="async"></div><div class="fp-cta2in"><h2>Your next place is waiting.</h2><p>Join the students and tenants already finding a home across Uganda.</p><div class="fp-cta"><button class="fp-btn orange lg" data-land="tenant">Find a place</button><button class="fp-line lg light" data-auth-open="signup">Create an account</button></div></div></div></section>
-  <footer class="fp-foot"><div class="fp-wrap fp-footgrid">${logo}<p>Student housing in Uganda, made simple.</p><div class="fp-flinks"><a href="#how-it-works">How it works</a><a href="#places">Places</a><a href="#for-owners">For owners</a><a href="#faq">FAQ</a></div></div>
+  <section class="fp-wrap fp-sec fp-last"><div class="fp-cta2 fp-reveal"><div class="fp-cta2bg"><img class="fp-fade" src="${IMG.hood}" alt="" loading="lazy" decoding="async"></div><div class="fp-cta2in"><h2>Your next place is waiting.</h2><p>Join the students, families and workers already finding a place across Uganda.</p><div class="fp-cta"><button class="fp-btn orange lg" data-land="tenant">Find a place</button><button class="fp-line lg light" data-auth-open="signup">Create an account</button></div></div></div></section>
+  <footer class="fp-foot"><div class="fp-wrap fp-footgrid">${logo}<p>Places to stay in Uganda, made simple.</p><div class="fp-flinks"><a href="#how-it-works">How it works</a><a href="#places">Places</a><a href="#for-owners">For owners</a><a href="#faq">FAQ</a></div></div>
     <div class="fp-wrap fp-copy2"><span>© ${new Date().getFullYear()} Rentpply</span><details class="fp-credits"><summary>Photo credits</summary><p>Photos of Kampala from Wikimedia Commons, resized: ${PHOTO_CREDITS.map(([t, a, l, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(t)}</a> by ${esc(a)} (${l})`).join('; ')}.</p></details></div></footer>`;
 }
 let landScrollFn = null;
@@ -2148,7 +2193,7 @@ function authPageHTML() {
   const forgot = mode === 'forgot';
   const reset = mode === 'reset';
   const copy = {
-    housing: ['Welcome back', 'Sign in to find housing, manage your stay, and connect with verified students.', 'Housing and student access'],
+    housing: ['Welcome back', 'Sign in to find a place, manage your stay and connect with verified roommates.', 'Tenant and student access'],
     owner: ['Your property, in one place', 'Sign in to manage your listings, rooms, payment requests, and tenant needs.', 'Property owner access'],
   }[audience] || ['Welcome back', 'Sign in to continue to your Rentpply workspace.', 'Rentpply account'];
   const notice = S.authNotice ? `<div class="notice" role="status">${esc(S.authNotice)}</div>` : '';
@@ -2383,7 +2428,7 @@ function go(spec) {
   S.page = null; S.tab = t; render(true);
 }
 function applyTheme(t) { if (t) document.documentElement.setAttribute('data-theme', t); else document.documentElement.removeAttribute('data-theme'); }
-applyTheme(store.get('theme', null));
+applyTheme(store.get('theme', null) === 'dark' ? 'dark' : 'light');
 
 /* ---------- events ---------- */
 document.addEventListener('click', async e => {
@@ -2411,7 +2456,7 @@ document.addEventListener('click', async e => {
   }
   if (!c('.acwrap')) document.querySelectorAll('.acpop').forEach(x => { x.hidden = true; });
   if ((el = c('[data-budtoggle]'))) { const pop = $('#acBud'); pop.hidden = !pop.hidden; el.setAttribute('aria-expanded', !pop.hidden); return; }
-  if (c('#theme')) { const dark = document.documentElement.getAttribute('data-theme') === 'dark' || (!document.documentElement.getAttribute('data-theme') && matchMedia('(prefers-color-scheme:dark)').matches); const n = dark ? 'light' : 'dark'; applyTheme(n); store.set('theme', n); return; }
+  if (c('#theme')) { const dark = document.documentElement.getAttribute('data-theme') === 'dark'; const n = dark ? 'light' : 'dark'; applyTheme(n); store.set('theme', n); return; }
   if ((el = c('[data-role]'))) { if (S.profile?.role !== 'admin') return; S.page = null; S.role = el.dataset.role; S.viewRole = S.role; S.tab = FIRST[S.role]; render(true); return; }
   if ((el = c('[data-tab]'))) { S.page = null; S.tab = el.dataset.tab; render(true); return; }
   if (c('[data-kycsubmit]')) { await kycSubmit(); return; }
