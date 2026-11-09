@@ -1458,6 +1458,24 @@ html{background:var(--bg)}
 }
 @keyframes rpFlow{from{opacity:0;transform:translate3d(0,14px,0) scale(.985)}to{opacity:1;transform:none}}
 @keyframes rpFlowRow{from{opacity:0;transform:translate3d(0,6px,0)}to{opacity:1;transform:none}}
+
+/* ===== repairs ===== */
+.mnt{display:flex;flex-direction:column;gap:10px}
+.mnt-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mnt-h h3{font-size:19px;margin:0}
+.mnt-h .pill{display:inline-flex;align-items:center;gap:5px}
+.mnt-h .pill svg{width:14px;height:14px}
+.mcard{border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;background:var(--surface);display:flex;flex-direction:column;gap:8px}
+.mcard.open{border-color:var(--bad)}
+.mcard.work{border-color:var(--warn)}
+.mcard.done{opacity:.75}
+.mc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.mc-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mc-t b{font-size:16px}
+.mc-t .pill{font-size:12px}
+.mc-top small{display:block;color:var(--muted);font-size:13px;margin-top:3px}
+.mcard p{margin:0;font-size:14.5px;color:var(--ink)}
+.mcard .btn{flex:none}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -2798,7 +2816,7 @@ document.addEventListener('click', async e => {
   }
   if (c('[data-live-retry]')) { await refreshPortal(); return; }
   if (S.profile && ['owner', 'admin'].includes(S.profile.role)) {
-    try { if (await handlePortalClick(t, refreshPortal, { rerender: () => render(), setTab: tab => { S.tab = tab; render(true); }, data: S.liveData, toast })) { if (!t.closest('[data-p-prop],[data-p-unit],[data-p-floor],[data-p-paytab],[data-p-range],[data-p-hub],[data-p-adm-prop],[data-p-adm-back],[data-live-kyc-doc],[data-p-copy],[data-p-pwtoggle],[data-p-login-issue],[data-p-fill],[data-p-verify],[data-p-media-cover],[data-p-media-del],[data-p-past],[data-p-print-month]')) toast('Changes saved.'); return; } }
+    try { if (await handlePortalClick(t, refreshPortal, { rerender: () => render(), setTab: tab => { S.tab = tab; render(true); }, data: S.liveData, toast })) { if (!t.closest('[data-p-prop],[data-p-unit],[data-p-floor],[data-p-paytab],[data-p-range],[data-p-hub],[data-p-adm-prop],[data-p-adm-back],[data-live-kyc-doc],[data-p-copy],[data-p-pwtoggle],[data-p-login-issue],[data-p-fill],[data-p-verify],[data-p-media-cover],[data-p-media-del],[data-p-past],[data-p-print-month],[data-p-maint]')) toast('Changes saved.'); return; } }
     catch (error) { toast(error.message || 'Could not save that change.'); return; }
   }
   if (!c('.acwrap')) document.querySelectorAll('.acpop').forEach(x => { x.hidden = true; });
