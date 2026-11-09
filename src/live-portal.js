@@ -128,7 +128,7 @@ function currentProp(data, key = 'prop') {
 function propChips(data) {
   if (data.listings.length < 2) return '';
   const cur = currentProp(data);
-  return `<div class="fchips" role="tablist" aria-label="Choose a property">${data.listings.map(l => `<button class="fchip" role="tab" data-p-prop="${esc(l.id)}" aria-pressed="${cur && cur.id === l.id}">${esc(l.name)}</button>`).join('')}</div>`;
+  return `<div class="fchips pchips" role="tablist" aria-label="Choose a property">${data.listings.map(l => `<button class="fchip" role="tab" data-p-prop="${esc(l.id)}" aria-pressed="${cur && cur.id === l.id}" title="${esc(l.name)}">${icn(l.type === 'hostel' ? 'users' : l.type === 'airbnb' ? 'key' : 'home')}<span>${esc(l.name)}</span></button>`).join('')}</div>`;
 }
 const noProps = () => `<section class="sec"><div class="card stack" style="align-items:flex-start"><h3>No property yet</h3><p class="muted">Your properties appear here once the Rentpply team has added and verified them.</p></div></section>`;
 function propPicker(data, tab, title) {
@@ -179,6 +179,27 @@ function unitTile(u, data) {
   const open = data.maintenance.filter(m => m.unit_id === u.id && m.status === 'open').length;
   return `<button class="unit ${u.status}" data-p-unit="${esc(u.id)}" aria-pressed="${ui.unit === u.id}" aria-label="Unit ${esc(u.unit_code)}, ${STNAME[u.status]}"><b>${esc(u.unit_code)}</b><small>${esc(lab)}</small>${open ? `<span class="bell ring" style="width:20px;height:20px">${icn('bell')}</span>` : ''}${u.status === 'occupied' && u.payment_status && u.payment_status !== 'paid' ? `<span class="pill ${u.payment_status === 'overdue' ? 'bad' : 'warn'}" style="font-size:10px;padding:1px 7px">${u.payment_status === 'overdue' ? 'Overdue' : 'Due'}</span>` : ''}</button>`;
 }
+/* Who lives in a room, as the owner may see it: no sponsor, next of kin or documents. */
+const tenantInfo = {};
+const maskPhone = p => { let d = String(p || '').replace(/\D/g, ''); if (d.startsWith('256')) d = '0' + d.slice(3); return d.length >= 9 ? `${d.slice(0, 2)}XX XXX ${d.slice(-3)}` : (p || ''); };
+function tenantCards(u, share) {
+  const info = tenantInfo[u.id];
+  if (!info) return `<div class="tcard"><div class="tc-load"><span class="skeleton" style="width:42px;height:42px;border-radius:50%"></span><span class="skeleton" style="height:14px;width:60%"></span></div></div>`;
+  if (info.error) return `<div class="tcard"><p class="muted">Tenant details could not be loaded. ${esc(info.error)}</p></div>`;
+  return info.people.map(t => {
+    const rows = [['Studying', t.course ? `${t.course}${t.year ? ', year ' + t.year : ''}` : ''], ['University', t.university], ['Home district', t.home_district], ['Phone', maskPhone(t.phone)], ['Rent share', `${money(share)} / month`]]
+      .filter(([k, v]) => t.student || !['Studying', 'University'].includes(k));
+    return `<div class="tcard"><div class="tc-head"><span class="tc-av">${esc((t.name || '?').trim()[0] || '?')}</span><div><b>${esc(t.name || 'Tenant')}</b><small>${esc(t.place)}</small></div></div>
+      <div class="tc-tags">${t.student ? '<span class="pill ok">Student</span>' : '<span class="pill mute">Tenant</span>'}${t.kyc === 'verified' ? `<span class="pill ok">${icn('shield')}ID verified</span>` : t.kyc === 'review' ? '<span class="pill warn">ID being checked</span>' : '<span class="pill mute">ID not verified</span>'}${t.on_rentpply ? '' : '<span class="pill mute">Added on the Board</span>'}</div>
+      <div class="tc-rows">${rows.map(([k, v]) => `<div><span>${k}</span><b>${v ? esc(v) : '<i>Not given</i>'}</b></div>`).join('')}</div></div>`;
+  }).join('');
+}
+async function loadTenantInfo(unitId, rerender) {
+  if (!unitId || tenantInfo[unitId]) return;
+  const { data, error } = await supabase.rpc('unit_tenant_details', { unit_uuid: unitId });
+  tenantInfo[unitId] = error ? { error: error.message } : { people: data || [] };
+  rerender && rerender();
+}
 function unitDetail(u, data) {
   const chips = STAT.map(([k, t]) => `<button class="chip" data-p-setst="${esc(u.id)}:${k}" aria-pressed="${u.status === k}">${t}</button>`).join('');
   const headHtml = `<div class="row" style="justify-content:space-between;align-items:start"><div><span class="eyebrow">Selected unit</span><h3 style="font-size:26px">Unit <span class="mono">${esc(u.unit_code)}</span></h3></div><div class="stack" style="gap:6px"><span class="lbl">Change status</span><div class="row">${chips}</div></div></div>`;
@@ -192,7 +213,8 @@ function unitDetail(u, data) {
   const ag = data.agreements.find(a => a.listing_id === u.listing_id && a.room_code === u.unit_code), paidSum = sum(hist.filter(p => p.status === 'confirmed').map(p => p.amount + p.fee + p.deposit));
   const split = u.roommate_name ? u.rent / 2 : u.rent;
   return `<div class="card stack" id="unitDetail" style="gap:16px">${headHtml}
-    <div class="share">${icn(u.roommate_name ? 'users' : 'home')}<span>${u.roommate_name ? `Shared room: <b>${esc(u.tenant_name)}</b> and <b>${esc(u.roommate_name)}</b> each pay ${money(split)} a month.` : `<b>${esc(u.tenant_name || 'Tenant')}</b> has this unit${u.is_corporate ? ' (company staff housing)' : ''}. No roommate listed.`}</span></div>
+    ${tenantCards(u, split)}
+    <div class="share">${icn(u.roommate_name ? 'users' : 'home')}<span>${u.roommate_name ? `Shared room: <b>${esc(u.tenant_name)}</b> and <b>${esc(u.roommate_name)}</b> each pay ${money(split)} a month.` : `No roommate. This unit has one tenant${u.is_corporate ? ' (company staff housing)' : ''}.`}</span></div>
     <div class="ustats"><div><span>Rent for the unit</span><b class="num">${money(u.rent)}</b></div><div><span>Paid through</span><b>${date(u.paid_through)}</b></div><div><span>Balance</span><b class="num" style="color:${u.balance ? 'var(--bad)' : 'var(--ok)'}">${money(u.balance)}</b></div><div><span>Payment record</span><b>${esc(u.credit_rating || 'Good')}</b></div></div>
     ${maint}
     <div class="row" style="justify-content:space-between"><div><b>Tenancy agreement</b><div class="muted" style="font-size:13px">${ag ? `<span class="mono">${esc(ag.reference)}</span> · ${ag.status === 'accepted' ? 'accepted ' + date(ag.accepted_at) : esc(ag.status)}` : 'None on record'}</div></div></div>
@@ -208,14 +230,14 @@ function unitsView(data, p, adminMode) {
   const page = f => {
     const us = units.filter(u => u.floor === f), lay = layoutOf(data, p.id, f), cols = lay ? lay.columns : 3, slots = lay ? Math.max(0, lay.columns * lay.rows - us.length) : 0;
     return `<div class="fpage" data-fp="${f}"><div class="floorlbl-row"><b class="floorlbl">${floorName(f)}</b><span class="muted" style="font-size:13px">${us.length} rooms${slots ? ` · ${slots} empty ${slots === 1 ? 'position' : 'positions'}` : ''}</span></div>
-      <div class="units flr" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${us.map(u => unitTile(u, data)).join('')}${'<div class="unit empty" aria-hidden="true"><small>Empty</small></div>'.repeat(slots)}</div></div>`;
+      <div class="units flr" style="--cols:${cols}">${us.map(u => unitTile(u, data)).join('')}${'<div class="unit empty" aria-hidden="true"><small>Empty</small></div>'.repeat(slots)}</div></div>`;
   };
   return `<section class="sec">${head(p.name, 'Units')}${adminMode ? '' : propChips(data)}
     ${open ? `<div class="alertbar" role="alert"><span class="bell ring">${icn('bell')}</span><div><b>${open} maintenance ${open === 1 ? 'complaint needs' : 'complaints need'} attention</b><div style="font-size:13px">Look for the red bell on a unit and tap it.</div></div></div>` : ''}
     <p class="muted" style="max-width:62ch">Tap a room to see who lives there. Press and hold a room to change its status.</p>
     <div class="legend"><span><i style="background:var(--ok-soft);border-color:var(--ok)"></i>Occupied ${n('occupied')}</span><span><i style="background:var(--warn-soft);border-color:var(--warn)"></i>Reserved ${n('reserved')}</span><span><i style="border-style:dashed"></i>Vacant ${n('vacant')}</span><span><i style="background:var(--bad-soft);border-color:var(--bad)"></i>Maintenance ${n('maint')}</span></div>
     ${floors.length > 1 ? `<div class="fchips" role="tablist" aria-label="Floors">${floors.map(f => `<button class="fchip" role="tab" data-p-floor="${f}" aria-pressed="${f === ui.floor}">${f === 0 ? 'Ground' : floorName(f).replace(' floor', '')}</button>`).join('')}<span class="muted fhint">Swipe for the next floor</span></div>` : ''}
-    ${floors.length ? `<div class="fpager" id="fpager">${floors.map(page).join('')}</div>` : '<div class="card"><p class="muted">No rooms yet.</p></div>'}
+    ${floors.length ? `<div class="fpager" id="fpager" style="--maxcols:${Math.max(3, ...floors.map(f => (layoutOf(data, p.id, f) || { columns: 3 }).columns))}">${floors.map(page).join('')}</div>` : '<div class="card"><p class="muted">No rooms yet.</p></div>'}
     ${sel ? unitDetail(sel, data) : units.length ? '<div class="card"><p class="muted">Select a room to see the tenant, what they pay, their payment history and any repair requests.</p></div>' : ''}
     ${adminMode ? `<form class="card stack" data-live-form="unit"><div><span class="eyebrow">Add a single room</span><h3>New room</h3></div><input type="hidden" name="listing_id" value="${esc(p.id)}"><div class="grid">${field('Room code', 'unit_code')}${field('Floor', 'floor', 'number', `value="${ui.floor ?? 0}" min="0"`)}${field('Monthly rent (UGX)', 'rent', 'number', `min="1" value="${p.price}"`)}</div><button class="btn" type="submit">Add room</button></form>` : ''}</section>`;
 }
@@ -223,9 +245,46 @@ function unitsView(data, p, adminMode) {
 const ownerUnits = (data) => { const p = currentProp(data); return p ? unitsView(data, p, false) : noProps(); };
 
 /* ---------- OWNER: payments (students, bills, tax) ---------- */
-function paymentsTable(data, lid, withActions) {
-  const list = data.payments.filter(p => !lid || p.listing_id === lid);
-  return table(['Reference', 'Tenant', 'Room', 'For', 'Total', 'Method', 'Status', withActions ? 'Review' : 'Receipt'], list.map(p => `<tr><td class="mono">${esc(p.reference)}</td><td>${esc(p.tenant_name)}${kycBadge(data, p.tenant_id)}</td><td class="mono">${esc(p.room_code === 'Unassigned' ? 'To be assigned' : p.room_code)}</td><td>${esc(p.purpose)}</td><td class="num">${money(p.amount + p.fee + p.deposit)}</td><td>${esc(p.payment_method)}</td><td>${pill(p.status)}</td><td>${p.status === 'pending' && withActions ? `<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-live-payment="${esc(p.id)}:confirmed">Confirm</button><button class="btn ghost sm" data-live-payment="${esc(p.id)}:rejected">Reject</button></div>` : p.status === 'confirmed' ? `<span class="mono">${esc(p.efris_document_no || 'EFRIS pending')}</span>` : '-'}</td></tr>`), 'No payments yet. Payment requests from tenants appear here.');
+const payTotal = p => p.amount + p.fee + p.deposit;
+const roomOf = p => p.room_code === 'Unassigned' ? 'To be assigned' : p.room_code;
+function paymentsTable(data, lid, withActions, list) {
+  list = list || data.payments.filter(p => !lid || p.listing_id === lid);
+  return table(['Tenant', 'Room', 'For', 'Total', 'Method', 'Status', withActions ? 'Review' : 'EFRIS'], list.map(p => `<tr><td>${esc(p.tenant_name)}<div class="muted" style="font-size:12px">${date(p.created_at)}</div></td><td class="mono">${esc(roomOf(p))}</td><td>${esc(p.purpose)}</td><td class="num">${money(payTotal(p))}</td><td>${esc(p.payment_method)}</td><td>${pill(p.status)}</td><td>${p.status === 'pending' && withActions ? `<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-live-payment="${esc(p.id)}:confirmed">Confirm</button><button class="btn ghost sm" data-live-payment="${esc(p.id)}:rejected">Reject</button></div>` : p.status === 'confirmed' ? `<span class="muted" style="font-size:12.5px">${esc(p.efris_document_no || 'EFRIS pending')}</span>` : '-'}</td></tr>`), 'No payments in this month.');
+}
+/* Monthly reports: this month first; earlier months fold away below, each with its own print button. */
+const monthKey = d => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`; };
+const monthName = k => { const [y, m] = k.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }); };
+function monthStats(list) {
+  const ok = list.filter(p => p.status === 'confirmed');
+  return { n: list.length, confirmed: ok.length, total: sum(ok.map(payTotal)), pending: list.filter(p => p.status === 'pending').length, rejected: list.filter(p => p.status === 'rejected').length };
+}
+function monthBlock(data, p, key, list, current) {
+  const st = monthStats(list);
+  return `<div class="mrep${current ? ' cur' : ''}"><div class="mrep-h"><div><span class="eyebrow">${current ? 'This month' : 'Monthly report'}</span><h3>${monthName(key)}</h3>
+      <div class="mrep-s"><span><b class="num">${money(st.total)}</b> confirmed</span><span>${st.confirmed} of ${st.n} payments</span>${st.pending ? `<span class="pill warn">${st.pending} waiting</span>` : ''}</div></div>
+      ${current ? '<span class="pill mute">In progress</span>' : `<button class="btn ghost sm" data-p-print-month="${key}">${icn('receipt')}Print</button>`}</div>
+    ${paymentsTable(data, p.id, true, list)}</div>`;
+}
+function monthlyPayments(data, p) {
+  const all = data.payments.filter(x => x.listing_id === p.id).sort((a, b) => when(b) - when(a)), now = monthKey(Date.now());
+  const groups = {}; all.forEach(x => (groups[monthKey(x.created_at)] = groups[monthKey(x.created_at)] || []).push(x));
+  const past = Object.keys(groups).filter(k => k !== now).sort().reverse();
+  return `<section class="sec">
+    ${monthBlock(data, p, now, groups[now] || [], true)}
+    ${past.length ? `<button class="mrep-more" data-p-past aria-expanded="${!!ui.past}">${icn('list')}<span>${ui.past ? 'Hide' : 'Show'} previous months (${past.length})</span></button>
+      ${ui.past ? `<div class="stack" style="gap:14px">${past.map(k => monthBlock(data, p, k, groups[k], false)).join('')}</div>` : ''}` : ''}</section>`;
+}
+function printMonth(data, p, key) {
+  const list = data.payments.filter(x => x.listing_id === p.id && monthKey(x.created_at) === key).sort((a, b) => when(a) - when(b)), st = monthStats(list);
+  const rows = list.map(x => `<tr><td>${date(x.created_at)}</td><td>${esc(x.tenant_name)}</td><td>${esc(roomOf(x))}</td><td>${esc(x.purpose)}</td><td class="r">${money(payTotal(x))}</td><td>${esc(x.payment_method)}</td><td>${esc(x.status === 'confirmed' ? 'Confirmed' : x.status === 'pending' ? 'Waiting' : 'Not received')}</td><td>${esc(x.efris_document_no || '')}</td></tr>`).join('');
+  let box = document.getElementById('printArea'); if (!box) { box = document.createElement('div'); box.id = 'printArea'; document.body.appendChild(box); }
+  box.innerHTML = `<header><b>Rentpply</b><span>Payments report</span></header><h1>${esc(p.name)}</h1><h2>${monthName(key)}</h2>
+    <p class="sum">Confirmed: <b>${money(st.total)}</b> from ${st.confirmed} ${st.confirmed === 1 ? 'payment' : 'payments'} · Waiting: ${st.pending} · Not received: ${st.rejected}</p>
+    <table><thead><tr><th>Date</th><th>Tenant</th><th>Room</th><th>For</th><th class="r">Total</th><th>Method</th><th>Status</th><th>EFRIS</th></tr></thead><tbody>${rows || '<tr><td colspan="8">No payments in this month.</td></tr>'}</tbody></table>
+    <footer>Printed ${new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} from rentpply.pages.dev</footer>`;
+  document.body.classList.add('printing');
+  const done = () => { document.body.classList.remove('printing'); removeEventListener('afterprint', done); };
+  addEventListener('afterprint', done); setTimeout(() => { window.print(); setTimeout(done, 1500); }, 60);
 }
 
 function billsBlock(data, p) {
@@ -243,7 +302,7 @@ function ownerPayments(data) {
   const p = currentProp(data); if (!p) return noProps();
   const pays = data.payments.filter(x => x.listing_id === p.id), pending = pays.filter(x => x.status === 'pending').length, owing = sum(data.bills.filter(b => b.listing_id === p.id && b.status !== 'paid').map(b => b.amount)), confirmed = pays.filter(x => x.status === 'confirmed');
   const tabs = [['students', 'Payments', 'users', pending ? `${pending} to confirm` : `${mil(sum(confirmed.map(x => x.amount)))} in`], ['bills', 'Bills', 'bolt', owing ? `${mil(owing)} to pay` : 'All paid'], ['tax', 'Tax', 'flag', `${confirmed.filter(x => x.efris_document_no).length} of ${confirmed.length} receipts`]];
-  const body = ui.pay === 'bills' ? billsBlock(data, p) : ui.pay === 'tax' ? taxBlock(data, p) : `<section class="sec">${head('Tenant payments', 'Payments')}${paymentsTable(data, p.id, true)}</section>`;
+  const body = ui.pay === 'bills' ? billsBlock(data, p) : ui.pay === 'tax' ? taxBlock(data, p) : monthlyPayments(data, p);
   return `<section class="sec" style="padding-bottom:0">${head(p.name, 'Payments')}${propChips(data)}<div class="paytabs" role="group" aria-label="Payment sections">${tabs.map(t => `<button class="ptab" data-p-paytab="${t[0]}" aria-pressed="${ui.pay === t[0]}">${icn(t[2])}<b>${t[1]}</b><small>${t[3]}</small></button>`).join('')}</div></section>${body}`;
 }
 /* ---------- OWNER: agreements and requests ---------- */
@@ -551,7 +610,9 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
   const ui1 = (key, value, extra) => { ui[key] = value; if (extra) extra(); ctx.rerender && ctx.rerender(); return true; };
   let el;
   if ((el = target.closest('[data-p-prop]'))) return ui1('prop', el.dataset.pProp, () => { ui.unit = null; ui.floor = null; });
-  if ((el = target.closest('[data-p-unit]'))) return ui1('unit', ui.unit === el.dataset.pUnit ? null : el.dataset.pUnit);
+  if (target.closest('[data-p-past]')) return ui1('past', !ui.past);
+  if ((el = target.closest('[data-p-print-month]'))) { const p = currentProp(ctx.data); if (p) printMonth(ctx.data, p, el.dataset.pPrintMonth); return true; }
+  if ((el = target.closest('[data-p-unit]'))) { const id = ui.unit === el.dataset.pUnit ? null : el.dataset.pUnit; ui1('unit', id); if (id) { delete tenantInfo[id]; loadTenantInfo(id, ctx.rerender); } return true; }
   if ((el = target.closest('[data-p-floor]'))) {
     ui.floor = Number(el.dataset.pFloor); ui.unit = null;
     const pg = document.querySelector(`#fpager .fpage[data-fp="${ui.floor}"]`), pager = document.getElementById('fpager');
