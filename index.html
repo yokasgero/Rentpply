@@ -1449,6 +1449,15 @@ html{background:var(--bg)}
 
 
 
+
+/* ===== content flows in ===== */
+@media (prefers-reduced-motion:no-preference){
+  .flowin{animation:rpFlow .5s var(--ease) both;animation-delay:calc(var(--fi,0) * 40ms)}
+  #main.enter .flowin{animation-delay:calc(90ms + var(--fi,0) * 40ms)}
+  tbody tr.flowin{animation-name:rpFlowRow}
+}
+@keyframes rpFlow{from{opacity:0;transform:translate3d(0,14px,0) scale(.985)}to{opacity:1;transform:none}}
+@keyframes rpFlowRow{from{opacity:0;transform:translate3d(0,6px,0)}to{opacity:1;transform:none}}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -2694,6 +2703,21 @@ function initLiveAuth() {
   loadPublicListings().then(() => { if (!S.user) render(); }).catch(error => console.error('Listings load failed:', error));
 }
 
+/* Content flows in: after an update, only the pieces that are new or changed glide in, one after another.
+   Unchanged pieces stay still, so a page never flashes. */
+const FLOW = '.card,.lrow,.lcard,.tile,.unit,tbody tr,.mrep,.tcard,.notice,.alertbar,.needrow,.kgrid>*,.grid>*,.tgrid>*,.lv-tabs,.lview,.prefbar,.fpanel,.paytabs,.hubs,.fchips,.legend,.sec-h,.mgrid>*';
+const flowKey = el => el.className + '|' + el.textContent.replace(/\s+/g, ' ').trim().slice(0, 160);
+function flowSnapshot(root) { return new Set([...root.querySelectorAll(FLOW)].map(flowKey)); }
+function flowIn(root, before, cap = 14) {
+  if (matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  let n = 0;
+  root.querySelectorAll(FLOW).forEach(el => {
+    if ((before && before.has(flowKey(el))) || el.parentElement.closest('.flowin')) return;
+    if (!before) { const r = el.getBoundingClientRect(); if (r.top > innerHeight + 40) return; } // a new page: animate what is on screen
+    el.classList.add('flowin'); el.style.setProperty('--fi', Math.min(n++, cap));
+    el.addEventListener('animationend', () => { el.classList.remove('flowin'); el.style.removeProperty('--fi'); }, { once: true });
+  });
+}
 function render(top) {
   const authVisible = S.authPage && (!S.user || S.authPage.mode === 'reset');
   if (!S.user && !authVisible) {
@@ -2707,7 +2731,9 @@ function render(top) {
   const liveOwnerAdmin = S.profile && ['owner', 'admin'].includes(S.profile.role) && ['owner', 'admin'].includes(S.role);
   document.body.classList.toggle('flow', !!pg);
   const draw = () => authVisible ? authPageHTML() : liveOwnerAdmin ? (S.liveError ? `<section class="sec"><div class="card"><b>Could not load live records</b><p class="muted">${esc(S.liveError)}</p><button class="btn" data-live-retry>Retry</button></div></section>` : renderPortal(S.role, S.tab, S.liveData, S.profile)) : pg ? ({ listing: pgListing, agreement: pgAgreement, payment: pgPayment, status: pgStatus })[pg.name]() : cur[3] ? cur[3]() : '';
-  try { $('#main').innerHTML = draw(); } catch (err) {
+  const flowBefore = top ? null : flowSnapshot($('#main'));
+  if (top) window.scrollTo({ top: 0 });
+  try { $('#main').innerHTML = draw(); flowIn($('#main'), flowBefore); } catch (err) {
     console.error(err);
     $('#main').innerHTML = '<section class="sec"><div class="card stack"><b>This page hit a problem</b><p class="muted">Please reload and try again.</p><button class="btn" style="background:#FF5A36;color:#fff;border:0" onclick="location.reload()">Reload</button></div></section>';
   }
@@ -2942,7 +2968,7 @@ document.addEventListener('submit', async e => {
 document.addEventListener('input', e => {
   if (handlePortalInput(e.target)) return;
   const id = e.target.id;
-  if (id === 'fq') { S.f.q = e.target.value; const l = exploreList(); $('#exList').innerHTML = exploreBody(l); $('#exCount').textContent = l.length + (l.length === 1 ? ' place' : ' places'); areaSuggest(e.target.value); }
+  if (id === 'fq') { S.f.q = e.target.value; const l = exploreList(), fb = flowSnapshot($('#exList')); $('#exList').innerHTML = exploreBody(l); flowIn($('#exList'), fb); $('#exCount').textContent = l.length + (l.length === 1 ? ' place' : ' places'); areaSuggest(e.target.value); }
   else if (id === 'bs') { BK.start = e.target.value || BK.start; if (!(S.page && S.page.name === 'payment')) agrRefresh(); }
   else if (id === 'bq') { BK.qty = +e.target.value; if (!(S.page && S.page.name === 'payment')) agrRefresh(); }
 });
