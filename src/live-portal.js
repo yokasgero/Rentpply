@@ -200,11 +200,24 @@ async function loadTenantInfo(unitId, rerender) {
   tenantInfo[unitId] = error ? { error: error.message } : { people: data || [] };
   rerender && rerender();
 }
+/* Repairs: one card each, with who reported it, when, and the next step as a button. */
+const ago = d => { const m = Math.round((Date.now() - Date.parse(d)) / 60000); if (!(m >= 0)) return ''; if (m < 1) return 'just now'; if (m < 60) return m + ' min ago'; const h = Math.round(m / 60); if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago'); const dd = Math.round(h / 24); return dd === 1 ? 'yesterday' : dd < 7 ? dd + ' days ago' : date(d); };
+const capFirst = t => { t = String(t || 'Repair'); return t.charAt(0).toUpperCase() + t.slice(1); };
+function maintBlock(mt, opt = {}) {
+  if (!mt.length) return '';
+  const toDo = mt.filter(m => m.status !== 'done').length;
+  const state = { open: ['bad', 'Needs attention'], work: ['warn', 'In progress'], done: ['ok', 'Fixed'] };
+  const next = { open: ['work', 'Start work', ''], work: ['done', 'Mark done', ''], done: ['open', 'Reopen', ' ghost'] };
+  return `<div class="mnt"><div class="mnt-h"><h3>Maintenance</h3>${toDo ? `<span class="pill bad">${icn('bell')}${toDo} to attend</span>` : '<span class="pill ok">All fixed</span>'}</div>
+    ${mt.map(m => { const st = state[m.status] || state.open, nx = next[m.status] || next.open, where = [opt.prop ? opt.prop(m.listing_id) : '', opt.room && m.room_code ? 'Room ' + m.room_code : ''].filter(Boolean).join(' · ');
+      return `<div class="mcard ${esc(m.status || 'open')}"><div class="mc-top"><div style="min-width:0"><div class="mc-t"><b>${esc(capFirst(m.type))}</b><span class="pill ${st[0]}">${st[1]}</span>${m.urgent && m.status !== 'done' ? '<span class="pill bad">Urgent</span>' : ''}</div>
+        <small>${where ? esc(where) + ' · ' : ''}${esc(m.tenant_name || 'Tenant')} · ${ago(m.created_at)}</small></div><button class="btn sm${nx[2]}" data-p-maint="${esc(m.id)}:${nx[0]}">${nx[1]}</button></div>${m.note ? `<p>${esc(m.note)}</p>` : ''}</div>`; }).join('')}</div>`;
+}
 function unitDetail(u, data) {
   const chips = STAT.map(([k, t]) => `<button class="chip" data-p-setst="${esc(u.id)}:${k}" aria-pressed="${u.status === k}">${t}</button>`).join('');
   const headHtml = `<div class="row" style="justify-content:space-between;align-items:start"><div><span class="eyebrow">Selected unit</span><h3 style="font-size:26px">Unit <span class="mono">${esc(u.unit_code)}</span></h3></div><div class="stack" style="gap:6px"><span class="lbl">Change status</span><div class="row">${chips}</div></div></div>`;
   const mt = data.maintenance.filter(m => m.unit_id === u.id);
-  const maint = mt.length ? `<div class="stack" style="gap:8px"><b>Repair requests</b>${mt.map(m => `<div class="card row" style="justify-content:space-between;flex-wrap:wrap;gap:10px;background:var(--surface-2);border:0"><span style="min-width:0"><b>${esc(m.type)}${m.urgent ? ' · urgent' : ''}</b><small class="muted" style="display:block">${esc(m.note)}</small></span><select class="inp" style="width:auto" data-live-maint="${esc(m.id)}" aria-label="Repair status">${options(MAINT, m.status)}</select></div>`).join('')}</div>` : '';
+  const maint = maintBlock(mt);
   if (u.status !== 'occupied') {
     const msg = { vacant: 'This unit is empty and shows as available to people searching on Rentpply.', maint: 'This unit is closed for repairs and hidden from search. Reopen it by choosing Vacant.', reserved: u.tenant_name ? `Held for ${esc(u.tenant_name)}, who is moving in soon.` : 'This unit is being held for someone who is about to move in.' }[u.status];
     return `<div class="card stack" id="unitDetail">${headHtml}<p class="muted">${msg}</p>${maint}</div>`;
@@ -311,7 +324,7 @@ function requestCards(data, lid) {
   const trs = data.transferRequests.filter(r => data.transfers.some(t => t.id === r.transfer_id && t.listing_id === lid));
   return `<div class="stack">${reqs.map(r => `<div class="card stack" style="gap:8px"><div class="row" style="justify-content:space-between"><span class="pill mute">${esc(r.kind)}</span>${r.status !== 'open' ? pill(r.status) : ''}</div><b style="font-size:17px">${esc(r.requester_name)}</b><p class="muted">${esc(r.details)}</p>${r.status === 'open' ? `<div class="row"><button class="btn sm" data-live-owner-request="${esc(r.id)}:approved">Approve</button><button class="btn ghost sm" data-live-owner-request="${esc(r.id)}:declined">Decline</button></div>` : ''}</div>`).join('')}
     ${trs.map(r => { const t = data.transfers.find(x => x.id === r.transfer_id); return `<div class="card stack" style="gap:8px"><div class="row" style="justify-content:space-between"><span class="pill mute">Rent transfer</span>${r.status !== 'pending' ? pill(r.status) : ''}</div><b style="font-size:17px">${esc(r.requester?.full_name || 'Tenant')}</b><p class="muted">Wants room ${esc(t?.room_code || '')} at ${money(t?.price_per_month)} a month from ${date(t?.available_from)}.</p>${r.status === 'pending' ? `<div class="row"><button class="btn sm" data-live-transfer-request="${esc(r.id)}:1">Approve</button><button class="btn ghost sm" data-live-transfer-request="${esc(r.id)}:0">Decline</button></div>` : ''}</div>`; }).join('')}
-    ${mt.map(m => `<div class="card row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><span style="min-width:0"><span class="pill mute">Repair</span> <b>${esc(m.type)}${m.urgent ? ' · urgent' : ''}</b><small class="muted" style="display:block">Room ${esc(m.room_code)} · ${esc(m.tenant_name)} · ${esc(m.note)}</small></span><select class="inp" style="width:auto" data-live-maint="${esc(m.id)}" aria-label="Repair status">${options(MAINT, m.status)}</select></div>`).join('')}
+    ${maintBlock(mt, { room: true })}
     ${!reqs.length && !trs.length && !mt.length ? '<div class="card"><p class="muted">Nothing needs your approval right now.</p></div>' : ''}</div>`;
 }
 const ownerRequests = data => { const p = currentProp(data); return p ? `<section class="sec">${head('Your approval needed', 'Requests')}${propChips(data)}${requestCards(data, p.id)}</section>` : noProps(); };
@@ -344,7 +357,7 @@ function verifyHub(data) {
 function activityHub(data) {
   const trs = data.transferRequests.filter(r => r.status === 'pending');
   return `<div class="stack"><h3 style="font-size:22px">Payments</h3>${paymentsTable(data, null, true)}
-    <h3 style="font-size:22px;margin-top:8px">Repair requests</h3>${table(['Property', 'Room', 'Issue', 'Status'], data.maintenance.map(m => `<tr><td>${esc(data.listings.find(l => l.id === m.listing_id)?.name || '')}</td><td class="mono">${esc(m.room_code)}</td><td>${esc(m.type)} · ${esc(m.note)}</td><td><select class="inp" style="width:auto" data-live-maint="${esc(m.id)}" aria-label="Repair status">${options(MAINT, m.status)}</select></td></tr>`), 'No repair requests.')}
+    <div style="margin-top:8px">${maintBlock(data.maintenance, { room: true, prop: id => (data.listings.find(l => l.id === id) || {}).name }) || '<div class="card"><p class="muted">No repair requests.</p></div>'}</div>
     <h3 style="font-size:22px;margin-top:8px">Rent-transfer approvals</h3>${table(['Requester', 'Room', 'Status', 'Decision'], data.transferRequests.map(r => { const t = data.transfers.find(x => x.id === r.transfer_id); return `<tr><td>${esc(r.requester?.full_name || 'Tenant')}</td><td class="mono">${esc(t?.room_code || '')}</td><td>${pill(r.status)}</td><td>${r.status === 'pending' ? `<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-live-transfer-request="${esc(r.id)}:1">Approve</button><button class="btn ghost sm" data-live-transfer-request="${esc(r.id)}:0">Decline</button></div>` : '-'}</td></tr>`; }), 'No transfer requests.')}${trs.length ? '' : ''}</div>`;
 }
 function accountsHub(data) {
@@ -610,6 +623,13 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
   const ui1 = (key, value, extra) => { ui[key] = value; if (extra) extra(); ctx.rerender && ctx.rerender(); return true; };
   let el;
   if ((el = target.closest('[data-p-prop]'))) return ui1('prop', el.dataset.pProp, () => { ui.unit = null; ui.floor = null; });
+  if ((el = target.closest('[data-p-maint]'))) {
+    const [id, status] = el.dataset.pMaint.split(':');
+    el.disabled = true;
+    const { error } = await supabase.from('maintenance_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) { el.disabled = false; throw error; }
+    await refresh(); ctx.toast && ctx.toast(status === 'work' ? 'Work started. The tenant can see it is in progress.' : status === 'done' ? 'Marked as fixed.' : 'Repair reopened.'); return true;
+  }
   if (target.closest('[data-p-past]')) return ui1('past', !ui.past);
   if ((el = target.closest('[data-p-print-month]'))) { const p = currentProp(ctx.data); if (p) printMonth(ctx.data, p, el.dataset.pPrintMonth); return true; }
   if ((el = target.closest('[data-p-unit]'))) { const id = ui.unit === el.dataset.pUnit ? null : el.dataset.pUnit; ui1('unit', id); if (id) { delete tenantInfo[id]; loadTenantInfo(id, ctx.rerender); } return true; }
