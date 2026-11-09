@@ -1363,9 +1363,9 @@ html:has(body.landing){scroll-behavior:smooth}
 .pchips{margin-top:-4px}
 
 /* room tiles: one size per property, set by its widest floor, always fitting the screen */
-.fpager{--tile:min(104px,calc((100% - (var(--maxcols,3) - 1) * 8px) / var(--maxcols,3)))}
+.fpager{--tile:calc((100% - (var(--maxcols,3) - 1) * 8px) / var(--maxcols,3))}
 .units.flr{grid-template-columns:repeat(var(--cols,3),var(--tile))!important;overflow:visible}
-@media (min-width:700px){.fpager{--tile:min(128px,calc((100% - (var(--maxcols,3) - 1) * 10px) / var(--maxcols,3)))}}
+@media (min-width:700px){.fpager{--tile:min(190px,calc((100% - (var(--maxcols,3) - 1) * 10px) / var(--maxcols,3)))}}
 .lsub b{color:var(--ink);font-weight:700}
 .lrow{grid-template-columns:40px minmax(0,1fr) auto}
 
@@ -1420,6 +1420,34 @@ html:has(body.landing){scroll-behavior:smooth}
 
 /* the places strip loops on its own, so it moves freely instead of snapping card by card */
 .fp-rail.auto{scroll-snap-type:none}
+
+/* the pinned menu area carries the page colour, so phone browsers tint the strip under their toolbar to match */
+html{background:var(--bg)}
+/* the menu floats on its own above the bottom edge, so phone browsers draw the page under their toolbar instead of a solid band */
+.dock{left:50%;right:auto;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(560px,calc(100% - 32px));padding:0;background:none}
+
+/* ===== motion: pages, the menu and every tap ===== */
+#dock{position:relative}
+#dock .dk-ind{position:absolute;left:0;top:0;border-radius:16px;background:var(--accent);box-shadow:0 6px 16px rgba(255,90,54,.35);z-index:0;pointer-events:none;transition:transform .45s cubic-bezier(.3,1.25,.5,1),width .4s var(--ease),height .4s var(--ease)}
+#dock .dk-ind~.dk-ind{display:none}
+#dock button{position:relative;z-index:1}
+#dock button[aria-current="page"]{background:transparent!important;color:var(--accent-ink)!important}
+@media (prefers-reduced-motion:no-preference){
+  #main.enter>*{animation:rpIn .42s var(--ease) both}
+  #main.enter[data-dir="fwd"]>*{--from-x:26px}
+  #main.enter[data-dir="back"]>*{--from-x:-26px}
+  #main.enter>*:nth-child(2){animation-delay:.04s}
+  #main.enter>*:nth-child(3){animation-delay:.08s}
+  #main.enter>*:nth-child(n+4){animation-delay:.12s}
+  .btn,.ibtn,.chip,.fchip,.tile,.opt,.needrow,.ptab,.hubb,.acct-out,.editbtn,.avbtn,.mrep-more,.lcard,.lrow,.unit,.fp-rbtn,.lv-tabs button,.seg button{transition:transform .18s var(--ease),background-color .25s,color .25s,border-color .25s,box-shadow .25s,opacity .25s}
+  .btn:active,.ibtn:active,.chip:active,.fchip:active,.tile:active,.opt:active,.ptab:active,.hubb:active,.acct-out:active,.editbtn:active,.mrep-more:active,.seg button:active,.lv-tabs button:active{transform:scale(.95)}
+  .needrow:active,.lrow:active,.lcard:active{transform:scale(.985)}
+  .unit:active{transform:scale(.95)}
+  #dock button:active svg{transform:scale(.88)}
+  #dock button svg{transition:transform .2s var(--ease)}
+  .sec-h,.card,.lrow{will-change:auto}
+}
+@keyframes rpIn{from{opacity:0;transform:translate3d(var(--from-x,0px),12px,0)}to{opacity:1;transform:none}}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -2689,8 +2717,26 @@ function render(top) {
   updateUserInfo();
   if (liveOwnerAdmin && S.liveData) portalBind();
   document.querySelectorAll('[data-role]').forEach(b => b.setAttribute('aria-pressed', b.dataset.role === S.role));
-  if (top) { window.scrollTo({ top: 0 }); const m = $('#main'); m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter'); }
+  placeDockIndicator();
+  if (top) {
+    const idx = pg ? 99 : nav.indexOf(cur), dir = S._navIdx === undefined || idx === S._navIdx ? 'up' : idx > S._navIdx ? 'fwd' : 'back';
+    S._navIdx = idx;
+    window.scrollTo({ top: 0 }); const m = $('#main'); m.dataset.dir = dir; m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter');
+  }
 }
+/* The orange highlight in the menu glides from the old tab to the new one. */
+function placeDockIndicator() {
+  const dock = $('#dock'); if (!dock) return;
+  const cur = dock.querySelector('[aria-current="page"]');
+  dock.insertAdjacentHTML('beforeend', '<i class="dk-ind" aria-hidden="true"></i>');
+  const ind = dock.lastChild;
+  if (!cur) { ind.hidden = true; return; }
+  const to = `width:${cur.offsetWidth}px;height:${cur.offsetHeight}px;transform:translate(${cur.offsetLeft}px,${cur.offsetTop}px)`;
+  if (S._ind && S._ind !== to) { ind.style.cssText = S._ind + ';transition:none'; void ind.offsetWidth; ind.style.cssText = to; }
+  else ind.style.cssText = to + ';transition:none';
+  S._ind = to;
+}
+addEventListener('resize', () => { document.querySelectorAll('#dock .dk-ind').forEach(x => x.remove()); S._ind = null; placeDockIndicator(); }, { passive: true });
 function go(spec) {
   let [t, arg] = spec.split(':');
   if (S.profile?.role === 'owner' && !['overview', 'units', 'payments', 'terms', 'requests'].includes(t)) return;
