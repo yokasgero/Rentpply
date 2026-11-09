@@ -1314,6 +1314,102 @@ html:has(body.landing){scroll-behavior:smooth}
 .tiles .tile .ico{width:38px;height:38px;border-radius:12px}
 .tiles .tile .ico svg{width:19px;height:19px}
 .tiles .tile:active{transform:scale(.97)}
+
+/* ===== receipts and agreements: one row design ===== */
+.lrows{display:flex;flex-direction:column;gap:8px}
+.lrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:84px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(60,12,20,.04),0 6px 16px rgba(60,12,20,.04);animation:rpUp .4s var(--ease) both}
+.lrow .ric{width:40px;height:40px;border-radius:12px;background:var(--surface-2);display:grid;place-items:center;color:var(--muted)}
+.lrow .ric svg{width:19px;height:19px}
+.lrow.first .ric{background:var(--accent-soft);color:var(--accent)}
+.lmain{min-width:0;display:flex;flex-direction:column;gap:2px}
+.ltop{display:flex;align-items:center;gap:8px;min-width:0}
+.ltop b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ltop .pill{flex:none;font-size:11px;padding:2px 8px}
+.lsub{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lmeta{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
+.lend{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:6px}
+.lend b{font-size:14.5px;white-space:nowrap}
+.lend .btn{min-height:32px;padding:6px 14px}
+
+/* ===== room tiles: one size on every floor ===== */
+.units.flr{grid-template-columns:repeat(var(--cols,3),104px)!important;justify-content:start;gap:8px;overflow-x:auto;padding:3px 3px 6px;scrollbar-width:none}
+.units.flr::-webkit-scrollbar{display:none}
+@media (min-width:700px){.units.flr{grid-template-columns:repeat(var(--cols,3),128px)!important;gap:10px}}
+.units.flr .unit{height:76px;min-height:0;padding:8px 9px;gap:1px;overflow:hidden}
+@media (min-width:700px){.units.flr .unit{height:84px;padding:10px 11px}}
+.units.flr .unit b{font-size:13px}
+.units.flr .unit small{font-size:11px}
+.units.flr .unit .pill{margin-top:auto;align-self:flex-start;font-size:10px!important;padding:1px 7px!important;line-height:1.5}
+.units.flr .unit .bell{position:absolute;top:6px;right:6px}
+.units.flr .unit.empty{height:76px}
+@media (min-width:700px){.units.flr .unit.empty{height:84px}}
+
+/* ===== property and floor switchers: one compact, uniform style ===== */
+.fchips{gap:6px;padding:2px;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+.fchips::-webkit-scrollbar{display:none}
+.fchip{flex:none;display:inline-flex;align-items:center;gap:7px;height:34px;min-height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:13.5px;font-weight:600;max-width:220px;transition:background-color .25s,color .25s,border-color .25s,box-shadow .25s,transform .15s}
+.fchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fchip svg{width:16px;height:16px;flex:none;opacity:.7}
+.fchip:active{transform:scale(.96)}
+.fchip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 4px 12px rgba(125,29,40,.25)}
+.fchip[aria-pressed="true"] svg{opacity:1}
+.pchips{margin-top:-4px}
+
+/* room tiles: one size per property, set by its widest floor, always fitting the screen */
+.fpager{--tile:min(104px,calc((100% - (var(--maxcols,3) - 1) * 8px) / var(--maxcols,3)))}
+.units.flr{grid-template-columns:repeat(var(--cols,3),var(--tile))!important;overflow:visible}
+@media (min-width:700px){.fpager{--tile:min(128px,calc((100% - (var(--maxcols,3) - 1) * 10px) / var(--maxcols,3)))}}
+.lsub b{color:var(--ink);font-weight:700}
+.lrow{grid-template-columns:40px minmax(0,1fr) auto}
+
+/* ===== owner: who lives in a room ===== */
+.tcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;animation:rpUp .35s var(--ease) both}
+.tc-load{display:flex;align-items:center;gap:12px}
+.tc-head{display:flex;align-items:center;gap:12px}
+.tc-head>div{display:flex;flex-direction:column}
+.tc-head b{font-size:17px}
+.tc-head small{color:var(--muted);font-size:13px}
+.tc-av{width:44px;height:44px;border-radius:50%;flex:none;display:grid;place-items:center;font:800 17px/1 var(--f-display);background:#f3e2b8;color:#6b4a12}
+.tc-tags{display:flex;gap:6px;flex-wrap:wrap}
+.tc-tags .pill{font-size:12px}
+.tc-rows{display:flex;flex-direction:column}
+.tc-rows>div{display:flex;justify-content:space-between;gap:14px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.tc-rows>div:first-child{border-top:0}
+.tc-rows span{color:var(--muted)}
+.tc-rows b{text-align:right;font-weight:600}
+.tc-rows i{color:var(--muted);font-style:normal;font-weight:500}
+:root[data-theme="dark"] .tc-av{background:#5a4520;color:#ffe2a6}
+
+/* ===== owner: monthly payment reports ===== */
+.mrep{display:flex;flex-direction:column;gap:10px}
+.mrep-h{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.mrep-h h3{font-size:20px;margin:2px 0 4px}
+.mrep-s{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;font-size:13.5px;color:var(--muted)}
+.mrep-s b{color:var(--ink)}
+.mrep-h .btn svg{width:16px;height:16px}
+.mrep-more{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:14px;border:1px dashed var(--line);background:var(--surface);color:var(--ink);font-weight:700;font-size:14px;transition:background-color .2s,border-color .2s}
+.mrep-more:hover{border-color:var(--accent);background:var(--accent-soft)}
+.mrep-more svg{width:17px;height:17px}
+.mrep:not(.cur){padding-top:14px;border-top:1px solid var(--line)}
+
+/* ===== printed monthly report ===== */
+#printArea{display:none}
+@media print{
+  body.printing>*:not(#printArea){display:none!important}
+  body.printing{background:#fff!important;padding:0!important}
+  body.printing #printArea{display:block;color:#111;font:12px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:8mm}
+  #printArea header{display:flex;justify-content:space-between;border-bottom:2px solid #7d1d28;padding-bottom:6px;margin-bottom:10px;color:#7d1d28}
+  #printArea header b{font-size:16px}
+  #printArea h1{font-size:20px;margin:0}
+  #printArea h2{font-size:15px;margin:2px 0 8px;font-weight:600;color:#444}
+  #printArea .sum{margin:0 0 10px}
+  #printArea table{width:100%;border-collapse:collapse}
+  #printArea th,#printArea td{border-bottom:1px solid #ddd;padding:5px 6px;text-align:left;vertical-align:top}
+  #printArea th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#555;border-bottom:1.5px solid #999}
+  #printArea .r{text-align:right}
+  #printArea footer{margin-top:12px;color:#777;font-size:10.5px}
+  @page{margin:10mm}
+}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -1976,16 +2072,19 @@ function vWallet() {
   if (wt === 'room') return head + roomPart;
   return head + `<section class="sec">
     <div class="sec-h" style="margin-top:6px"><div><span class="eyebrow">Newest first</span><h3 style="font-size:22px">Receipts you have paid</h3></div><div class="muted num" style="font-size:14px">${rc.length} receipts · ${fmt(paid)} paid</div></div>
-    <div class="stack" style="gap:10px">${pays.map((r, i) => { const l = byId(r.lid), s = r.st || 'confirmed'; return `<div class="card rrow ${i === 0 ? 'first' : ''}">
+    <div class="lrows">${pays.map((r, i) => { const l = byId(r.lid), s = r.st || 'confirmed'; return `<div class="lrow ${i === 0 ? 'first' : ''}">
       <span class="ric">${ic(s === 'pending' ? 'clock' : 'receipt')}</span>
-      <div style="min-width:0"><div class="row" style="gap:8px"><b>${esc(l.name)}</b>${i === 0 ? '<span class="pill ok">Latest</span>' : ''}${s === 'pending' ? '<span class="pill warn">Waiting for owner</span>' : s === 'rejected' ? '<span class="pill bad">Not received</span>' : ''}</div>
-        <div class="muted" style="font-size:13px">${esc(r.purpose || 'Rent')} · ${fdt(r.ts)}</div>
-        <div class="muted" style="font-size:12px"><span class="mono">${r.id}</span> · ${r.method}${s === 'confirmed' ? ` · ${r.fdn ? `EFRIS <span class="mono">${esc(r.fdn)}</span>` : 'EFRIS pending'}` : ''}</div></div>
-      <div class="rr"><b class="num">${fmt(r.amount + r.fee + (r.dep || 0))}</b>${s === 'confirmed' ? `<button class="btn ghost sm" data-receipt="${r.id}">View</button>` : `<button class="btn ghost sm" data-statuspage="${r.id}">Status</button>`}</div></div>`; }).join('')}</div>
+      <div class="lmain"><div class="ltop"><b>${esc(l.name)}</b>${s === 'pending' ? '<span class="pill warn">Waiting</span>' : s === 'rejected' ? '<span class="pill bad">Not received</span>' : i === 0 ? '<span class="pill ok">Latest</span>' : ''}</div>
+        <div class="lsub"><b class="num">${fmt(r.amount + r.fee + (r.dep || 0))}</b> · ${esc(r.purpose || 'Rent')} · ${fdate(r.ts)}</div>
+        <div class="lmeta"><span class="mono">${esc(r.ref || String(r.id).slice(0, 8).toUpperCase())}</span> · ${esc(r.method)}${s === 'confirmed' ? ` · ${r.fdn ? 'EFRIS ' + esc(r.fdn) : 'EFRIS pending'}` : ''}</div></div>
+      <div class="lend">${s === 'confirmed' ? `<button class="btn ghost sm" data-receipt="${r.id}">View</button>` : `<button class="btn ghost sm" data-statuspage="${r.id}">Status</button>`}</div></div>`; }).join('')}</div>
     <h3 style="font-size:22px;margin-top:6px">Your agreements</h3>
-    <div class="stack" style="gap:10px">${mine.map(a => { const l = byId(a.lid), s = st[a.status]; return `<div class="card row" style="justify-content:space-between;flex-wrap:nowrap">
-      <div style="min-width:0"><b>${esc(l.name)}</b><div class="muted" style="font-size:13px"><span class="mono">${a.id}</span> · room <span class="mono">${esc(roomLabel(a.room))}</span> · ${plural(a.qty, l.per === 'night' ? 'night' : 'month')} from ${fdate(a.start)}</div></div>
-      <div class="row" style="flex-wrap:nowrap"><span class="pill ${s[0]}">${s[1]}</span>${a.status === 'sent' ? `<button class="btn sm" data-agview="${a.id}">Review and accept</button>` : a.status === 'accepted' && !a.paid ? `<button class="btn sm" data-open="${a.lid}">Pay now</button><button class="btn ghost sm" data-agview="${a.id}">View</button>` : `<button class="btn ghost sm" data-agview="${a.id}">View</button>`}</div></div>`; }).join('') || '<div class="card"><p class="muted">Agreements you accept show up here.</p></div>'}</div>
+    <div class="lrows">${mine.map(a => { const l = byId(a.lid), s = st[a.status]; return `<div class="lrow">
+      <span class="ric">${ic('doc')}</span>
+      <div class="lmain"><div class="ltop"><b>${esc(l.name)}</b><span class="pill ${s[0]}">${s[1]}</span></div>
+        <div class="lsub">Room ${esc(roomLabel(a.room))} · ${plural(a.qty, l.per === 'night' ? 'night' : 'month')} from ${fdate(a.start)}</div>
+        <div class="lmeta"><span class="mono">${esc(a.id)}</span></div></div>
+      <div class="lend">${a.status === 'sent' ? `<button class="btn sm" data-agview="${a.id}">Review</button>` : a.status === 'accepted' && !a.paid ? `<button class="btn sm" data-open="${a.lid}">Pay now</button>` : `<button class="btn ghost sm" data-agview="${a.id}">View</button>`}</div></div>`; }).join('') || '<div class="card"><p class="muted">Agreements you accept show up here.</p></div>'}</div>
   </section>`;
 }
 
@@ -2009,6 +2108,8 @@ function vKyc() {
       <div class="field"><label for="ky-self">Selfie</label><input class="inp" id="ky-self" type="file" accept=".jpg,.jpeg,.png,.webp" capture="user"></div></div>
     <label class="chk" for="ky-stu"><input type="checkbox" id="ky-stu" checked><span>I am a student (add an admission letter or student card)</span></label>
     <div class="field" id="ky-stuf"><label for="ky-sp">Admission letter or student card</label><input class="inp" id="ky-sp" type="file" accept="image/*,application/pdf"></div>
+    <div class="grid" id="ky-stud" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))"><div class="field"><label for="ky-uni">University or college</label><input class="inp" id="ky-uni" value="${esc(S.profile?.university || '')}" placeholder="e.g. Makerere University"></div><div class="field"><label for="ky-co">Course</label><input class="inp" id="ky-co" value="${esc(S.profile?.course || '')}" placeholder="e.g. Nursing"></div><div class="field"><label for="ky-yr">Year of study</label><select class="inp" id="ky-yr">${[1, 2, 3, 4, 5, 6].map(y => `<option value="${y}" ${Number(S.profile?.study_year) === y ? 'selected' : ''}>Year ${y}</option>`).join('')}</select></div></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))"><div class="field"><label for="ky-ph">Your phone</label><input class="inp" id="ky-ph" inputmode="tel" value="${esc(S.profile?.phone || '')}" placeholder="07XX XXX XXX"></div><div class="field"><label for="ky-hd">Home district</label><input class="inp" id="ky-hd" value="${esc(S.profile?.home_district || '')}" placeholder="e.g. Arua"></div></div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))"><div class="field"><label for="ky-kn">Next of kin name</label><input class="inp" id="ky-kn" placeholder="e.g. Mother"></div><div class="field"><label for="ky-kp">Next of kin phone</label><input class="inp" id="ky-kp" inputmode="tel" placeholder="07XX XXX XXX"></div></div>
     <label class="chk" for="ky-ok"><input type="checkbox" id="ky-ok"><span>I agree that Rentpply may check my ID and share my verified status with owners I apply to.</span></label>
     <button class="btn" data-kycsubmit>Submit for checking</button>
@@ -2022,6 +2123,9 @@ async function kycSubmit() {
   if (!f('ky-id')) { toast('Add a photo of your ID'); return; }
   if (!f('ky-self')) { toast('Add a selfie'); return; }
   if (stu && !f('ky-sp')) { toast('Add your admission letter or student card'); return; }
+  if (v('ky-ph').replace(/\D/g, '').length < 9) { toast('Add your phone number'); $('#ky-ph').focus(); return; }
+  if (v('ky-hd').length < 2) { toast('Add your home district'); $('#ky-hd').focus(); return; }
+  if (stu && (v('ky-uni').length < 2 || v('ky-co').length < 2)) { toast('Add your university and course'); $('#ky-uni').focus(); return; }
   if (v('ky-kn').length < 2 || v('ky-kp').replace(/\D/g, '').length < 9) { toast('Add a next of kin and their phone'); $('#ky-kn').focus(); return; }
   if (!$('#ky-ok').checked) { toast('Tick the box to agree'); return; }
   const uploaded = [];
@@ -2042,7 +2146,8 @@ async function kycSubmit() {
     const updates = {
       kyc_status: 'review', id_type: v('ky-t'), id_number_masked: '••••' + v('ky-n').slice(-3),
       id_document_url: idDocument, selfie_url: selfie, student_proof_url: studentProof,
-      is_student: stu, next_of_kin_name: v('ky-kn'), next_of_kin_phone: v('ky-kp'), updated_at: new Date().toISOString()
+      is_student: stu, next_of_kin_name: v('ky-kn'), next_of_kin_phone: v('ky-kp'), phone: v('ky-ph'), home_district: v('ky-hd'),
+      ...(stu ? { university: v('ky-uni'), course: v('ky-co'), study_year: Number(v('ky-yr')) } : {}), updated_at: new Date().toISOString()
     };
     const { data, error } = await supabase.from('profiles').update(updates).eq('id', S.user.id).select().single();
     if (error) throw error;
@@ -2467,7 +2572,7 @@ async function loadTenantData() {
   const listingId = id => L.find(item => item.dbId === id)?.id;
   S.saved = (saved.data || []).map(item => listingId(item.listing_id)).filter(Boolean);
   S.bookings = (bookings.data || []).map(item => ({ id: item.reference, dbId: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, ts: Date.parse(item.created_at), listed: item.listed_for_transfer, purpose: item.purpose })).filter(item => item.lid);
-  S.payments = (payments.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, purpose: item.purpose, ts: Date.parse(item.created_at), st: item.status, tenant: item.tenant_name, from: item.from_source, fdn: item.efris_document_no, vc: item.verification_code })).filter(item => item.lid);
+  S.payments = (payments.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, purpose: item.purpose, ref: item.reference, ts: Date.parse(item.created_at), st: item.status, tenant: item.tenant_name, from: item.from_source, fdn: item.efris_document_no, vc: item.verification_code })).filter(item => item.lid);
   S.agreements = (agreements.data || []).map(item => ({ id: item.reference, dbId: item.id, lid: listingId(item.listing_id), room: item.room_code, tenant: item.tenant_name, qty: item.quantity, start: item.start_date, status: item.status, issued: Date.parse(item.issued_at || item.created_at), accepted: item.accepted_at ? Date.parse(item.accepted_at) : null, paid: item.paid })).filter(item => item.lid);
   S.maint = (maintenance.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, tenant: item.tenant_name, type: item.type, urgent: item.urgent, note: item.note, ts: Date.parse(item.created_at), st: item.status })).filter(item => item.lid);
   const [roommates, sentRoommateRequests, receivedRoommateRequests, ownTransfers, openTransfers, transferRequests, notifications] = await Promise.all([
@@ -2580,7 +2685,7 @@ document.addEventListener('click', async e => {
   }
   if (c('[data-live-retry]')) { await refreshPortal(); return; }
   if (S.profile && ['owner', 'admin'].includes(S.profile.role)) {
-    try { if (await handlePortalClick(t, refreshPortal, { rerender: () => render(), setTab: tab => { S.tab = tab; render(true); }, data: S.liveData, toast })) { if (!t.closest('[data-p-prop],[data-p-unit],[data-p-floor],[data-p-paytab],[data-p-range],[data-p-hub],[data-p-adm-prop],[data-p-adm-back],[data-live-kyc-doc],[data-p-copy],[data-p-pwtoggle],[data-p-login-issue],[data-p-fill],[data-p-verify],[data-p-media-cover],[data-p-media-del]')) toast('Changes saved.'); return; } }
+    try { if (await handlePortalClick(t, refreshPortal, { rerender: () => render(), setTab: tab => { S.tab = tab; render(true); }, data: S.liveData, toast })) { if (!t.closest('[data-p-prop],[data-p-unit],[data-p-floor],[data-p-paytab],[data-p-range],[data-p-hub],[data-p-adm-prop],[data-p-adm-back],[data-live-kyc-doc],[data-p-copy],[data-p-pwtoggle],[data-p-login-issue],[data-p-fill],[data-p-verify],[data-p-media-cover],[data-p-media-del],[data-p-past],[data-p-print-month]')) toast('Changes saved.'); return; } }
     catch (error) { toast(error.message || 'Could not save that change.'); return; }
   }
   if (!c('.acwrap')) document.querySelectorAll('.acpop').forEach(x => { x.hidden = true; });
@@ -2769,7 +2874,7 @@ document.addEventListener('change', async e => {
     try { if (await handlePortalChange(e.target, refreshPortal, { rerender: () => render(), data: S.liveData, toast })) { if (!e.target.matches('[data-p-ownerpick],[data-p-layfloor],[data-p-media-up]')) toast('Changes saved.'); return; } }
     catch (error) { toast(error.message || 'Could not update that record.'); return; }
   }
-  if (id === 'ky-stu') { $('#ky-stuf').hidden = !e.target.checked; return; }
+  if (id === 'ky-stu') { $('#ky-stuf').hidden = !e.target.checked; $('#ky-stud').hidden = !e.target.checked; return; }
   if (id === 'bq') { BK.qty = +v; agrRefresh(); return; }
   if (id === 'bs') { BK.start = v || BK.start; if (S.page && S.page.name === 'payment') render(); return; }
   if (id === 'acc') { BK.acc = e.target.checked; accSync(); return; }
