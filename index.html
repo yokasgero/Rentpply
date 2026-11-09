@@ -1448,6 +1448,11 @@ html{background:var(--bg)}
   .sec-h,.card,.lrow{will-change:auto}
 }
 @keyframes rpIn{from{opacity:0;transform:translate3d(var(--from-x,0px),12px,0)}to{opacity:1;transform:none}}
+
+/* the menu slides away while scrolling down and returns on the way up */
+.dock{transition:transform .38s var(--ease),opacity .25s var(--ease),visibility 0s linear 0s}
+body.dock-away .dock{transform:translate(-50%,150%);opacity:0;visibility:hidden;transition:transform .38s var(--ease),opacity .25s var(--ease),visibility 0s linear .38s}
+@media (prefers-reduced-motion:reduce){.dock,body.dock-away .dock{transition:none}}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -2720,7 +2725,7 @@ function render(top) {
   placeDockIndicator();
   if (top) {
     const idx = pg ? 99 : nav.indexOf(cur), dir = S._navIdx === undefined || idx === S._navIdx ? 'up' : idx > S._navIdx ? 'fwd' : 'back';
-    S._navIdx = idx;
+    S._navIdx = idx; window.dockBack && window.dockBack();
     window.scrollTo({ top: 0 }); const m = $('#main'); m.dataset.dir = dir; m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter');
   }
 }
@@ -2737,6 +2742,21 @@ function placeDockIndicator() {
   S._ind = to;
 }
 addEventListener('resize', () => { document.querySelectorAll('#dock .dk-ind').forEach(x => x.remove()); S._ind = null; placeDockIndicator(); }, { passive: true });
+/* The menu steps aside while scrolling down and comes back on the way up, at the end of the page and on every new page.
+   Safari on iPhone paints a solid band under its toolbar whenever something is pinned near the bottom edge; with the menu
+   away, it shows the page under its toolbar instead. */
+(() => {
+  let lastY = scrollY, away = false;
+  const set = v => { if (v !== away) { away = v; document.body.classList.toggle('dock-away', v); } };
+  addEventListener('scroll', () => {
+    if (document.body.classList.contains('landing')) return;
+    const y = scrollY, dy = y - lastY, atEnd = innerHeight + y >= document.documentElement.scrollHeight - 24;
+    if (atEnd || y < 60) { set(false); lastY = y; return; }
+    if (Math.abs(dy) < 8) return;
+    set(dy > 0); lastY = y;
+  }, { passive: true });
+  window.dockBack = () => { lastY = scrollY; set(false); };
+})();
 function go(spec) {
   let [t, arg] = spec.split(':');
   if (S.profile?.role === 'owner' && !['overview', 'units', 'payments', 'terms', 'requests'].includes(t)) return;
