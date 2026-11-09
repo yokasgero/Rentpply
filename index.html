@@ -1543,7 +1543,7 @@ let art = function (l, big) {
   return `<svg viewBox="0 0 320 200" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustration of ${esc(l.name)}"><defs><linearGradient id="g${l.id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(${h},55%,${big ? 62 : 58}%)"/><stop offset="1" stop-color="hsl(${h + 30},60%,82%)"/></linearGradient></defs><rect width="320" height="200" fill="url(#g${l.id})"/><circle cx="${250 + r(3) * 40}" cy="${34 + r(4) * 18}" r="16" fill="#FFF3C9" opacity=".9"/>${b}<rect y="168" width="320" height="32" fill="hsl(${h},25%,18%)"/><rect y="168" width="320" height="3" fill="hsl(${h},30%,28%)"/></svg>`;
 };
 
-/* ---------- sample data (clearly marked as examples in the UI) ---------- */
+/* ---------- listings (filled from Supabase) ---------- */
 const L = [];
 const byId = id => L.find(x => x.id === id);
 let AREAS = [...new Set(L.map(l => l.area))].sort();
@@ -1719,14 +1719,7 @@ function areaSuggest(q) {
 }
 
 /* ---------- roommates ---------- */
-const PEOPLE = [
-  { n: 'Aisha N.', course: 'Computer Science', college: 'COCIS', g: 'f', yr: 2, budget: 380000, sleep: 'early', clean: 5, study: 'quiet', loc: 'Kikoni' },
-  { n: 'Brian M.', course: 'Computer Science', college: 'COCIS', g: 'm', yr: 3, budget: 420000, sleep: 'late', clean: 3, study: 'group', loc: 'Wandegeya' },
-  { n: 'Daniel O.', course: 'Software Engineering', college: 'COCIS', g: 'm', yr: 2, budget: 350000, sleep: 'early', clean: 4, study: 'quiet', loc: 'Kikoni' },
-  { n: 'Esther K.', course: 'Law', college: 'School of Law', g: 'f', yr: 1, budget: 450000, sleep: 'early', clean: 4, study: 'quiet', loc: 'Makerere' },
-  { n: 'Moses T.', course: 'Computer Science', college: 'COCIS', g: 'm', yr: 2, budget: 300000, sleep: 'early', clean: 4, study: 'quiet', loc: 'Kansanga' },
-  { n: 'Grace A.', course: 'Medicine', college: 'CHS', g: 'f', yr: 4, budget: 520000, sleep: 'late', clean: 5, study: 'group', loc: 'Makerere' }
-];
+const PEOPLE = []; // filled from Supabase roommate profiles
 const HUES = [18, 168, 205, 300, 45, 330];
 function score(p) {
   const a = S.prefs; let s = 0, d = Math.abs(p.budget - a.budget);
@@ -1788,13 +1781,6 @@ function vSpace() {
       <div class="row" style="justify-content:space-between"><div class="price">${fmt(t.price)} <small>/ month</small></div><button class="btn sm ${asked ? 'ghost' : ''}" data-take="${t.id}" ${asked ? 'disabled' : ''}>${asked ? request.status === 'pending' ? 'Request pending' : `Request ${request.status}` : 'Request this space'}</button></div></div>`}).join('') || '<p class="card muted">No tenants have listed a transfer yet.</p>'}</div>
   </section>`;
 }
-
-
-/* ---------- owner (Kikoni Scholars Hostel, sample data) ---------- */
-// o occupied, p paid-late/due, v vacant, m maintenance
-// company tenants that withhold 6% on rent above UGX 1M
-
-
 
 
 /* ---------- admin (Rentpply team) ---------- */
@@ -2751,7 +2737,10 @@ function render(top) {
   const draw = () => authVisible ? authPageHTML() : liveOwnerAdmin ? (S.liveError ? `<section class="sec"><div class="card"><b>Could not load live records</b><p class="muted">${esc(S.liveError)}</p><button class="btn" data-live-retry>Retry</button></div></section>` : renderPortal(S.role, S.tab, S.liveData, S.profile)) : pg ? ({ listing: pgListing, agreement: pgAgreement, payment: pgPayment, status: pgStatus })[pg.name]() : cur[3] ? cur[3]() : '';
   const flowBefore = top ? null : flowSnapshot($('#main'));
   if (top) window.scrollTo({ top: 0 });
-  try { $('#main').innerHTML = draw(); flowIn($('#main'), flowBefore); } catch (err) {
+  // The sign-in form is never redrawn while it is open, so what someone has typed is kept when data loads in the background.
+  const shownForm = $('#main form[data-auth-form]'), want = S.authPage || { mode: 'signin', audience: 'housing' };
+  const keepAuth = authVisible && shownForm && shownForm.dataset.authForm === want.mode && shownForm.dataset.authAudience === want.audience && !S.authNotice;
+  try { if (!keepAuth) { $('#main').innerHTML = draw(); flowIn($('#main'), flowBefore); } } catch (err) {
     console.error(err);
     $('#main').innerHTML = '<section class="sec"><div class="card stack"><b>This page hit a problem</b><p class="muted">Please reload and try again.</p><button class="btn" style="background:#FF5A36;color:#fff;border:0" onclick="location.reload()">Reload</button></div></section>';
   }
