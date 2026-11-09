@@ -1225,12 +1225,38 @@ body.flow main#main{padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
 :root[data-theme="dark"] .fchip[aria-pressed="true"],:root[data-theme="dark"] .btn.dark{background:#b23a4c;border-color:#b23a4c;color:#fff}
 :root[data-theme="dark"] .chip[aria-pressed="true"],:root[data-theme="dark"] .hubb[aria-pressed="true"],:root[data-theme="dark"] .steps li.cur span{background:var(--accent);border-color:var(--accent);color:#fff}
 :root[data-theme="dark"] .toast,:root[data-theme="dark"] #vtip{background:#f8f1f2;color:#2a1d20}
+
+/* ===== account menu (replaces the header's theme and sign-out buttons) ===== */
+.avbtn{width:40px;height:40px;flex:none;border-radius:50%;border:0;display:grid;place-items:center;font:800 14px/1 var(--f-display);letter-spacing:.02em;color:#fff;background:linear-gradient(135deg,var(--brand),#c2332f 55%,var(--accent));box-shadow:0 6px 14px rgba(125,29,40,.28);cursor:pointer;transition:transform .25s var(--ease-spring),box-shadow .25s}
+.avbtn:hover{transform:scale(1.06)}
+.avbtn:active{transform:scale(.94)}
+.acct .in{display:flex;flex-direction:column;gap:12px;padding:18px}
+.acct-head{display:flex;align-items:center;gap:14px;padding-bottom:6px}
+.acct-head>div{flex:1;display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.acct-head b{font-size:17px}
+.acct-head small{color:var(--muted);font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.avbig{width:52px;height:52px;flex:none;border-radius:50%;display:grid;place-items:center;font:800 19px/1 var(--f-display);color:#fff;background:linear-gradient(135deg,var(--brand),#c2332f 55%,var(--accent))}
+.acct-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border-radius:16px;background:var(--surface-2)}
+.acct-row>span{display:flex;align-items:center;gap:10px;font-weight:600}
+.acct-row select{width:auto;min-width:150px}
+.seg{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--surface);border:1px solid var(--line)}
+.seg button{display:flex;align-items:center;gap:6px;border:0;background:none;padding:7px 14px;border-radius:999px;font-weight:700;font-size:13.5px;color:var(--muted);transition:background-color .25s,color .25s}
+.seg button svg{width:16px;height:16px}
+.seg button[aria-checked="true"]{background:var(--accent);color:#fff;box-shadow:0 4px 12px rgba(255,90,54,.3)}
+.acct-out{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--bad);font-weight:700;transition:background-color .2s}
+.acct-out:hover{background:var(--bad-soft)}
+.acct-out svg{transform:rotate(180deg)}
+@media (min-width:700px){
+  .veil.acctv{align-items:flex-start;justify-content:flex-end;padding:72px max(20px,calc((100vw - 1240px) / 2)) 20px;background:rgba(16,6,7,.18)}
+  .veil.acctv .sheet{max-width:360px;border-radius:22px;padding-bottom:0;box-shadow:0 24px 60px rgba(30,8,12,.25)}
+}
+@media (prefers-reduced-motion:no-preference){@media (min-width:700px){.veil.acctv .sheet{animation:rpDrop .28s var(--ease) both;transform-origin:top right}}}
+html.theming *,html.theming *::before,html.theming *::after{transition:background-color .4s,color .4s,border-color .4s!important}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
   <div class="logo" role="link" tabindex="0" aria-label="Rentpply home"><b><svg class="lm" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3.5 44 19.6V40a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V19.6z" fill="url(#rpg)"/><path d="M17.5 36.5V20.5h8a5.8 5.8 0 0 1 1.4 11.4l4.8 4.6" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/></svg></b><span class="wm">rent<em>pply</em></span></div>
   <div id="user-info" style="display:flex;align-items:center;gap:10px;margin-right:auto;color:var(--muted);font-size:13px"><span>Connecting…</span></div>
-  <button class="ibtn" id="theme" aria-label="Switch theme"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
 </header>
 <main class="wrap" id="main"></main>
 <div class="dock"><nav id="dock" aria-label="Sections"></nav></div>
@@ -2228,10 +2254,23 @@ function updateUserInfo() {
   }
   const admin = S.profile.role === 'admin';
   const unread = (S.notifications || []).filter(notification => !notification.read).length;
-  const views = admin ? `<label class="field" style="margin:0"><span class="sr-only">Platform view</span><select class="inp" data-admin-view aria-label="View platform">${[['admin', 'Admin'], ['owner', 'Property owner'], ['tenant', 'Tenant'], ['student', 'Student']].map(([value, label]) => `<option value="${value}" ${S.role === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>` : '';
-  el.innerHTML = `<span>${esc(S.profile.role === 'owner' && S.liveData ? (currentPropertyName(S.liveData) || S.profile.full_name) : (S.profile.full_name || S.user.email))}</span>${views}<span class="pill ok">${admin ? 'Admin' : S.profile.role === 'student' ? 'Student' : S.profile.role === 'owner' ? 'Owner' : 'Tenant'}</span><button class="ibtn" data-notifications aria-label="Notifications${unread ? ', ' + unread + ' unread' : ''}">${ic('bell')}${unread ? `<small class="not-count">${unread}</small>` : ''}</button><button class="btn ghost sm" data-auth-signout>${S.profile.role === 'owner' ? 'Log out' : 'Sign out'}</button>`;
+  const roleName = admin ? 'Admin' : S.profile.role === 'student' ? 'Student' : S.profile.role === 'owner' ? 'Owner' : 'Tenant';
+  const shown = S.profile.role === 'owner' && S.liveData ? (currentPropertyName(S.liveData) || S.profile.full_name) : (S.profile.full_name || S.user.email);
+  el.innerHTML = `<span>${esc(shown)}</span><span class="pill ok">${admin && S.role !== 'admin' ? 'Admin · viewing ' + esc(S.role) : roleName}</span><button class="ibtn" data-notifications aria-label="Notifications${unread ? ', ' + unread + ' unread' : ''}">${ic('bell')}${unread ? `<small class="not-count">${unread}</small>` : ''}</button><button class="avbtn" data-account aria-haspopup="dialog" aria-label="Account, appearance and sign out">${esc(initials(S.profile.full_name || S.user.email))}</button>`;
 }
 
+const initials = n => String(n || '?').replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
+/* Account menu: who is signed in, light or dark, the admin's view switch and sign out. */
+function accountHTML() {
+  const p = S.profile || {}, admin = p.role === 'admin', dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const roleName = admin ? 'Administrator' : p.role === 'student' ? 'Student' : p.role === 'owner' ? 'Property owner' : 'Tenant';
+  const views = admin ? `<label class="acct-row"><span>${ic('users')}View the platform as</span><select class="inp" data-admin-view aria-label="View the platform as">${[['admin', 'Admin'], ['owner', 'Property owner'], ['tenant', 'Tenant'], ['student', 'Student']].map(([v, t]) => `<option value="${v}" ${S.role === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>` : '';
+  return `<div class="veil acctv" data-veil><div class="sheet acct" role="dialog" aria-modal="true" aria-label="Account"><div class="in">
+    <div class="acct-head"><span class="avbig">${esc(initials(p.full_name || S.user?.email))}</span><div style="min-width:0"><b>${esc(p.full_name || 'Your account')}</b><small>${esc(S.user?.email || '')}</small><span class="pill ok">${roleName}</span></div><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div>
+    <div class="acct-row"><span>${ic(dark ? 'moon' : 'sun')}Appearance</span><div class="seg" role="radiogroup" aria-label="Appearance"><button role="radio" data-theme-set="light" aria-checked="${!dark}">${ic('sun')}Light</button><button role="radio" data-theme-set="dark" aria-checked="${dark}">${ic('moon')}Dark</button></div></div>
+    ${views}
+    <button class="acct-out" data-auth-signout>${ic('arrow')}${p.role === 'owner' ? 'Log out' : 'Sign out'}</button></div></div></div>`;
+}
 function showNotifications() {
   const notifications = S.notifications || [];
   const content = notifications.length ? notifications.map(item => `<article class="card stack" style="gap:6px;${item.read ? 'opacity:.72' : ''}"><div class="row" style="justify-content:space-between"><b>${esc(item.title)}</b><small class="muted">${fdt(item.created_at)}</small></div><p class="muted">${esc(item.message)}</p>${item.read ? '' : `<button class="btn ghost sm" data-notification-read="${esc(item.id)}" style="align-self:flex-start">Mark as read</button>`}</article>`).join('') : '<p class="muted">No notifications yet.</p>';
@@ -2438,7 +2477,7 @@ document.addEventListener('click', async e => {
   if ((el = c('[data-auth-switch]'))) { const audience = $('form[data-auth-form]')?.dataset.authAudience || 'housing'; showAuth(el.dataset.authSwitch, audience); return; }
   if (c('[data-auth-forgot]')) { showAuth('forgot', $('form[data-auth-form]')?.dataset.authAudience || 'housing'); return; }
   if (c('[data-auth-back]')) { S.authPage = null; S.authNotice = ''; S.role = 'tenant'; S.tab = 'home'; showLanding(); render(true); return; }
-  if (c('[data-auth-signout]')) { await auth.signOut(); return; }
+  if (c('[data-auth-signout]')) { setLayer(''); await auth.signOut(); return; }
   if (c('[data-notifications]')) { showNotifications(); return; }
   if ((el = c('[data-notification-read]'))) {
     const { error } = await supabase.from('notifications').update({ read: true }).eq('id', el.dataset.notificationRead).eq('user_id', S.user.id);
@@ -2456,7 +2495,8 @@ document.addEventListener('click', async e => {
   }
   if (!c('.acwrap')) document.querySelectorAll('.acpop').forEach(x => { x.hidden = true; });
   if ((el = c('[data-budtoggle]'))) { const pop = $('#acBud'); pop.hidden = !pop.hidden; el.setAttribute('aria-expanded', !pop.hidden); return; }
-  if (c('#theme')) { const dark = document.documentElement.getAttribute('data-theme') === 'dark'; const n = dark ? 'light' : 'dark'; applyTheme(n); store.set('theme', n); return; }
+  if (c('[data-account]')) { setLayer(accountHTML()); return; }
+  if ((el = c('[data-theme-set]'))) { const n = el.dataset.themeSet === 'dark' ? 'dark' : 'light'; document.documentElement.classList.add('theming'); applyTheme(n); store.set('theme', n); setTimeout(() => document.documentElement.classList.remove('theming'), 450); setLayer(accountHTML()); return; }
   if ((el = c('[data-role]'))) { if (S.profile?.role !== 'admin') return; S.page = null; S.role = el.dataset.role; S.viewRole = S.role; S.tab = FIRST[S.role]; render(true); return; }
   if ((el = c('[data-tab]'))) { S.page = null; S.tab = el.dataset.tab; render(true); return; }
   if (c('[data-kycsubmit]')) { await kycSubmit(); return; }
@@ -2629,6 +2669,7 @@ document.addEventListener('change', async e => {
     S.role = e.target.value;
     S.viewRole = S.role;
     S.tab = FIRST[S.role];
+    setLayer('');
     render(true);
     return;
   }
