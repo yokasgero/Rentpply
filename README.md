@@ -1,6 +1,6 @@
 # Rentpply
 
-Rentpply is a student housing demo for discovering accommodation, finding roommates, handling rental paperwork, and managing property operations. The website is implemented in the self-contained `index.html` file, which contains the current design, styles, sample data, and interactions.
+Rentpply is a housing platform for Uganda for discovering hostels, rentals and short stays, finding roommates, handling rental paperwork, and managing property operations. The website is implemented in the self-contained `index.html` file, which contains the current design, styles, sample data, and interactions.
 
 ## Run locally
 
