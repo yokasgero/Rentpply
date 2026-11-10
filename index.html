@@ -1476,6 +1476,18 @@ html{background:var(--bg)}
 .mc-top small{display:block;color:var(--muted);font-size:13px;margin-top:3px}
 .mcard p{margin:0;font-size:14.5px;color:var(--ink)}
 .mcard .btn{flex:none}
+
+/* ===== places strip: one smooth, continuous slide ===== */
+.fp-railwin{overflow:hidden;padding:12px 0 24px}
+.fp-rail{overflow:visible!important;width:max-content;scroll-snap-type:none!important;cursor:default;padding:0 var(--gut)!important;--gut:max(20px,calc((100vw - 1240px) / 2))}
+.fp-rail.loop{animation:fpLoop var(--dur,60s) linear infinite;will-change:transform;backface-visibility:hidden}
+.fp-railwin:hover .fp-rail.loop,.fp-rail.loop.paused,.fp-rail.loop:focus-within{animation-play-state:paused}
+@keyframes fpLoop{to{transform:translate3d(calc(-1 * var(--per,0px)),0,0)}}
+.fp-ph img,.fp-ph svg{left:0!important;width:100%!important;transform:scale(1.01)!important}
+.fp-pcin:hover .fp-ph img,.fp-pcin:hover .fp-ph svg{transform:scale(1.07)!important}
+.fp-railnav{justify-content:center}
+.fp-railnav .fp-line{display:inline-flex!important;margin:0}
+@media (prefers-reduced-motion:reduce){.fp-railwin{overflow-x:auto}.fp-rail.loop{animation:none}.fp-rail .fp-pc.dup{display:none}}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -2281,39 +2293,12 @@ function railSwap(html) {
 }
 /* Width of one full set of cards: scrolling by this much shows the same picture again. */
 function railPeriod(rail) { const a = rail.querySelector('.fp-pc:not(.dup)'), d = rail.querySelector('.fp-pc.dup'); return a && d ? d.offsetLeft - a.offsetLeft : 0; }
-/* The places strip drifts right to left on its own and loops forever; it pauses while someone touches, drags or hovers. */
-let railRaf = 0;
-function railAutoplay() {
-  const rail = $('#fpPlaces'); if (!rail || rail.dataset.auto) return;
-  if (matchMedia('(prefers-reduced-motion:reduce)').matches) return;
-  rail.dataset.auto = 1; rail.classList.add('auto');
-  let pos = rail.scrollLeft, last = performance.now();
-  const hold = ms => { rail._hold = performance.now() + ms; };
-  ['pointerdown', 'touchstart', 'wheel', 'focusin', 'keydown'].forEach(ev => rail.addEventListener(ev, () => { rail.dataset.moved = 1; hold(3000); }, { passive: true }));
-  rail.addEventListener('mouseenter', () => { rail._hover = true; });
-  rail.addEventListener('mouseleave', () => { rail._hover = false; hold(500); });
-  const step = now => {
-    railRaf = requestAnimationFrame(step);
-    const dt = Math.min(50, now - last); last = now;
-    if (!rail.isConnected) { cancelAnimationFrame(railRaf); return; }
-    const per = railPeriod(rail);
-    if (!per || rail._hover || now < (rail._hold || 0) || rail.classList.contains('out') || document.hidden) { pos = rail.scrollLeft; return; }
-    if (Math.abs(rail.scrollLeft - pos) > 3) pos = rail.scrollLeft;
-    pos += dt * 0.045;
-    if (pos >= per) pos -= per;
-    rail.scrollLeft = pos;
-  };
-  railRaf = requestAnimationFrame(step);
-}
+/* The strip slides right to left with a smooth, continuous animation and loops at exactly one set of cards. */
 function railSync() {
-  const rail = $('#fpPlaces'), bar = $('#fpRailBar'); if (!rail) return;
-  const per = railPeriod(rail), max = rail.scrollWidth - rail.clientWidth;
-  if (per) { if (rail.scrollLeft >= per) rail.scrollLeft -= per; else if (rail.scrollLeft <= 0 && rail.dataset.moved) rail.scrollLeft += per; }
-  const k = per ? (rail.scrollLeft % per) / per : (max > 0 ? rail.scrollLeft / max : 1);
-  if (bar) { const w = per ? Math.max(14, Math.min(60, rail.clientWidth / per * 100)) : Math.max(14, rail.clientWidth / Math.max(rail.scrollWidth, 1) * 100); bar.style.width = w + '%'; bar.style.transform = `translateX(${(k * (100 / (w / 100) - 100)).toFixed(2)}%)`; }
-  document.querySelectorAll('[data-rail]').forEach(b => { b.disabled = !per && (max <= 2 || (b.dataset.rail === '-1' ? rail.scrollLeft < 4 : rail.scrollLeft > max - 4)); });
-  const mid = rail.getBoundingClientRect().left + rail.clientWidth / 2;
-  rail.querySelectorAll('.fp-pc').forEach(c => { const r = c.getBoundingClientRect(), off = (r.left + r.width / 2 - mid) / rail.clientWidth; c.style.setProperty('--px', Math.max(-1, Math.min(1, off)).toFixed(3)); });
+  const rail = $('#fpPlaces'); if (!rail) return;
+  const per = railPeriod(rail);
+  rail.style.setProperty('--per', per + 'px'); rail.style.setProperty('--dur', Math.max(20, per / 40).toFixed(1) + 's');
+  rail.classList.toggle('loop', per > 0);
 }
 function landCount(el, to) {
   const from = Number(el.dataset.shown || 0); el.dataset.to = to;
@@ -2372,13 +2357,13 @@ function landingHTML() {
   ];
   return `<i class="fp-prog" id="fpProg" aria-hidden="true"></i>
   <div class="fp-ann" id="fpAnn" role="marquee" aria-label="Rentpply news">${annHTML()}</div>
-  <nav class="fp-nav" aria-label="Main">${logo}<div class="fp-links"><a href="#why">Why Rentpply</a><a href="#how-it-works">How it works</a><a href="#places">Places</a><a href="#for-owners">For owners</a><a href="#faq">FAQ</a></div><button class="fp-ghost" data-auth-open="signin">Sign in</button><button class="fp-btn sm" data-land="tenant">Find a place</button></nav>
+  <nav class="fp-nav" aria-label="Main">${logo}<div class="fp-links"><a href="#why">Why Rentpply</a><a href="#how-it-works">How it works</a><a href="#places">Places</a><a href="#for-owners">For owners</a><a href="#faq">FAQ</a></div><button class="fp-btn sm" data-auth-open="signin">Sign in</button></nav>
   <header class="fp-hero" id="top"><div class="fp-bg" aria-hidden="true"><div class="fp-bgphoto" style="background-image:url(${IMG.home})"></div><span class="fp-orb o1"></span><span class="fp-orb o2"></span></div>
-    <div class="fp-wrap fp-herogrid"><div class="fp-copy"><span class="fp-pill">${ic('pin')}Hostels, rentals and stays in Uganda</span><h1>${h1}</h1><p>Compare verified hostels, rentals and short stays, agree the terms and keep every rent record in one place.</p><div class="fp-cta"><button class="fp-btn lg" data-land="tenant">Find a place</button><button class="fp-line lg" data-land="owner">I'm a property owner</button></div></div>
+    <div class="fp-wrap fp-herogrid"><div class="fp-copy"><span class="fp-pill">${ic('pin')}Hostels, rentals and stays in Uganda</span><h1>${h1}</h1><p>Compare verified hostels, rentals and short stays, agree the terms and keep every rent record in one place.</p><div class="fp-cta"><button class="fp-btn lg" data-scrollto="places">Find a place</button><button class="fp-line lg" data-land="owner">I'm a property owner</button></div></div>
       <div class="fp-visual"><div class="fp-chip c1">${ic('shield')}<span>Verified owners only</span></div><div class="fp-chip c2">${ic('key')}<span>Rent records in one place</span></div><div class="fp-live" id="fpLive">${landLiveHTML()}</div></div></div>
     <div class="fp-wrap fp-stats"><div class="fp-stat"><i>${ic('building')}</i><div><b data-stat="n">0</b><span>Verified places</span></div></div><div class="fp-stat"><i>${ic('key')}</i><div><b data-stat="rooms">0</b><span>Rooms available now</span></div></div><div class="fp-stat"><i>${ic('pin')}</i><div><b data-stat="areas">0</b><span>Areas covered</span></div></div></div></header>
   <div class="fp-marq" aria-label="Areas with verified places"><div class="fp-track" id="fpTrack">${landTrackHTML()}</div></div>
-  <section class="fp-wrap fp-sec" id="why"><div class="fp-panel fp-reveal"><div class="fp-pcopy"><h2>Move in with peace of mind</h2><p>No complicated processes and no payments to strangers. A clear path from search to move-in, with the owner confirming every payment.</p><div class="fp-pills"><span>${ic('shield')}Verified listings only</span><span>${ic('doc')}Agreement before payment</span><span>${ic('receipt')}Owner confirms receipt</span><span>${ic('users')}Roommate matching</span></div><button class="fp-line" data-land="tenant">Browse places</button></div>
+  <section class="fp-wrap fp-sec" id="why"><div class="fp-panel fp-reveal"><div class="fp-pcopy"><h2>Move in with peace of mind</h2><p>No complicated processes and no payments to strangers. A clear path from search to move-in, with the owner confirming every payment.</p><div class="fp-pills"><span>${ic('shield')}Verified listings only</span><span>${ic('doc')}Agreement before payment</span><span>${ic('receipt')}Owner confirms receipt</span><span>${ic('users')}Roommate matching</span></div><button class="fp-line" data-scrollto="places">Browse places</button></div>
     <div class="fp-mock"><div class="fp-browser"><div class="fp-bar"><i></i><i></i><i></i><span>rentpply.pages.dev/explore</span></div><div class="fp-bbody"><div class="fp-bhead"><b>Places open for booking</b><small>Live from verified owners</small></div><div id="fpRows">${landRowsHTML()}</div></div></div><div class="fp-float"><small>Rooms available now</small><b data-stat="rooms">0</b><span>across <i data-stat="n">0</i> verified places</span></div></div></div></section>
   <section class="fp-jny" id="how-it-works" aria-label="From search to move-in"><div class="fp-stage" id="fpStage">
     <div class="fp-sky"></div><div class="fp-layer fp-jphoto" style="background-image:url(${IMG.aerial})"></div><div class="fp-layer fp-clouds"><i></i><i></i><i></i><i></i></div><div class="fp-layer fp-hills h1"></div><div class="fp-layer fp-hills h2"></div>
@@ -2390,8 +2375,8 @@ function landingHTML() {
     <div class="fp-jbar" aria-hidden="true"><i id="fpJbar"></i></div></div></section>
   <section class="fp-sec fp-places" id="places"><div class="fp-wrap fp-phead"><div class="fp-reveal"><span class="fp-eye">Places</span><h2>Choose your place</h2><p>Hostels, rentals and short stays across Uganda, with photos straight from the owners.</p></div>
       <div class="fp-tabs fp-reveal" style="--d:120ms" role="tablist" aria-label="Type of place">${[['all', 'All'], ['hostel', 'Hostels'], ['rental', 'Rentals'], ['airbnb', 'Short stays']].map(([k, t]) => `<button role="tab" data-ltype="${k}" aria-pressed="${(S.landType || 'all') === k}">${t}</button>`).join('')}</div></div>
-    <div class="fp-reveal" style="--d:200ms"><div class="fp-rail" id="fpPlaces" tabindex="0" aria-label="Verified places">${landPlacesHTML()}</div></div>
-    <div class="fp-wrap fp-railnav"><button class="fp-rbtn" data-rail="-1" aria-label="Previous places">${ic('chevL')}</button><div class="fp-railtrack" aria-hidden="true"><i id="fpRailBar"></i></div><button class="fp-rbtn" data-rail="1" aria-label="More places">${ic('chevR')}</button><button class="fp-line sm" data-land="tenant">See all places</button></div></section>
+    <div class="fp-reveal" style="--d:200ms"><div class="fp-railwin"><div class="fp-rail" id="fpPlaces" aria-label="Verified places">${landPlacesHTML()}</div></div></div>
+    <div class="fp-wrap fp-railnav"><button class="fp-line sm" data-land="tenant">See all places</button></div></section>
   <section class="fp-wrap fp-sec" id="for-owners"><div class="fp-owners fp-reveal"><div class="fp-ocopy"><span class="fp-eye light">For property owners</span><h2>Run your property from one workspace.</h2><p>Upload your own photos, confirm payments, handle tenant requests and keep your records tidy.</p>
       <ul class="fp-ol">${[['image', 'Upload and change your property photos'], ['receipt', 'Confirm payments and record receipts'], ['building', 'See every room by floor, live'], ['list', 'Approve viewings, roommates and transfers']].map(([i, t], k) => `<li style="--d:${k}"><i>${ic(i)}</i>${t}</li>`).join('')}</ul>
       <button class="fp-btn orange lg" data-land="owner">Open the owner workspace</button></div>
@@ -2401,7 +2386,7 @@ function landingHTML() {
       <div class="fp-ocard k3"><span>${ic('bell')}</span><div><b>New viewing request</b><small>Approve or decline in one tap</small></div></div></div></div></section>
   <section class="fp-wrap fp-sec" id="faq"><div class="fp-faqgrid"><div class="fp-faqh fp-reveal"><span class="fp-eye">FAQ</span><h2>Good to know</h2><p>Straight answers about payments, verification and your documents.</p><button class="fp-line" data-auth-open="signup">Create an account</button></div>
     <div class="fp-faq fp-reveal" style="--d:120ms">${faq.map(([q, a]) => `<details><summary>${q}<i>${ic('plus')}</i></summary><div class="fp-ans"><p>${a}</p></div></details>`).join('')}</div></div></section>
-  <section class="fp-wrap fp-sec fp-last"><div class="fp-cta2 fp-reveal"><div class="fp-cta2bg"><img class="fp-fade" src="${IMG.hood}" alt="" loading="lazy" decoding="async"></div><div class="fp-cta2in"><h2>Your next place is waiting.</h2><p>Join the students, families and workers already finding a place across Uganda.</p><div class="fp-cta"><button class="fp-btn orange lg" data-land="tenant">Find a place</button><button class="fp-line lg light" data-auth-open="signup">Create an account</button></div></div></div></section>
+  <section class="fp-wrap fp-sec fp-last"><div class="fp-cta2 fp-reveal"><div class="fp-cta2bg"><img class="fp-fade" src="${IMG.hood}" alt="" loading="lazy" decoding="async"></div><div class="fp-cta2in"><h2>Your next place is waiting.</h2><p>Join the students, families and workers already finding a place across Uganda.</p><div class="fp-cta"><button class="fp-btn orange lg" data-auth-open="signin">Sign in</button><button class="fp-line lg light" data-auth-open="signup">Create an account</button></div></div></div></section>
   <footer class="fp-foot"><div class="fp-wrap fp-footgrid">${logo}<p>Places to stay in Uganda, made simple.</p><div class="fp-flinks"><a href="#how-it-works">How it works</a><a href="#places">Places</a><a href="#for-owners">For owners</a><a href="#faq">FAQ</a></div></div>
     <div class="fp-wrap fp-copy2"><span>© ${new Date().getFullYear()} Rentpply</span><details class="fp-credits"><summary>Photo credits</summary><p>Photos of Kampala from Wikimedia Commons, resized: ${PHOTO_CREDITS.map(([t, a, l, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(t)}</a> by ${esc(a)} (${l})`).join('; ')}.</p></details></div></footer>`;
 }
@@ -2431,13 +2416,11 @@ function landBind() {
   };
   const rail = $('#fpPlaces', root);
   if (rail) {
-    let rr = 0; rail.addEventListener('scroll', () => { if (!rr) rr = requestAnimationFrame(() => { rr = 0; railSync(); }); }, { passive: true });
-    let drag = null;
-    rail.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; drag = { x: e.clientX, l: rail.scrollLeft, moved: false }; rail.classList.add('grab'); });
-    addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x; if (Math.abs(dx) > 4) drag.moved = true; rail.scrollLeft = drag.l - dx; }, { passive: true });
-    addEventListener('pointerup', () => { if (!drag) return; const moved = drag.moved; drag = null; rail.classList.remove('grab'); if (moved) rail.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); }, { capture: true, once: true }); });
+    let resume = 0; // a finger on the strip holds it still; it carries on shortly after
+    rail.addEventListener('touchstart', () => { clearTimeout(resume); rail.classList.add('paused'); }, { passive: true });
+    rail.addEventListener('touchend', () => { clearTimeout(resume); resume = setTimeout(() => rail.classList.remove('paused'), 1800); }, { passive: true });
     addEventListener('resize', railSync, { passive: true });
-    fadeImgs(root); railSync(); railAutoplay();
+    fadeImgs(root); railSync();
   }
   root.querySelectorAll('.fp-faq details').forEach(d => {
     const sm = d.querySelector('summary'), body = d.querySelector('.fp-ans');
@@ -2840,7 +2823,7 @@ document.addEventListener('click', async e => {
     return;
   }
   if ((el = c('[data-ltype]'))) { if (S.landType === el.dataset.ltype || (!S.landType && el.dataset.ltype === 'all')) return; S.landType = el.dataset.ltype; document.querySelectorAll('[data-ltype]').forEach(b => b.setAttribute('aria-pressed', b === el)); railSwap(landPlacesHTML()); return; }
-  if ((el = c('[data-rail]'))) { const r = $('#fpPlaces'), card = r && r.querySelector('.fp-pc'); if (r) { r._hold = performance.now() + 3500; r.dataset.moved = 1; } if (r) r.scrollBy({ left: Number(el.dataset.rail) * Math.max((card ? card.offsetWidth + 18 : 320), r.clientWidth * .8), behavior: 'smooth' }); return; }
+  if ((el = c('[data-scrollto]'))) { const t = document.getElementById(el.dataset.scrollto); if (t) t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth', block: 'start' }); return; }
   if (c('.top .logo')) { showLanding(); return; }
   if ((el = c('[data-wtab]'))) { S.wtab = el.dataset.wtab; render(); return; }
   if ((el = c('[data-go]'))) { go(el.dataset.go); return; }
