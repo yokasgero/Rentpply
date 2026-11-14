@@ -69,3 +69,11 @@ The data is in `supabase/seeds/ug_places.tsv`. To reload it, run `supabase/seeds
 ## Screen addresses
 
 Every screen has its own address: `/home`, `/explore`, `/roommates`, `/stay`, `/place/<id>` (with `/agreement`, `/payment` and `/status/<payment>` during a booking), `/owner/overview|units|payments|board|requests`, `/admin/onboard|units|property|listings|kpis`, and `/signin`, `/signup`, `/forgot`, `/reset` (`?for=owner` for the owner sign-in). `syncUrl()` in `index.html` keeps the address in step after every render, the browser's Back and Forward move between screens, and an open popup takes one history step so Back closes it first. A link to a screen that needs an account opens sign-in and then that screen; a screen the account may not see falls back to its first screen. The installed app opens on sign-in instead of the front page, and has shortcuts to Explore, My stay and Roommates. Cloudflare serves the app for every path (`not_found_handling: single-page-application`).
+
+## Loading and speed
+
+- The app is split so a phone downloads only what it needs: the main file (front page, tenant screens), the Supabase client (loaded alongside the page, not before it), the owner/admin dashboard `src/live-portal.js` (only for owners and admins) and the translations `src/i18n-text.js` (only after someone picks another language).
+- Fonts are served from `public/fonts` (no Google Fonts request). Front-page photos are WebP, and Wikimedia listing photos are requested at 330, 500 or 960 pixels to suit the screen (`photoSrc` in `index.html`).
+- Photos that owners and admins upload are shrunk in the browser to at most 1,600 pixels and saved as WebP before upload (`shrinkPhoto` in `src/live-portal.js`).
+- Lite mode (`html.lite`): on phones with 2 GB of memory or less, or with Data Saver on, the decorative motion and parallax are switched off; the layout is unchanged.
+- The service worker opens the saved copy of the app if the network takes longer than 2.5 seconds, and saves fonts, images and built files for offline use.

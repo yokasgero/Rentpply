@@ -1,7 +1,7 @@
 /* Rentpply service worker: opens instantly on repeat visits, works through short drops in connection,
    and shows phone notifications. Live data (Supabase), maps and photos from other sites always come from the network. */
-const VERSION = 'rp-1';
-const SHELL = ['/', '/manifest.webmanifest', '/img/icon-192.png', '/img/apple-touch-icon.png'];
+const VERSION = 'rp-2';
+const SHELL = ['/', '/manifest.webmanifest', '/img/icon-192.png', '/img/apple-touch-icon.png', '/fonts/figtree-latin.woff2', '/fonts/bricolage-grotesque-latin.woff2'];
 
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).catch(() => {})); self.skipWaiting(); });
 self.addEventListener('activate', e => {
@@ -13,12 +13,16 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   // Pages: the newest version from the network, the saved copy when offline.
+  // Every address (/explore, /place/12 ...) is the same app page. On a slow connection, waiting more than 2.5 seconds
+  // for it is worse than opening the saved copy; the fresh one is still saved for next time.
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).then(res => { const copy = res.clone(); caches.open(VERSION).then(c => c.put('/', copy)); return res; }).catch(() => caches.match('/')));
+    const net = fetch(req).then(res => { if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put('/', copy)); } return res; });
+    const slow = new Promise(r => setTimeout(r, 2500)).then(() => caches.match('/'));
+    e.respondWith(Promise.race([net.catch(() => caches.match('/')), slow]).then(r => r || net).catch(() => caches.match('/')));
     return;
   }
   // Built files and images never change under the same name: serve the saved copy, fetch once otherwise.
-  if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/img/')) {
+  if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/img/') || url.pathname.startsWith('/fonts/')) {
     e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(res => { if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); } return res; })));
   }
 });

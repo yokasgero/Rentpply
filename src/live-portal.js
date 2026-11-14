@@ -607,6 +607,22 @@ export function portalBind() {
   document.addEventListener('contextmenu', e => { const u = e.target.closest && e.target.closest('.unit[data-p-unit]'); if (u) { e.preventDefault(); clearTimeout(pressTimer); pressFired = false; quickMenu(u.dataset.pUnit, (u.querySelector('b') || {}).textContent || ''); } });
 }
 
+/* Photos from phone cameras are often 3 to 5 MB. Before uploading, they are shrunk to at most 1,600 pixels on the
+   long side and saved as WebP, which looks the same on screen and is about a tenth of the size for every tenant who
+   opens the listing. Anything that cannot be shrunk (or would not get smaller) is uploaded as it is. */
+async function shrinkPhoto(file) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || !window.createImageBitmap) return file;
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height)), w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    cv.getContext('2d').drawImage(bmp, 0, 0, w, h); bmp.close && bmp.close();
+    const blob = await new Promise(r => cv.toBlob(r, 'image/webp', 0.8));
+    if (!blob || blob.type !== 'image/webp' || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webp', { type: 'image/webp' });
+  } catch { return file; }
+}
+
 async function issueLogin(ownerId) {
   const out = await ownerLoginsCall({ action: 'issue_login', owner_id: ownerId });
   showCredentials(out.username, out.password, ownerId);
@@ -751,7 +767,7 @@ export async function handlePortalChange(target, refresh, ctx = {}) {
     try {
     for (let i = 0; i < files.length; i++) {
       if (txt) txt.textContent = `Uploading ${i + 1} of ${files.length}…`;
-      const f = files[i], ext = (f.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, ''), path = `${id}/${crypto.randomUUID()}.${ext}`;
+      const f = await shrinkPhoto(files[i]), ext = (f.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, ''), path = `${id}/${crypto.randomUUID()}.${ext}`;
       const up = await supabase.storage.from('listing-media').upload(path, f, { contentType: f.type, upsert: false });
       if (up.error) throw up.error;
       const url = supabase.storage.from('listing-media').getPublicUrl(path).data.publicUrl;
