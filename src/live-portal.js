@@ -35,7 +35,8 @@ const ui = { prop: null, admProp: null, unit: null, floor: null, pay: 'students'
 export async function loadPortalData(role, userId) {
   if (!supabase || !userId) return null;
   const query = supabase.from('listings').select('*').order('created_at', { ascending: false });
-  if (role !== 'admin') query.eq('owner_id', userId);
+  const admin = role === 'admin' || role === 'super';
+  if (!admin) query.eq('owner_id', userId);
   const { data: properties, error } = await query;
   if (error) throw error;
   const ids = (properties || []).map(item => item.id);
@@ -57,10 +58,10 @@ export async function loadPortalData(role, userId) {
   ] : [];
   const [detail, profileResult, queueResult, notificationsResult, loginsResult] = await Promise.all([
     Promise.all(requests),
-    role === 'admin' ? supabase.from('profiles').select('*').order('created_at', { ascending: false }) : none,
-    role === 'admin' ? supabase.from('admin_queue').select('*').order('created_at', { ascending: false }) : none,
+    admin ? supabase.from('profiles').select('*').order('created_at', { ascending: false }) : none,
+    admin ? supabase.from('admin_queue').select('*').order('created_at', { ascending: false }) : none,
     supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50),
-    role === 'admin' ? supabase.from('owner_logins').select('*') : none
+    admin ? supabase.from('owner_logins').select('*') : none
   ]);
   const at = i => detail[i]?.data || [];
   const transferIds = at(5).map(item => item.id), entryIds = at(7).map(item => item.id);
@@ -157,7 +158,7 @@ function ownerOverview(data, profile) {
   const bk = buckets(6), series = bk.map(b => sum(pays.filter(x => inRange(when(x), b)).map(x => x.amount)));
   const occ = units.filter(u => u.status === 'occupied').length, late = units.filter(u => u.payment_status && u.payment_status !== 'paid' && u.status !== 'vacant' && u.status !== 'maint');
   const owed = sum(units.map(u => u.balance)), free = units.filter(u => u.status === 'vacant' || u.status === 'reserved').length;
-  const admin = profile.role === 'admin';
+  const admin = profile.role === 'admin' || profile.role === 'super';
   return `<section class="sec">${head(admin ? 'Admin view · property owner' : 'Property owner', p.name, `<span class="pill ${p.verified ? 'ok' : 'warn'}">${icn('shield')}${p.verified ? 'Verified' : 'Pending check'}</span>`)}${propChips(data)}
     ${needsYou(data, p.id)}${boardStrip(data, p.id)}
     <div class="kgrid">
@@ -361,7 +362,7 @@ function activityHub(data) {
     <h3 style="font-size:22px;margin-top:8px">Rent-transfer approvals</h3>${table(['Requester', 'Room', 'Status', 'Decision'], data.transferRequests.map(r => { const t = data.transfers.find(x => x.id === r.transfer_id); return `<tr><td>${esc(r.requester?.full_name || 'Tenant')}</td><td class="mono">${esc(t?.room_code || '')}</td><td>${pill(r.status)}</td><td>${r.status === 'pending' ? `<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-live-transfer-request="${esc(r.id)}:1">Approve</button><button class="btn ghost sm" data-live-transfer-request="${esc(r.id)}:0">Decline</button></div>` : '-'}</td></tr>`; }), 'No transfer requests.')}${trs.length ? '' : ''}</div>`;
 }
 function accountsHub(data) {
-  return `<div class="stack"><h3 style="font-size:22px">Accounts</h3><p class="muted">${me && me.is_superuser ? 'As the super user you can make people administrators or remove them.' : 'Only the super user can add or remove administrators.'}</p>${table(['Name', 'Role', 'Identity', 'Joined'], data.profiles.map(x => `<tr><td><b>${esc(x.full_name)}</b><div class="muted mono" style="font-size:11px">${esc(x.id.slice(0, 8))}</div></td><td>${x.is_superuser ? '<span class="pill ok">Super user</span>' : x.role === 'admin' && !(me && me.is_superuser) ? '<span class="pill mute">admin</span>' : `<select class="inp" style="width:auto" data-live-role="${esc(x.id)}" aria-label="Role for ${esc(x.full_name)}">${options(me && me.is_superuser ? ['tenant', 'student', 'owner', 'admin'] : ['tenant', 'student', 'owner'], x.role)}</select>`}</td><td>${pill(x.kyc_status, x.kyc_status === 'verified' ? 'ok' : x.kyc_status === 'review' ? 'warn' : 'mute')}</td><td>${date(x.created_at)}</td></tr>`), 'No accounts yet.')}</div>`;
+  return `<div class="stack"><h3 style="font-size:22px">Accounts</h3><p class="muted">${me && me.role === 'super' ? 'As the super user you can make people administrators or remove them.' : 'Only the super user can add or remove administrators.'}</p>${table(['Name', 'Role', 'Identity', 'Joined'], data.profiles.map(x => `<tr><td><b>${esc(x.full_name)}</b><div class="muted mono" style="font-size:11px">${esc(x.id.slice(0, 8))}</div></td><td>${x.role === 'super' ? '<span class="pill ok">Super user</span>' : x.role === 'admin' && !(me && me.role === 'super') ? '<span class="pill mute">admin</span>' : `<select class="inp" style="width:auto" data-live-role="${esc(x.id)}" aria-label="Role for ${esc(x.full_name)}">${options(me && me.role === 'super' ? ['tenant', 'student', 'owner', 'admin'] : ['tenant', 'student', 'owner'], x.role)}</select>`}</td><td>${pill(x.kyc_status, x.kyc_status === 'verified' ? 'ok' : x.kyc_status === 'review' ? 'warn' : 'mute')}</td><td>${date(x.created_at)}</td></tr>`), 'No accounts yet.')}</div>`;
 }
 function adminQueue(data) {
   const pend = data.listings.filter(l => !l.verified).length, kyc = data.profiles.filter(x => x.kyc_status === 'review').length, openQ = data.queue.filter(x => x.status === 'open').length;

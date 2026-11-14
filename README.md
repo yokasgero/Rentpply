@@ -46,7 +46,7 @@ Landing photos are in `public/img/`. The landing photos and the demo listing pho
 
 ## Accounts and roles
 
-- **Super user** (`profiles.is_superuser`): an administrator who alone can add or remove administrators (enforced in the database by `protect_profile_role`). The flag can only be set from the database. Migration: `supabase/migrations/20261114000000_super_user.sql`.
+- **Super user** (role `super`): has everything an administrator has, and alone can add or remove administrators (enforced in the database by `protect_profile_role`; `is_admin()` is true for both `admin` and `super`). The `super` role can only be given or taken away from the database. Migrations: `supabase/migrations/20261114020000_super_role_value.sql` and `20261114020100_super_role.sql`.
 
 ## Search near a place
 

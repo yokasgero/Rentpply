@@ -33,7 +33,7 @@ Deno.serve(async (req: Request) => {
   if (!user) return json({ error: 'Sign in again.' }, 401);
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: me } = await admin.from('profiles').select('role').eq('id', user.id).single();
-  if (me?.role !== 'admin') return json({ error: 'Only an administrator can manage owner logins.' }, 403);
+  if (me?.role !== 'admin' && me?.role !== 'super') return json({ error: 'Only an administrator can manage owner logins.' }, 403);
 
   const body = await req.json().catch(() => ({}));
 
