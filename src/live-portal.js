@@ -361,7 +361,7 @@ function activityHub(data) {
     <h3 style="font-size:22px;margin-top:8px">Rent-transfer approvals</h3>${table(['Requester', 'Room', 'Status', 'Decision'], data.transferRequests.map(r => { const t = data.transfers.find(x => x.id === r.transfer_id); return `<tr><td>${esc(r.requester?.full_name || 'Tenant')}</td><td class="mono">${esc(t?.room_code || '')}</td><td>${pill(r.status)}</td><td>${r.status === 'pending' ? `<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-live-transfer-request="${esc(r.id)}:1">Approve</button><button class="btn ghost sm" data-live-transfer-request="${esc(r.id)}:0">Decline</button></div>` : '-'}</td></tr>`; }), 'No transfer requests.')}${trs.length ? '' : ''}</div>`;
 }
 function accountsHub(data) {
-  return `<div class="stack"><h3 style="font-size:22px">Accounts</h3>${table(['Name', 'Role', 'Identity', 'Joined'], data.profiles.map(x => `<tr><td><b>${esc(x.full_name)}</b><div class="muted mono" style="font-size:11px">${esc(x.id.slice(0, 8))}</div></td><td><select class="inp" style="width:auto" data-live-role="${esc(x.id)}" aria-label="Role for ${esc(x.full_name)}">${options(['tenant', 'student', 'owner', 'admin'], x.role)}</select></td><td>${pill(x.kyc_status, x.kyc_status === 'verified' ? 'ok' : x.kyc_status === 'review' ? 'warn' : 'mute')}</td><td>${date(x.created_at)}</td></tr>`), 'No accounts yet.')}</div>`;
+  return `<div class="stack"><h3 style="font-size:22px">Accounts</h3><p class="muted">${me && me.is_superuser ? 'As the super user you can make people administrators or remove them.' : 'Only the super user can add or remove administrators.'}</p>${table(['Name', 'Role', 'Identity', 'Joined'], data.profiles.map(x => `<tr><td><b>${esc(x.full_name)}</b><div class="muted mono" style="font-size:11px">${esc(x.id.slice(0, 8))}</div></td><td>${x.is_superuser ? '<span class="pill ok">Super user</span>' : x.role === 'admin' && !(me && me.is_superuser) ? '<span class="pill mute">admin</span>' : `<select class="inp" style="width:auto" data-live-role="${esc(x.id)}" aria-label="Role for ${esc(x.full_name)}">${options(me && me.is_superuser ? ['tenant', 'student', 'owner', 'admin'] : ['tenant', 'student', 'owner'], x.role)}</select>`}</td><td>${pill(x.kyc_status, x.kyc_status === 'verified' ? 'ok' : x.kyc_status === 'review' ? 'warn' : 'mute')}</td><td>${date(x.created_at)}</td></tr>`), 'No accounts yet.')}</div>`;
 }
 function adminQueue(data) {
   const pend = data.listings.filter(l => !l.verified).length, kyc = data.profiles.filter(x => x.kyc_status === 'review').length, openQ = data.queue.filter(x => x.status === 'open').length;
@@ -610,7 +610,9 @@ async function issueLogin(ownerId) {
   showCredentials(out.username, out.password, ownerId);
 }
 
+let me = null; // the signed-in person, for super user checks
 export function renderPortal(role, tab, data, profile) {
+  me = profile || null;
   if (!data) return '<section class="sec"><div class="card skeleton" style="height:120px"></div><div class="tgrid"><div class="card skeleton" style="height:90px"></div><div class="card skeleton" style="height:90px"></div><div class="card skeleton" style="height:90px"></div></div></section>';
   if (role === 'admin') return adminView(tab, data);
   // The gate only stops the signed-in owner, on their own property; an admin previewing the owner view is not gated.

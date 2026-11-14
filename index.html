@@ -1488,6 +1488,18 @@ html{background:var(--bg)}
 .fp-railnav{justify-content:center}
 .fp-railnav .fp-line{display:inline-flex!important;margin:0}
 @media (prefers-reduced-motion:reduce){.fp-railwin{overflow-x:auto}.fp-rail.loop{animation:none}.fp-rail .fp-pc.dup{display:none}}
+
+.acct-btn{width:100%;border:0;cursor:pointer;color:var(--ink);font:inherit;text-align:left}
+.acct-btn:hover{background:color-mix(in srgb,var(--accent) 10%,var(--surface-2))}
+.acct-btn>svg{width:18px;height:18px;color:var(--muted)}
+
+.fp-creditlink{border:0;background:none;color:#bfa5a9;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;padding:0;opacity:.85}
+.fp-creditlink:hover{opacity:1;color:#fff}
+.credits{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.credits li{display:flex;flex-direction:column;gap:2px;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
+.credits li:first-child{border-top:0}
+.credits a{color:var(--ink);font-weight:600}
+.credits span{color:var(--muted);font-size:12.5px}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -2388,7 +2400,7 @@ function landingHTML() {
     <div class="fp-faq fp-reveal" style="--d:120ms">${faq.map(([q, a]) => `<details><summary>${q}<i>${ic('plus')}</i></summary><div class="fp-ans"><p>${a}</p></div></details>`).join('')}</div></div></section>
   <section class="fp-wrap fp-sec fp-last"><div class="fp-cta2 fp-reveal"><div class="fp-cta2bg"><img class="fp-fade" src="${IMG.hood}" alt="" loading="lazy" decoding="async"></div><div class="fp-cta2in"><h2>Your next place is waiting.</h2><p>Join the students, families and workers already finding a place across Uganda.</p><div class="fp-cta"><button class="fp-btn orange lg" data-auth-open="signin">Sign in</button><button class="fp-line lg light" data-auth-open="signup">Create an account</button></div></div></div></section>
   <footer class="fp-foot"><div class="fp-wrap fp-footgrid">${logo}<p>Places to stay in Uganda, made simple.</p><div class="fp-flinks"><a href="#how-it-works">How it works</a><a href="#places">Places</a><a href="#for-owners">For owners</a><a href="#faq">FAQ</a></div></div>
-    <div class="fp-wrap fp-copy2"><span>© ${new Date().getFullYear()} Rentpply</span><details class="fp-credits"><summary>Photo credits</summary><p>Photos of Kampala from Wikimedia Commons, resized: ${PHOTO_CREDITS.map(([t, a, l, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(t)}</a> by ${esc(a)} (${l})`).join('; ')}.</p></details></div></footer>`;
+    <div class="fp-wrap fp-copy2"><span>© ${new Date().getFullYear()} Rentpply</span><button class="fp-creditlink" data-credits>Credits</button></div></footer>`;
 }
 let landScrollFn = null;
 function landBind() {
@@ -2513,7 +2525,7 @@ function updateUserInfo() {
   }
   const admin = S.profile.role === 'admin';
   const unread = (S.notifications || []).filter(notification => !notification.read).length;
-  const roleName = admin ? 'Admin' : S.profile.role === 'student' ? 'Student' : S.profile.role === 'owner' ? 'Owner' : 'Tenant';
+  const roleName = S.profile.is_superuser ? 'Super user' : admin ? 'Admin' : S.profile.role === 'student' ? 'Student' : S.profile.role === 'owner' ? 'Owner' : 'Tenant';
   const shown = S.profile.role === 'owner' && S.liveData ? (currentPropertyName(S.liveData) || S.profile.full_name) : (S.profile.full_name || S.user.email);
   el.innerHTML = `<span>${esc(shown)}</span><span class="pill ok">${admin && S.role !== 'admin' ? 'Admin · viewing ' + esc(S.role) : roleName}</span><button class="ibtn" data-notifications aria-label="Notifications${unread ? ', ' + unread + ' unread' : ''}">${ic('bell')}${unread ? `<small class="not-count">${unread}</small>` : ''}</button><button class="avbtn" data-account aria-haspopup="dialog" aria-label="Account, appearance and sign out">${esc(initials(S.profile.full_name || S.user.email))}</button>`;
 }
@@ -2522,12 +2534,13 @@ const initials = n => String(n || '?').replace(/@.*/, '').split(/[\s._-]+/).filt
 /* Account menu: who is signed in, light or dark, the admin's view switch and sign out. */
 function accountHTML() {
   const p = S.profile || {}, admin = p.role === 'admin', dark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const roleName = admin ? 'Administrator' : p.role === 'student' ? 'Student' : p.role === 'owner' ? 'Property owner' : 'Tenant';
+  const roleName = p.is_superuser ? 'Super user' : admin ? 'Administrator' : p.role === 'student' ? 'Student' : p.role === 'owner' ? 'Property owner' : 'Tenant';
   const views = admin ? `<label class="acct-row"><span>${ic('users')}View the platform as</span><select class="inp" data-admin-view aria-label="View the platform as">${[['admin', 'Admin'], ['owner', 'Property owner'], ['tenant', 'Tenant'], ['student', 'Student']].map(([v, t]) => `<option value="${v}" ${S.role === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>` : '';
   return `<div class="veil acctv" data-veil><div class="sheet acct" role="dialog" aria-modal="true" aria-label="Account"><div class="in">
     <div class="acct-head"><span class="avbig">${esc(initials(p.full_name || S.user?.email))}</span><div style="min-width:0"><b>${esc(p.full_name || 'Your account')}</b><small>${esc(S.user?.email || '')}</small><span class="pill ok">${roleName}</span></div><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div>
     <div class="acct-row"><span>${ic(dark ? 'moon' : 'sun')}Appearance</span><div class="seg" role="radiogroup" aria-label="Appearance"><button role="radio" data-theme-set="light" aria-checked="${!dark}">${ic('sun')}Light</button><button role="radio" data-theme-set="dark" aria-checked="${dark}">${ic('moon')}Dark</button></div></div>
     ${views}
+    <button class="acct-row acct-btn" data-pw-change><span>${ic('key')}Change password</span>${ic('chevR')}</button>
     <button class="acct-out" data-auth-signout>${ic('arrow')}${p.role === 'owner' ? 'Log out' : 'Sign out'}</button></div></div></div>`;
 }
 function showNotifications() {
@@ -2794,6 +2807,8 @@ document.addEventListener('click', async e => {
   if (!c('.acwrap')) document.querySelectorAll('.acpop').forEach(x => { x.hidden = true; });
   if ((el = c('[data-budtoggle]'))) { const pop = $('#acBud'); pop.hidden = !pop.hidden; el.setAttribute('aria-expanded', !pop.hidden); return; }
   if (c('[data-account]')) { setLayer(accountHTML()); return; }
+  if (c('[data-credits]')) { sheet(`<div class="stack" style="gap:10px"><h2 style="font-size:24px">Photo credits</h2><p class="muted">Photos of Kampala from Wikimedia Commons, resized for this site.</p><ul class="credits">${PHOTO_CREDITS.map(([t, a, l, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${esc(t)}</a><span>${esc(a)} · ${l}</span></li>`).join('')}</ul></div>`, 'Credits'); return; }
+  if (c('[data-pw-change]')) { sheet(`<form class="stack" data-pw-form style="gap:12px"><h2 style="font-size:24px">Change password</h2><p class="muted">Use at least 10 characters. You stay signed in on this device.</p><label class="field"><span>New password</span><input class="inp" type="password" name="p1" autocomplete="new-password" minlength="10" required></label><label class="field"><span>New password again</span><input class="inp" type="password" name="p2" autocomplete="new-password" minlength="10" required></label><button class="btn" type="submit">Save new password</button></form>`, 'Account'); return; }
   if ((el = c('[data-lv-tab]'))) { lvTab(el.dataset.lvTab); if (el.hasAttribute('data-lv-up')) $('#lview')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
   if ((el = c('[data-lv-step]'))) { const t = $('#lvTrack'); if (t) t.scrollBy({ left: Number(el.dataset.lvStep) * t.clientWidth, behavior: 'smooth' }); return; }
   if ((el = c('[data-theme-set]'))) { const n = el.dataset.themeSet === 'dark' ? 'dark' : 'light'; document.documentElement.classList.add('theming'); applyTheme(n); store.set('theme', n); setTimeout(() => document.documentElement.classList.remove('theming'), 450); setLayer(accountHTML()); return; }
@@ -2903,6 +2918,17 @@ document.addEventListener('click', async e => {
   /* admin */
 });
 document.addEventListener('submit', async e => {
+  if (e.target.matches && e.target.matches('[data-pw-form]')) {
+    e.preventDefault();
+    const f = new FormData(e.target), p1 = String(f.get('p1') || ''), p2 = String(f.get('p2') || '');
+    if (p1.length < 10) { toast('Use at least 10 characters.'); return; }
+    if (p1 !== p2) { toast('The two passwords do not match.'); return; }
+    const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true;
+    const { error } = await supabase.auth.updateUser({ password: p1 });
+    btn.disabled = false;
+    if (error) { toast(error.message || 'Could not change the password.'); return; }
+    closeSheet(); toast('Password changed.'); return;
+  }
   const form = e.target.closest('[data-auth-form], [data-live-form]');
   if (form?.matches('[data-auth-form="forgot"]')) {
     e.preventDefault();
