@@ -1500,6 +1500,16 @@ html{background:var(--bg)}
 .credits li:first-child{border-top:0}
 .credits a{color:var(--ink);font-weight:600}
 .credits span{color:var(--muted);font-size:12.5px}
+
+/* ===== search near a place ===== */
+.sbox .locbtn{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:10px;border:0;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;z-index:2}
+.sbox .locbtn svg{width:17px;height:17px}
+.sbox .locbtn:active{transform:translateY(-50%) scale(.92)}
+.sbox .inp{padding-right:44px}
+.nearbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 8px 8px 14px;border-radius:14px;background:var(--accent-soft);color:var(--ink);font-size:14px}
+.nearbar>span{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.nearbar svg{width:16px;height:16px;color:var(--accent)}
+.sbox .xbtn{right:42px!important}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -1623,7 +1633,7 @@ function card(l) {
         ${l.n ? `<span class="stars">${ic('star')}${l.rating.toFixed(1)} <span class="muted" style="font-weight:500">(${l.n})</span></span>` : '<span class="muted" style="font-size:12px">No reviews yet</span>'}
       </div>
       <h3>${esc(l.name)}</h3>
-      <div class="muted" style="display:flex;gap:6px;align-items:center;font-size:13px">${ic('pin')}${l.area}${l.type === 'hostel' ? ` · ${l.dist} km to campus` : ` · ${l.dist} km from centre`}</div>
+      <div class="muted" style="display:flex;gap:6px;align-items:center;font-size:13px">${ic('pin')}${l.area}${S.f && S.f.near && l._d != null ? ` · ${l._d < 1 ? Math.round(l._d * 1000) + ' m' : l._d.toFixed(1) + ' km'} from ${esc(S.f.near.name)}` : l.type === 'hostel' ? ` · ${l.dist} km to campus` : ` · ${l.dist} km from centre`}</div>
       <div class="am">${l.am.slice(0, 3).map(a => `<span>${a}</span>`).join('')}</div>
       <div class="row" style="justify-content:space-between;margin-top:auto;padding-top:6px">
         <div class="price">${fmt(l.price)} <small>${unitLabel(l)}</small></div>
@@ -1653,7 +1663,7 @@ function vHome() {
         <p class="sub">${student ? 'Compare campus housing, connect with verified students and keep your housing details together.' : 'Verified owners, clear prices and one place to pay. Search hostels, rentals and short stays across Uganda before you travel.'}</p>
       </div>
       <form class="search" id="homeSearch">
-        <input class="inp" id="hq" placeholder="Area, hostel or university (try Makerere)" aria-label="Search">
+        <input class="inp" id="hq" placeholder="Area, district or university (try Ntinda)" aria-label="Search">
         <select class="inp" id="ht" aria-label="Type"><option value="all">All stays</option><option value="hostel">Hostels</option><option value="rental">Rentals</option><option value="airbnb">Airbnbs</option></select>
         <button class="btn" type="submit">${ic('search')}Search</button>
       </form>
@@ -1675,10 +1685,55 @@ function vHome() {
 /* ---------- explore ---------- */
 const BUDGETS = [[0, 'Any price'], [350000, 'Up to 350k'], [600000, 'Up to 600k'], [1000000, 'Up to 1M']];
 const SORTS = [['rec', 'Recommended'], ['lo', 'Price: low to high'], ['hi', 'Price: high to low'], ['near', 'Closest first'], ['top', 'Top rated']];
+/* ---------- places in Uganda: regions, districts, Kampala-area neighbourhoods and universities ----------
+   Names come from this list; their position on the map is looked up from OpenStreetMap when someone picks one. */
+const UG_REGIONS = {
+  Central: ['Buikwe', 'Bukomansimbi', 'Butambala', 'Buvuma', 'Gomba', 'Kalangala', 'Kalungu', 'Kampala', 'Kassanda', 'Kayunga', 'Kiboga', 'Kyankwanzi', 'Kyotera', 'Luweero', 'Lwengo', 'Lyantonde', 'Masaka', 'Mityana', 'Mpigi', 'Mubende', 'Mukono', 'Nakaseke', 'Nakasongola', 'Rakai', 'Sembabule', 'Wakiso'],
+  Eastern: ['Amuria', 'Budaka', 'Bududa', 'Bugiri', 'Bugweri', 'Bukedea', 'Bukwo', 'Bulambuli', 'Busia', 'Butaleja', 'Butebo', 'Buyende', 'Iganga', 'Jinja', 'Kaberamaido', 'Kalaki', 'Kaliro', 'Kamuli', 'Kapchorwa', 'Kapelebyong', 'Katakwi', 'Kibuku', 'Kumi', 'Kween', 'Luuka', 'Manafwa', 'Mayuge', 'Mbale', 'Namayingo', 'Namisindwa', 'Namutumba', 'Ngora', 'Pallisa', 'Serere', 'Sironko', 'Soroti', 'Tororo'],
+  Northern: ['Abim', 'Adjumani', 'Agago', 'Alebtong', 'Amolatar', 'Amudat', 'Amuru', 'Apac', 'Arua', 'Dokolo', 'Gulu', 'Kaabong', 'Karenga', 'Kitgum', 'Koboko', 'Kole', 'Kotido', 'Kwania', 'Lamwo', 'Lira', 'Madi-Okollo', 'Maracha', 'Moroto', 'Moyo', 'Nabilatuk', 'Nakapiripirit', 'Napak', 'Nebbi', 'Nwoya', 'Obongi', 'Omoro', 'Otuke', 'Oyam', 'Pader', 'Pakwach', 'Terego', 'Yumbe', 'Zombo'],
+  Western: ['Buhweju', 'Buliisa', 'Bundibugyo', 'Bunyangabu', 'Bushenyi', 'Fort Portal', 'Hoima', 'Ibanda', 'Isingiro', 'Kabale', 'Kabarole', 'Kagadi', 'Kakumiro', 'Kamwenge', 'Kanungu', 'Kasese', 'Kazo', 'Kibaale', 'Kikuube', 'Kiruhura', 'Kiryandongo', 'Kisoro', 'Kitagwenda', 'Kyegegwa', 'Kyenjojo', 'Masindi', 'Mbarara', 'Mitooma', 'Ntoroko', 'Ntungamo', 'Rubanda', 'Rubirizi', 'Rukiga', 'Rukungiri', 'Rwampara', 'Sheema']
+};
+const UG_HOODS = ['Bugolobi', 'Bukoto', 'Bunga', 'Bwaise', 'Bweyogerere', 'Entebbe', 'Gayaza', 'Kabalagala', 'Kajjansi', 'Kansanga', 'Kanyanya', 'Kasubi', 'Kawempe', 'Kibuli', 'Kikoni', 'Kira', 'Kireka', 'Kisaasi', 'Kisugu', 'Kitintale', 'Kiwatule', 'Kololo', 'Kulambiro', 'Kyaliwajjala', 'Kyambogo', 'Kyanja', 'Kyebando', 'Lubaga', 'Lubowa', 'Luzira', 'Makerere', 'Makindye', 'Matugga', 'Mbuya', 'Mengo', 'Mukono', 'Mulago', 'Munyonyo', 'Mutundwe', 'Muyenga', 'Naalya', 'Najjanankumbi', 'Najjera', 'Nakasero', 'Nakawa', 'Namugongo', 'Nansana', 'Nateete', 'Ntinda', 'Seeta', 'Wandegeya'];
+const UG_UNIS = ['Makerere University', 'Kyambogo University', 'Makerere University Business School', 'Uganda Christian University', 'Kampala International University', 'Ndejje University', 'Nkumba University', 'Islamic University in Uganda', 'Gulu University', 'Mbarara University of Science and Technology', 'Busitema University', 'Kabale University', 'Muni University', 'Lira University', 'Soroti University', 'Uganda Martyrs University', 'Kampala University', 'Victoria University', 'Cavendish University Uganda', 'Uganda Management Institute'];
+const UG_PLACES = [
+  ...Object.keys(UG_REGIONS).map(r => ({ n: r + ' region', kind: 'Region', q: r + ' Region, Uganda', r: 160 })),
+  ...UG_HOODS.map(n => ({ n, kind: 'Area near Kampala', q: n + ', Uganda', r: 6 })),
+  ...UG_UNIS.map(n => ({ n, kind: 'University', q: n + ', Uganda', r: 6 })),
+  ...Object.entries(UG_REGIONS).flatMap(([r, ds]) => ds.map(n => ({ n, kind: `District · ${r} region`, q: n + (n === 'Fort Portal' ? ', Uganda' : ' District, Uganda'), r: 30 })))
+];
+const kmBetween = (a, b) => { const R = 6371, rad = x => x * Math.PI / 180, dLa = rad(b.lat - a.lat), dLo = rad(b.lng - a.lng), h = Math.sin(dLa / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
+async function geocode(q) {
+  const key = 'geo_' + q.toLowerCase(), hit = store.get(key, null); if (hit) return hit;
+  const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ug&accept-language=en&q=' + encodeURIComponent(q));
+  if (!r.ok) throw new Error('The map search is busy. Try again in a moment.');
+  const [top] = await r.json(); if (!top) return null;
+  const out = { lat: +top.lat, lng: +top.lon }; store.set(key, out); return out;
+}
+/* Search near a place: what someone picked from the list, typed, or their own location. */
+async function pickNear(place) {
+  $('#acArea') && ($('#acArea').hidden = true);
+  try {
+    let at = place.lat != null ? place : null;
+    if (!at) { toast(`Finding places near ${place.n}…`); at = await geocode(place.q || place.n + ', Uganda'); }
+    if (!at) { toast(`Could not find ${place.n} on the map. Try a nearby town or area.`); return; }
+    S.f.near = { name: place.n, lat: at.lat, lng: at.lng, r: place.r || 10 }; S.f.q = ''; S.tab = 'explore'; S.page = null; render(true);
+  } catch (err) { toast(err.message || 'Could not search the map right now.'); }
+}
+function nearMe() {
+  if (!navigator.geolocation) { toast('This device cannot share its location.'); return; }
+  toast('Finding places near you…');
+  navigator.geolocation.getCurrentPosition(p => pickNear({ n: 'you', lat: p.coords.latitude, lng: p.coords.longitude, r: 10 }), () => toast('Allow location access to see places near you.'), { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 });
+}
 function exploreList() {
   const f = S.f, q = f.q.trim().toLowerCase(), ar = (f.area || '').trim().toLowerCase();
   const list = L.filter(l => (f.type === 'all' || l.type === f.type) && (!ar || l.area.toLowerCase().includes(ar)) && (!f.max || l.price <= f.max) &&
     (!q || (l.name + ' ' + l.area + ' ' + l.type + ' ' + l.am.join(' ') + ' ' + (q.includes('makerere') && l.type === 'hostel' && l.dist < 1.5 ? 'makerere' : '')).toLowerCase().includes(q)));
+  if (f.near) {
+    const near = L.filter(l => l.v && l.loc && l.avail > 0 && (f.type === 'all' || l.type === f.type) && (!f.max || l.price <= f.max)).map(l => (l._d = kmBetween(f.near, l.loc), l)).sort((a, b) => a._d - b._d);
+    const inside = near.filter(l => l._d <= f.near.r);
+    S._nearFar = !inside.length && near.length > 0;
+    return inside.length ? inside : near.slice(0, 6);
+  }
   const so = f.sort || 'rec';
   list.sort(so === 'lo' ? (a, b) => a.price - b.price : so === 'hi' ? (a, b) => b.price - a.price : so === 'near' ? (a, b) => a.dist - b.dist : so === 'top' ? (a, b) => b.rating - a.rating : (a, b) => b.v - a.v || b.rating - a.rating);
   return list;
@@ -1692,10 +1747,11 @@ function vExplore() {
     <div class="sec-h"><div><span class="eyebrow" id="exCount">${list.length} ${list.length === 1 ? 'place' : 'places'}</span><h2>Explore stays</h2></div></div>
     <div class="row">${chip('all', 'All')}${chip('hostel', 'Hostels')}${chip('rental', 'Rentals')}${chip('airbnb', 'Airbnbs')}</div>
     <div class="fpanel slim">
-      <div class="field"><label for="fq">Search</label><div class="acwrap"><div class="sbox">${ic('search')}<input class="inp" id="fq" value="${esc(f.q)}" placeholder="Name, area or amenity" autocomplete="off" aria-label="Search by name, area or amenity" aria-autocomplete="list" aria-controls="acArea">${f.q ? `<button class="xbtn" data-clear="q" aria-label="Clear search">${ic('x')}</button>` : ''}</div><div class="acpop" id="acArea" role="listbox" hidden></div></div></div>
+      <div class="field"><label for="fq">Search</label><div class="acwrap"><div class="sbox">${ic('search')}<button class="locbtn" type="button" data-near-me aria-label="Places near me" title="Places near me">${ic('pin')}</button><input class="inp" id="fq" value="${esc(f.q)}" placeholder="Place, district, university or name" autocomplete="off" aria-label="Search by name, area or amenity" aria-autocomplete="list" aria-controls="acArea">${f.q ? `<button class="xbtn" data-clear="q" aria-label="Clear search">${ic('x')}</button>` : ''}</div><div class="acpop" id="acArea" role="listbox" hidden></div></div></div>
       <div class="field"><label>Budget per ${f.type === 'airbnb' ? 'night or month' : 'month'}</label><div class="acwrap"><button class="inp selbtn" data-budtoggle aria-haspopup="listbox" aria-expanded="false"><span>${f.max ? (BUDGETS.find(o => o[0] === f.max) || BUDGETS[0])[1] : 'Any budget'}</span>${ic('chevron')}</button><div class="acpop" id="acBud" role="listbox" hidden>${BUDGETS.map(o => `<button class="acopt" role="option" data-max="${o[0]}" aria-selected="${(f.max || 0) === o[0]}">${o[1]}${(f.max || 0) === o[0] ? ic('check') : ''}</button>`).join('')}</div></div></div>
       <div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:12px"><div class="field" style="flex:1;min-width:0"><label for="fs">Sort by</label><select class="inp" id="fs">${SORTS.map(o => `<option value="${o[0]}" ${so === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></div>${active ? `<button class="btn ghost sm" data-clearall style="align-self:flex-end">Clear all (${active})</button>` : ''}</div>
     </div>
+    ${f.near ? `<div class="nearbar"><span>${ic('pin')}<b>Near ${esc(f.near.name)}</b> · ${list.length} available ${list.length === 1 ? 'place' : 'places'}${S._nearFar ? ', the closest ones' : ''}</span><button class="xbtn" data-near-clear aria-label="Stop searching near ${esc(f.near.name)}">${ic('x')}</button></div>${S._nearFar ? `<p class="notice">No available places within ${f.near.r} km of ${esc(f.near.name)} yet. These are the closest ones.</p>` : ''}` : ''}
     <div id="exList">${exploreBody(list)}</div>
   </section>`;
 }
@@ -1737,8 +1793,10 @@ function areaSuggest(q) {
   const hl = t => t.replace(new RegExp('(' + q.replace(/[^a-z0-9 ]/g, '') + ')', 'i'), '<mark>$1</mark>');
   const areas = AREAS.filter(a => a.toLowerCase().includes(q)).map(a => { const n = L.filter(l => l.area === a && (S.f.type === 'all' || l.type === S.f.type)).length; return [a, 'pin', n + (n === 1 ? ' place' : ' places')]; });
   const names = L.filter(l => l.name.toLowerCase().includes(q) && (S.f.type === 'all' || l.type === S.f.type)).slice(0, 3).map(l => [l.name, l.type === 'hostel' ? 'bed' : l.type === 'airbnb' ? 'building' : 'key', l.area]);
-  const m = [...areas, ...names].slice(0, 6);
-  box.innerHTML = m.length ? m.map(([t, i, n]) => `<button class="acopt" role="option" data-area="${esc(t)}"><span>${ic(i)}<i class="nm">${hl(esc(t))}</i></span><small>${esc(n)}</small></button>`).join('') : '<div class="acopt muted" style="cursor:default">No match. Try an area or a place name</div>';
+  const qs = q.trim(), placeHits = UG_PLACES.map((p, i) => [p, i]).filter(([p]) => p.n.toLowerCase().includes(qs)).sort((a, b) => (a[0].n.toLowerCase().startsWith(qs) ? 0 : 1) - (b[0].n.toLowerCase().startsWith(qs) ? 0 : 1)).slice(0, 5);
+  const m = [...areas, ...names].slice(0, 4);
+  const nearOpts = placeHits.map(([p, i]) => `<button class="acopt" role="option" data-near="${i}"><span>${ic(p.kind === 'University' ? 'flag' : 'pin')}<i class="nm">${hl(esc(p.n))}</i></span><small>${esc(p.kind)}</small></button>`).join('') + (qs.length > 2 ? `<button class="acopt" role="option" data-near-text="${esc(qs)}"><span>${ic('search')}<i class="nm">Places near “${esc(qs)}”</i></span><small>Map search</small></button>` : '');
+  box.innerHTML = (m.length || nearOpts) ? m.map(([t, i, n]) => `<button class="acopt" role="option" data-area="${esc(t)}"><span>${ic(i)}<i class="nm">${hl(esc(t))}</i></span><small>${esc(n)}</small></button>`).join('') + nearOpts : '<div class="acopt muted" style="cursor:default">No match. Try an area or a place name</div>';
   box.hidden = false;
 }
 
@@ -2855,10 +2913,14 @@ document.addEventListener('click', async e => {
     save(); el.setAttribute('aria-pressed', S.saved.includes(id)); toast(S.saved.includes(id) ? 'Saved to your list' : 'Removed from your list'); return;
   }
   if ((el = c('[data-open]'))) { openListing(+el.dataset.open); return; }
-  if ((el = c('[data-area]'))) { S.f.q = el.dataset.area; S.f.area = ''; render(); return; }
+  if ((el = c('[data-near]'))) { pickNear(UG_PLACES[+el.dataset.near]); return; }
+  if ((el = c('[data-near-text]'))) { const t = el.dataset.nearText; pickNear({ n: t, q: t + ', Uganda', r: 10 }); return; }
+  if (c('[data-near-me]')) { nearMe(); return; }
+  if (c('[data-near-clear]')) { S.f.near = null; render(); return; }
+  if ((el = c('[data-area]'))) { S.f.q = el.dataset.area; S.f.area = ''; S.f.near = null; render(); return; }
   if ((el = c('[data-max]'))) { S.f.max = +el.dataset.max; render(); return; }
   if ((el = c('[data-clear]'))) { S.f.q = ''; S.f.area = ''; render(); return; }
-  if (c('[data-clearall]')) { S.f = { type: 'all', q: '', area: '', max: 0, sort: 'rec' }; render(); return; }
+  if (c('[data-clearall]')) { S.f = { type: 'all', q: '', area: '', max: 0, sort: 'rec', near: null }; render(); return; }
   if ((el = c('[data-type]'))) { S.f.type = el.dataset.type; render(); return; }
   if (c('[data-close]') || (t.matches && t.matches('[data-veil]'))) { closeSheet(); return; }
   if ((el = c('[data-payer]'))) { BK.paidBy = el.dataset.payer; document.querySelectorAll('[data-payer]').forEach(b => b.setAttribute('aria-pressed', b === el)); $('#sp').hidden = BK.paidBy !== 'Sponsor'; return; }
@@ -2979,12 +3041,12 @@ document.addEventListener('submit', async e => {
     } catch (error) { toast(error.message || 'Could not save that record.'); }
     return;
   }
-  if (e.target.id === 'homeSearch') { e.preventDefault(); S.f = { type: $('#ht').value, q: $('#hq').value, area: '', max: 0 }; S.tab = 'explore'; render(true); }
+  if (e.target.id === 'homeSearch') { e.preventDefault(); const hq = $('#hq').value.trim(), hit = UG_PLACES.find(p => p.n.toLowerCase() === hq.toLowerCase() || p.n.toLowerCase() === hq.toLowerCase() + ' university'); S.f = { type: $('#ht').value, q: hit ? '' : hq, area: '', max: 0 }; if (hit && !L.some(l => l.area.toLowerCase() === hq.toLowerCase())) { pickNear(hit); return; } S.tab = 'explore'; render(true); }
 });
 document.addEventListener('input', e => {
   if (handlePortalInput(e.target)) return;
   const id = e.target.id;
-  if (id === 'fq') { S.f.q = e.target.value; const l = exploreList(), fb = flowSnapshot($('#exList')); $('#exList').innerHTML = exploreBody(l); flowIn($('#exList'), fb); $('#exCount').textContent = l.length + (l.length === 1 ? ' place' : ' places'); areaSuggest(e.target.value); }
+  if (id === 'fq') { S.f.q = e.target.value; if (S.f.near) { S.f.near = null; document.querySelectorAll('.nearbar,.nearbar+.notice').forEach(x => x.remove()); } const l = exploreList(), fb = flowSnapshot($('#exList')); $('#exList').innerHTML = exploreBody(l); flowIn($('#exList'), fb); $('#exCount').textContent = l.length + (l.length === 1 ? ' place' : ' places'); areaSuggest(e.target.value); }
   else if (id === 'bs') { BK.start = e.target.value || BK.start; if (!(S.page && S.page.name === 'payment')) agrRefresh(); }
   else if (id === 'bq') { BK.qty = +e.target.value; if (!(S.page && S.page.name === 'payment')) agrRefresh(); }
 });
