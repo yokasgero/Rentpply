@@ -50,7 +50,7 @@ Landing photos are in `public/img/`. The landing photos and the demo listing pho
 
 ## Search near a place
 
-Explore suggests Uganda's regions, districts, neighbourhoods around Kampala and universities. Picking one (or typing any place, or "places near me") finds it on OpenStreetMap and lists available places nearest first; fully occupied places are left out.
+Explore suggests Uganda's regions, neighbourhoods around Kampala, universities, and every district, county, sub-county and parish or ward in the country. Picking one (or typing any place, or "places near me") finds it on OpenStreetMap and lists available places nearest first; fully occupied places are left out.
 
 ## Languages
 
@@ -59,3 +59,9 @@ English is the default. Kiswahili, Luganda, French and Kinyarwanda translate the
 ## Installing and phone notifications
 
 `public/sw.js` lets the app open instantly on repeat visits, work offline and show phone notifications. Every new row in `notifications` triggers the `send-push` Edge Function, which sends it to the person's subscribed devices. Its sending keys are generated on first use and stored in Supabase Vault. iPhones need Rentpply added to the Home Screen before notifications can be turned on.
+
+## Places in Uganda (2024 census)
+
+`public.places` holds all 13,520 places from the 2024 National Population and Housing Census (UBOS, sub-county profiles, Table 1): 147 districts and cities, 312 counties and divisions, 2,207 sub-counties and town councils, and 10,854 parishes and wards, each with its parent, region and population. Anyone can read it; only the database can change it. `search_places(q, max_results)` finds places by name. The census has no map positions, so the app finds a picked place on OpenStreetMap by name, falling back to its sub-county and then its district.
+
+The data is in `supabase/seeds/ug_places.tsv`. To reload it, run `supabase/seeds/load_ug_places.sql` (it downloads the file from this repository).

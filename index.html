@@ -1732,13 +1732,36 @@ const UG_UNIS = ['Makerere University', 'Kyambogo University', 'Makerere Univers
 const UG_PLACES = [
   ...Object.keys(UG_REGIONS).map(r => ({ n: r + ' region', kind: 'Region', q: r + ' Region, Uganda', r: 160 })),
   ...UG_HOODS.map(n => ({ n, kind: 'Area near Kampala', q: n + ', Uganda', r: 6 })),
-  ...UG_UNIS.map(n => ({ n, kind: 'University', q: n + ', Uganda', r: 6 })),
-  ...Object.entries(UG_REGIONS).flatMap(([r, ds]) => ds.map(n => ({ n, kind: `District · ${r} region`, q: n + (n === 'Fort Portal' ? ', Uganda' : ' District, Uganda'), r: 30 })))
+  ...UG_UNIS.map(n => ({ n, kind: 'University', q: n + ', Uganda', r: 6 }))
 ];
+/* Every district, county, sub-county and parish in Uganda (2024 census) lives in the places table.
+   A census place has no map position, so it is found on the map by name, falling back to the area around it. */
+const PLACE_HITS = {};
+const PLACE_KIND = p => p.level === 0 ? (/ city$/i.test(p.name) ? 'City' : 'District') : p.level === 1 ? 'County' : p.level === 2 ? 'Sub-county' : / ward$/i.test(p.name) ? 'Ward' : 'Parish';
+const placeWhere = p => p.level === 0 ? (p.region ? p.region + ' region' : 'Uganda') : [...new Set([p.level === 3 ? p.subcounty : null, p.district].filter(Boolean))].join(', ');
+const bare = n => String(n || '').replace(/\b(town council|municipality|division|county|ward|city)\b/gi, '').replace(/\s+/g, ' ').trim();
+function censusPlace(p) {
+  // Plain names work best ("Ntinda, Nakawa, Kampala, Uganda"); words like "District" make the map match schools and churches.
+  const dq = bare(p.level === 0 ? p.name : p.district) + ', Uganda', tries = [];
+  if (p.level === 3) tries.push({ q: `${bare(p.name)}, ${bare(p.subcounty)}, ${dq}`, r: 5 }, { q: `${bare(p.name)}, ${dq}`, r: 5 }, { q: `${bare(p.subcounty)}, ${dq}`, r: 10 });
+  if (p.level === 2) tries.push({ q: `${bare(p.name)}, ${dq}`, r: 10 });
+  if (p.level === 1) tries.push({ q: `${bare(p.name)}, ${dq}`, r: 20 });
+  tries.push({ q: dq, r: 30 });
+  tries.forEach(t => { t.area = true; });
+  return { n: p.name, tries };
+}
+async function findPlaces(q, max = 6) {
+  if (!supabase || String(q || '').trim().length < 2) return [];
+  const { data, error } = await supabase.rpc('search_places', { q: q.trim(), max_results: max });
+  if (error) return [];
+  for (const p of data || []) PLACE_HITS[p.id] = p;
+  return data || [];
+}
 const kmBetween = (a, b) => { const R = 6371, rad = x => x * Math.PI / 180, dLa = rad(b.lat - a.lat), dLo = rad(b.lng - a.lng), h = Math.sin(dLa / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
-async function geocode(q) {
-  const key = 'geo_' + q.toLowerCase(), hit = store.get(key, null); if (hit) return hit;
-  const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ug&accept-language=en&q=' + encodeURIComponent(q));
+async function geocode(q, area) {
+  // area: only towns, suburbs, villages and admin areas, never a school or shop that shares the name
+  const key = 'geo_' + (area ? 'a_' : '') + q.toLowerCase(), hit = store.get(key, null); if (hit) return hit;
+  const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ug&accept-language=en' + (area ? '&layer=address' : '') + '&q=' + encodeURIComponent(q));
   if (!r.ok) throw new Error('The map search is busy. Try again in a moment.');
   const [top] = await r.json(); if (!top) return null;
   const out = { lat: +top.lat, lng: +top.lon }; store.set(key, out); return out;
@@ -1747,10 +1770,13 @@ async function geocode(q) {
 async function pickNear(place) {
   $('#acArea') && ($('#acArea').hidden = true);
   try {
-    let at = place.lat != null ? place : null;
-    if (!at) { toast(`Finding places near ${place.n}…`); at = await geocode(place.q || place.n + ', Uganda'); }
+    let at = place.lat != null ? place : null, r = place.r || 10;
+    if (!at) {
+      toast(`Finding places near ${place.n}…`);
+      for (const t of place.tries || [{ q: place.q || place.n + ', Uganda', r }]) { at = await geocode(t.q, t.area); if (at) { r = t.r || r; break; } }
+    }
     if (!at) { toast(`Could not find ${place.n} on the map. Try a nearby town or area.`); return; }
-    S.f.near = { name: place.n, lat: at.lat, lng: at.lng, r: place.r || 10 }; S.f.q = ''; S.tab = 'explore'; S.page = null; render(true);
+    S.f.near = { name: place.n, lat: at.lat, lng: at.lng, r }; S.f.q = ''; S.tab = 'explore'; S.page = null; render(true);
   } catch (err) { toast(err.message || 'Could not search the map right now.'); }
 }
 function nearMe() {
@@ -2115,6 +2141,18 @@ function areaSuggest(q) {
   const nearOpts = placeHits.map(([p, i]) => `<button class="acopt" role="option" data-near="${i}"><span>${ic(p.kind === 'University' ? 'flag' : 'pin')}<i class="nm">${hl(esc(p.n))}</i></span><small>${esc(p.kind)}</small></button>`).join('') + (qs.length > 2 ? `<button class="acopt" role="option" data-near-text="${esc(qs)}"><span>${ic('search')}<i class="nm">Places near “${esc(qs)}”</i></span><small>Map search</small></button>` : '');
   box.innerHTML = (m.length || nearOpts) ? m.map(([t, i, n]) => `<button class="acopt" role="option" data-area="${esc(t)}"><span>${ic(i)}<i class="nm">${hl(esc(t))}</i></span><small>${esc(n)}</small></button>`).join('') + nearOpts : '<div class="acopt muted" style="cursor:default">No match. Try an area or a place name</div>';
   box.hidden = false;
+  clearTimeout(areaSuggest.t);
+  if (qs.length >= 2) areaSuggest.t = setTimeout(async () => {
+    const hits = await findPlaces(qs, 6), input = $('#fq');
+    if (!hits.length || !input || input.value.trim().toLowerCase() !== qs || box.hidden) return;
+    const shown = new Set(placeHits.map(([p]) => p.n.toLowerCase()));
+    const html = hits.filter(p => !shown.has(p.name.toLowerCase())).map(p => `<button class="acopt" role="option" data-place="${p.id}"><span>${ic('pin')}<i class="nm">${hl(esc(p.name))}</i></span><small>${esc(PLACE_KIND(p))} · ${esc(placeWhere(p))}</small></button>`).join('');
+    if (!html) return;
+    box.querySelector('.acopt.muted')?.remove();
+    const last = box.querySelector('[data-near-text]');
+    last ? last.insertAdjacentHTML('beforebegin', html) : box.insertAdjacentHTML('beforeend', html);
+    i18nTree(box);
+  }, 180);
 }
 
 /* ---------- roommates ---------- */
@@ -3293,6 +3331,7 @@ document.addEventListener('click', async e => {
   }
   if ((el = c('[data-open]'))) { openListing(+el.dataset.open); return; }
   if ((el = c('[data-near]'))) { pickNear(UG_PLACES[+el.dataset.near]); return; }
+  if ((el = c('[data-place]'))) { const p = PLACE_HITS[el.dataset.place]; if (p) pickNear(censusPlace(p)); return; }
   if ((el = c('[data-near-text]'))) { const t = el.dataset.nearText; pickNear({ n: t, q: t + ', Uganda', r: 10 }); return; }
   if (c('[data-near-me]')) { nearMe(); return; }
   if (c('[data-near-clear]')) { S.f.near = null; render(); return; }
@@ -3420,7 +3459,12 @@ document.addEventListener('submit', async e => {
     } catch (error) { toast(error.message || 'Could not save that record.'); }
     return;
   }
-  if (e.target.id === 'homeSearch') { e.preventDefault(); const hq = $('#hq').value.trim(), hit = UG_PLACES.find(p => p.n.toLowerCase() === hq.toLowerCase() || p.n.toLowerCase() === hq.toLowerCase() + ' university'); S.f = { type: $('#ht').value, q: hit ? '' : hq, area: '', max: 0 }; if (hit && !L.some(l => l.area.toLowerCase() === hq.toLowerCase())) { pickNear(hit); return; } S.tab = 'explore'; render(true); }
+  if (e.target.id === 'homeSearch') { e.preventDefault(); const hq = $('#hq').value.trim(), hit = UG_PLACES.find(p => p.n.toLowerCase() === hq.toLowerCase() || p.n.toLowerCase() === hq.toLowerCase() + ' university'); S.f = { type: $('#ht').value, q: hit ? '' : hq, area: '', max: 0 }; if (hit && !L.some(l => l.area.toLowerCase() === hq.toLowerCase())) { pickNear(hit); return; }
+    if (!hit && hq.length > 1 && !L.some(l => l.area.toLowerCase() === hq.toLowerCase() || l.name.toLowerCase().includes(hq.toLowerCase()))) {
+      findPlaces(hq, 1).then(([p]) => { if (p && p.name.toLowerCase() === hq.toLowerCase()) pickNear(censusPlace(p)); else { S.tab = 'explore'; render(true); } });
+      return;
+    }
+    S.tab = 'explore'; render(true); }
 });
 document.addEventListener('input', e => {
   if (handlePortalInput(e.target)) return;
