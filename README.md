@@ -43,3 +43,19 @@ The rules come from "Rentpply: Platform Logic" and are enforced in the database 
 ## Images
 
 Landing photos are in `public/img/`. The landing photos and the demo listing photos (`supabase/seeds/demo_photos.sql`) are freely licensed pictures of Kampala from Wikimedia Commons, credited in the landing page footer under "Photo credits".
+
+## Accounts and roles
+
+- **Super user** (`profiles.is_superuser`): an administrator who alone can add or remove administrators (enforced in the database by `protect_profile_role`). The flag can only be set from the database. Migration: `supabase/migrations/20261114000000_super_user.sql`.
+
+## Search near a place
+
+Explore suggests Uganda's regions, districts, neighbourhoods around Kampala and universities. Picking one (or typing any place, or "places near me") finds it on OpenStreetMap and lists available places nearest first; fully occupied places are left out.
+
+## Languages
+
+English is the default. Kiswahili, Luganda, French and Kinyarwanda translate the interface from the `T` dictionary in `index.html`; a browser in another language is asked once on the first visit. Add a language by adding a column to `T` and an entry to `LANGS`.
+
+## Installing and phone notifications
+
+`public/sw.js` lets the app open instantly on repeat visits, work offline and show phone notifications. Every new row in `notifications` triggers the `send-push` Edge Function, which sends it to the person's subscribed devices. Its sending keys are generated on first use and stored in Supabase Vault. iPhones need Rentpply added to the Home Screen before notifications can be turned on.
