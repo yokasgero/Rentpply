@@ -1,5 +1,8 @@
 <!doctype html><html><head><meta charset=utf8><link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2048%2048%22%3E%3Cdefs%3E%3ClinearGradient%20id=%22g%22%20x1=%220%22%20y1=%220%22%20x2=%221%22%20y2=%221%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%238f1d2c%22/%3E%3Cstop%20offset=%22.55%22%20stop-color=%22%23c2332f%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%23ff6a3d%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath%20d=%22M24%203.5%2044%2019.6V40a5%205%200%200%201-5%205H9a5%205%200%200%201-5-5V19.6z%22%20fill=%22url(%23g)%22/%3E%3Cpath%20d=%22M17.5%2036.5V20.5h8a5.8%205.8%200%200%201%201.4%2011.4l4.8%204.6%22%20fill=%22none%22%20stroke=%22%23fff%22%20stroke-width=%224.2%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Rentpply</title>
+<link rel="preconnect" href="https://uacsoexkrvvdgdqotimg.supabase.co" crossorigin>
+<link rel="preload" as="image" href="/img/home-820.jpg" media="(max-width:820px)">
+<link rel="preload" as="image" href="/img/home.jpg" media="(min-width:821px)">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <meta name="theme-color" content="#fbf8f7">
@@ -12,7 +15,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: mobile-first app shell. Sticky header with role switch, floating dock for tabs, content in a 1120px column, bottom-sheet for listing, booking and receipts. */
 :root{
@@ -24,7 +27,7 @@
   --cw:#2F7BD9; --cp:#D99A00; --ct:#8A5CD0; --cs:#7d1d28;
   --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
   --f-body:'Figtree','Segoe UI',system-ui,sans-serif;
-  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  --f-mono:ui-monospace,'SF Mono',Menlo,Consolas,'Roboto Mono',monospace;
   --r:16px; --r-sm:10px;
 }
 :root[data-theme="dark"]{
@@ -1531,6 +1534,14 @@ html{background:var(--bg)}
 .sw[aria-checked="true"]::after{transform:translateX(16px)}
 .isteps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;font-size:15px}
 .isteps li::marker{color:var(--accent);font-weight:800}
+
+/* ===== speed: lighter drawing on phones, and lower landing sections drawn only when near the screen ===== */
+@media (max-width:820px){
+  .top,.fp-nav,.fp-chip,.fp-ol div,.fp-ol li,.lv-count,.dock{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .top{background:var(--bg)!important}
+  .fp-nav{background:rgba(255,255,255,.97)!important}
+}
+.fp-last,.fp-foot{content-visibility:auto;contain-intrinsic-size:auto 600px}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -2626,7 +2637,8 @@ const TYPE_NAME = { hostel: 'Hostel', rental: 'Rental', airbnb: 'Airbnb' };
 /* ---------- owner: login and per-property view ---------- */
 
 
-const IMG = { home: '/img/home.jpg', aerial: '/img/kampala-aerial.jpg', blocks: '/img/apartments-kololo.jpg', hood: '/img/kampala-neighbourhood.jpg' };
+const SMALL = matchMedia('(max-width:820px)').matches;
+const IMG = SMALL ? { home: '/img/home-820.jpg', aerial: '/img/kampala-aerial-820.jpg', blocks: '/img/apartments-kololo-820.jpg', hood: '/img/kampala-neighbourhood-820.jpg' } : { home: '/img/home.jpg', aerial: '/img/kampala-aerial.jpg', blocks: '/img/apartments-kololo.jpg', hood: '/img/kampala-neighbourhood.jpg' };
 /* Photos of Kampala from Wikimedia Commons (resized). Listing photos are replaced by admins and owners from their dashboards. */
 const PHOTO_CREDITS = [["Ariel view of Kampala Urban suburb, Uganda", "Chapelle musa", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Ariel_view_of_Kampala_Urban_suburb,_Uganda.jpg"], ["Apartment block in kololo Kampala", "Alvinategyeka", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Apartment_block_in_kololo_Kampala.jpg"], ["My neighnourhood Home and Habitat", "Muyindi", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:My_neighnourhood_Home_and_Habitat.jpg"], ["Students hostels in Katanga", "Faintsmoke", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Students_hostels_in_Katanga.JPG"], ["Makerere, Kikoni", "Timothy Akolamazima", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Makerere,_Kikoni.jpg"], ["Apartments Found In Kololo", "Matovu Trevor", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Apartments_Found_In_Kololo.jpg"], ["Shopping Arcade, Apartments, KAMPALA, Uganda", "Chapelle musa", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Shopping_Arcade,_Apartments,_KAMPALA,_Uganda.jpg"], ["A mansion in Uganda", "Okware timothy", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:A_mansion_in_Uganda.jpg"], ["Apartments in Kampala City, Uganda", "Chapelle musa", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Apartments_in_Kampala_City,_Uganda.jpg"], ["Uganda-Development", "Andrew Regan", "CC BY-SA 3.0", "https://commons.wikimedia.org/wiki/File:Uganda-Development.JPG"], ["Good Looking Homeland", "Matovu Trevor", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Good_Looking_Homeland.jpg"], ["Residence in Lower Naguru", "Micheal Kaluba", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Residence_in_Lower_Naguru.jpg"], ["Over the roofs of Kamokya, Kampala (4331540123)", "SuSanA Secretariat", "CC BY 2.0", "https://commons.wikimedia.org/wiki/File:Over_the_roofs_of_Kamokya,_Kampala_(4331540123).jpg"]];
 const logoMark = (cls = 'lm') => `<svg class="${cls}" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3.5 44 19.6V40a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V19.6z" fill="url(#rpg)"/><path d="M17.5 36.5V20.5h8a5.8 5.8 0 0 1 1.4 11.4l4.8 4.6" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -2811,7 +2823,9 @@ function landBind() {
   addEventListener('scroll', landScrollFn, { passive: true });
   update();
 }
-function showLanding() { const n = $('#landing'); n.innerHTML = landingHTML(); n.hidden = false; document.body.classList.add('landing'); scrollTo(0, 0); updateLandingLive(); landBind(); }
+function showLanding() { const n = $('#landing'); n.innerHTML = landingHTML(); n.hidden = false; document.body.classList.add('landing'); scrollTo(0, 0); updateLandingLive();
+  // the scroll effects measure the whole page; do that just after the first paint so the page shows straight away
+  requestAnimationFrame(() => setTimeout(landBind, 0)); }
 function hideLanding() { $('#landing').hidden = true; document.body.classList.remove('landing'); if (landScrollFn) removeEventListener('scroll', landScrollFn); scrollTo(0, 0); store.set('landed1', 1); }
 function landGo(k) {
   if (k === 'owner' && S.profile?.role === 'owner') { hideLanding(); S.role = 'owner'; S.tab = FIRST.owner; render(true); return; }
