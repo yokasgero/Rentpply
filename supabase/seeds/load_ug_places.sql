@@ -29,3 +29,15 @@ update public.places p set district_id = c.parent_id, county_id = p.parent_id, s
   from public.places c where p.level = 2 and c.id = p.parent_id;
 update public.places p set district_id = s.district_id, county_id = s.parent_id, subcounty_id = p.parent_id
   from public.places s where p.level = 3 and s.id = p.parent_id;
+
+-- Names of each place's district, county, sub-county and parish, so every row reads like the spreadsheet.
+update public.places p set
+  district  = case when p.level = 0 then p.name else d.name end,
+  county    = case when p.level = 1 then p.name else c.name end,
+  subcounty = case when p.level = 2 then p.name else s.name end,
+  parish    = case when p.level = 3 then p.name end
+from public.places x
+left join public.places d on d.id = x.district_id
+left join public.places c on c.id = x.county_id
+left join public.places s on s.id = x.subcounty_id
+where x.id = p.id;
