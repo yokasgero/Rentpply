@@ -2541,6 +2541,9 @@ function landCount(el, to) {
 }
 function updateLandingLive() {
   const root = $('#landing'); if (!root || !$('#fpPlaces', root)) return;
+  const sig = L.map(l => `${l.id}:${l.avail}:${(l.media || []).length}`).join() + '|' + (S.landType || '');
+  if (sig === updateLandingLive.sig) return; // nothing new to show
+  updateLandingLive.sig = sig;
   const s = landStats();
   $('#fpAnn').innerHTML = annHTML();
   root.querySelectorAll('[data-stat]').forEach(el => landCount(el, s[el.dataset.stat] || 0));
@@ -2685,7 +2688,10 @@ function landBind() {
   addEventListener('scroll', landScrollFn, { passive: true });
   update();
 }
-function showLanding() { const n = $('#landing'); n.innerHTML = landingHTML(); n.hidden = false; document.body.classList.remove('auth-page'); document.body.classList.add('landing'); document.documentElement.classList.add('landing-on'); scrollTo(0, 0); updateLandingLive();
+function showLanding() { const n = $('#landing');
+  // Built once; after that only the live numbers and place cards are refreshed (rebuilding re-measures the whole page).
+  if (!n.hidden && n.firstElementChild) { updateLandingLive(); return; }
+  n.innerHTML = landingHTML(); updateLandingLive.sig = null; n.hidden = false; document.body.classList.remove('auth-page'); document.body.classList.add('landing'); document.documentElement.classList.add('landing-on'); scrollTo(0, 0); updateLandingLive();
   // the scroll effects measure the whole page; do that just after the first paint so the page shows straight away
   requestAnimationFrame(() => setTimeout(landBind, 0)); }
 function hideLanding() { $('#landing').hidden = true; document.body.classList.remove('landing'); document.documentElement.classList.remove('landing-on'); if (landScrollFn) removeEventListener('scroll', landScrollFn); scrollTo(0, 0); store.set('landed1', 1); }
