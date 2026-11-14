@@ -1826,13 +1826,15 @@ function exploreBody(list) { return list.length ? `<div class="grid">${list.map(
 
 /* ---------- listing sheet: details → pay → receipt ---------- */
 /* One place for every pop-up: it slides in, swaps its content in place, and slides out. */
-function setLayer(html) {
+function setLayer(html, fromBack) {
   const host = $('#layer'); clearTimeout(setLayer.t);
   const open = host.querySelector('.veil:not(.out)');
   if (!html) {
     if (!open) { if (!host.querySelector('.veil.out')) host.innerHTML = ''; return; }
+    if (!fromBack) sheetClosed();
     open.classList.add('out'); setLayer.t = setTimeout(() => { host.innerHTML = ''; }, 270); return;
   }
+  if (!open) sheetOpened();
   const cur = open && open.querySelector('.sheet');
   if (cur) {
     const tmp = document.createElement('div'); tmp.innerHTML = html;
@@ -2883,7 +2885,7 @@ function landBind() {
   addEventListener('scroll', landScrollFn, { passive: true });
   update();
 }
-function showLanding() { const n = $('#landing'); n.innerHTML = landingHTML(); n.hidden = false; document.body.classList.add('landing'); document.documentElement.classList.add('landing-on'); scrollTo(0, 0); updateLandingLive();
+function showLanding() { const n = $('#landing'); n.innerHTML = landingHTML(); n.hidden = false; document.body.classList.remove('auth-page'); document.body.classList.add('landing'); document.documentElement.classList.add('landing-on'); scrollTo(0, 0); updateLandingLive();
   // the scroll effects measure the whole page; do that just after the first paint so the page shows straight away
   requestAnimationFrame(() => setTimeout(landBind, 0)); }
 function hideLanding() { $('#landing').hidden = true; document.body.classList.remove('landing'); document.documentElement.classList.remove('landing-on'); if (landScrollFn) removeEventListener('scroll', landScrollFn); scrollTo(0, 0); store.set('landed1', 1); }
@@ -3005,8 +3007,17 @@ async function refreshPortal() {
 async function syncLiveSession(session) {
   if (!session?.user) {
     S.user = null; S.profile = null; S.liveData = null; S.liveError = null; ME = 'Guest';
-    S.role = 'tenant'; S.tab = 'home';
+    S.role = 'tenant'; S.tab = 'home'; S.page = null;
+    // The first time (opening the app or a link) the address decides the screen; after signing out it is the start.
+    const route = NAV_ROUTE.ready ? { landing: true } : parseRoute();
+    if (!S.authPage) {
+      if (route.auth) S.authPage = { mode: route.auth === 'reset' ? 'signin' : route.auth, audience: route.audience };
+      else if (!route.landing) { S.pendingRoute = route; S.authPage = { mode: 'signin', audience: route.role === 'owner' ? 'owner' : 'housing' }; }
+      else if (isStandalone()) S.authPage = { mode: 'signin', audience: 'housing' }; // the installed app opens on sign-in, not the website's front page
+    }
+    NAV_ROUTE.ready = true; NAV_ROUTE.mode = 'replace';
     updateUserInfo();
+    if (S.authPage) hideLanding();
     render(true);
     if (!S.authPage) showLanding();
     return;
@@ -3033,14 +3044,18 @@ async function syncLiveSession(session) {
   S.role = profile.role;
   S.viewRole = isAdminRole(profile.role) ? (S.viewRole || 'admin') : profile.role;
   S.role = S.viewRole;
-  S.tab = S.authNext && ['tenant', 'student'].includes(profile.role) ? S.authNext : FIRST[S.role] || 'home';
-  S.authNext = null;
+  S.tab = FIRST[S.role] || 'home';
   hideLanding();
   await loadPublicListings();
   if (['tenant', 'student'].includes(profile.role)) {
     try { await loadTenantData(); }
     catch (loadError) { console.error('Tenant data load failed:', loadError); toast('Some account records could not be loaded.'); }
   }
+  // Open the screen the address names: a link someone followed, the screen they refreshed on, or where they were
+  // going before signing in. The session also re-syncs now and then (token refresh), and that keeps the current screen.
+  const want = S.pendingRoute || parseRoute(); S.pendingRoute = null;
+  if (!want.auth && !want.landing) applyRoute(want);
+  NAV_ROUTE.ready = true; NAV_ROUTE.mode = 'replace';
   updateUserInfo();
   if (['owner', 'admin', 'super'].includes(profile.role)) await refreshPortal();
   else render(true);
@@ -3221,6 +3236,7 @@ function render(top) {
   const authVisible = S.authPage && (!S.user || S.authPage.mode === 'reset');
   if (!S.user && !authVisible) {
     showLanding();
+    syncUrl();
     return;
   }
   const nav = NAV[S.role] || NAV.tenant, cur = nav.find(n => n[0] === S.tab) || nav[0];
@@ -3248,6 +3264,7 @@ function render(top) {
   document.querySelectorAll('[data-role]').forEach(b => b.setAttribute('aria-pressed', b.dataset.role === S.role));
   document.body.classList.toggle('gated', !!document.querySelector('#main .gateveil'));
   placeDockIndicator();
+  syncUrl();
   if (top) {
     const idx = pg ? 99 : nav.indexOf(cur), dir = S._navIdx === undefined || idx === S._navIdx ? 'up' : idx > S._navIdx ? 'fwd' : 'back';
     S._navIdx = idx;
@@ -3267,6 +3284,90 @@ function placeDockIndicator() {
   S._ind = to;
 }
 addEventListener('resize', () => { document.querySelectorAll('#dock .dk-ind').forEach(x => x.remove()); S._ind = null; placeDockIndicator(); }, { passive: true });
+
+/* ---------- addresses: every screen has its own URL ----------
+   /explore, /roommates, /stay, /place/12, /owner/units, /admin/onboard, /signin ...
+   Back and forward move between screens (and close an open popup first), a refresh stays on the same screen,
+   and a link to a place opens that place. */
+const TAB_PATH = {
+  tenant: { home: 'home', explore: 'explore', roommates: 'roommates', wallet: 'stay' },
+  owner: { overview: 'overview', units: 'units', payments: 'payments', terms: 'board', requests: 'requests' },
+  admin: { queue: 'onboard', units: 'units', prop: 'property', listings: 'listings', kpis: 'kpis' }
+};
+const AUTH_PATHS = ['signin', 'signup', 'forgot', 'reset'];
+const NAV_ROUTE = { ready: false, mode: 'replace', ignorePop: 0, sheet: false };
+function pathFor() {
+  if (S.authPage && (!S.user || S.authPage.mode === 'reset')) return '/' + (AUTH_PATHS.includes(S.authPage.mode) ? S.authPage.mode : 'signin') + (S.authPage.audience === 'owner' ? '?for=owner' : '');
+  if (!S.user) return '/';
+  const pg = ['tenant', 'student'].includes(S.role) && S.page;
+  if (pg) { const base = '/place/' + encodeURIComponent(pg.lid); return pg.name === 'listing' ? base : pg.name === 'status' ? `${base}/status/${encodeURIComponent(pg.pid)}` : `${base}/${pg.name}`; }
+  const r = S.role === 'student' ? 'tenant' : S.role, seg = (TAB_PATH[r] || {})[S.tab] || S.tab;
+  return r === 'tenant' ? '/' + seg : `/${r}/${seg}`;
+}
+function parseRoute(path = location.pathname, search = location.search) {
+  const seg = path.split('/').filter(Boolean).map(x => { try { return decodeURIComponent(x); } catch { return x; } });
+  const audience = new URLSearchParams(search).get('for') === 'owner' ? 'owner' : 'housing';
+  if (!seg.length) return { landing: true };
+  if (AUTH_PATHS.includes(seg[0])) return { auth: seg[0], audience };
+  if (seg[0] === 'place' && seg[1]) {
+    const lid = /^\d+$/.test(seg[1]) ? +seg[1] : seg[1];
+    return { role: 'tenant', page: seg[2] === 'status' && seg[3] ? { name: 'status', lid, pid: seg[3] } : ['agreement', 'payment'].includes(seg[2]) ? { name: seg[2], lid } : { name: 'listing', lid } };
+  }
+  const pick = (map, v) => (Object.entries(map).find(([, p]) => p === v) || [])[0];
+  if (seg[0] === 'owner' || seg[0] === 'admin') return { role: seg[0], tab: pick(TAB_PATH[seg[0]], seg[1]) || FIRST[seg[0]] };
+  const tab = pick(TAB_PATH.tenant, seg[0]);
+  return tab ? { role: 'tenant', tab } : { landing: true };
+}
+/* Put a signed-in person on the screen a route names, if their account may see it; otherwise on their first screen. */
+function applyRoute(route) {
+  const real = S.profile.role, admin = isAdminRole(real);
+  const may = !route.role ? false : admin ? true : route.role === 'tenant' ? ['tenant', 'student'].includes(real) : route.role === real;
+  if (!may) { S.page = null; S.role = admin ? (S.viewRole || 'admin') : real; S.tab = FIRST[S.role] || 'home'; return false; }
+  S.role = route.role === 'tenant' ? (real === 'student' ? 'student' : 'tenant') : route.role;
+  if (admin) S.viewRole = S.role;
+  S.tab = route.tab || (route.page ? 'explore' : FIRST[S.role] || 'home');
+  S.page = null;
+  const pg = route.page;
+  if (pg && byId(pg.lid)) {
+    if (pg.name === 'status') { if (S.payments.some(x => x.id === pg.pid)) S.page = pg; else S.tab = 'wallet'; }
+    else if (pg.name === 'listing' || (BK && BK.lid === pg.lid)) { if (!BK || BK.lid !== pg.lid) initBK(pg.lid); S.page = pg; }
+    else { initBK(pg.lid); S.page = { name: 'listing', lid: pg.lid }; } // a booking draft lives only in this visit, so a fresh visit starts at the place
+  } else if (pg) S.tab = 'explore';
+  return true;
+}
+/* Called at the end of every render: keep the address bar and the browser history in step with the screen. */
+function syncUrl() {
+  if (!NAV_ROUTE.ready) return;
+  const want = pathFor(), have = location.pathname + location.search, mode = NAV_ROUTE.mode;
+  NAV_ROUTE.mode = 'push';
+  const label = (S.user ? ((NAV[S.role] || []).find(n => n[0] === S.tab) || [])[1] : null);
+  document.title = S.page ? (byId(S.page.lid)?.name || 'Rentpply') + ' · Rentpply' : label ? label + ' · Rentpply' : 'Rentpply';
+  if (want === have || mode === 'none') return;
+  if (NAV_ROUTE.sheet) { NAV_ROUTE.sheet = false; history.replaceState({ rp: 1 }, '', want); return; } // a popup was open: its history step becomes the new screen
+  if (mode === 'replace') { history.replaceState({ rp: 1 }, '', want); return; }
+  try { history.replaceState({ ...(history.state || {}), y: scrollY }, ''); } catch {}
+  history.pushState({ rp: 1 }, '', want);
+}
+/* A popup takes one step in the history, so the phone's Back button closes it instead of leaving the screen. */
+function sheetOpened() { if (NAV_ROUTE.ready && !NAV_ROUTE.sheet) { NAV_ROUTE.sheet = true; history.pushState({ rp: 1, sheet: 1 }, '', location.href); } }
+function sheetClosed() {
+  // Wait a moment: if the tap that closed the popup also opened another screen, that screen takes over the popup's history step.
+  setTimeout(() => { if (NAV_ROUTE.sheet) { NAV_ROUTE.sheet = false; NAV_ROUTE.ignorePop++; history.back(); } }, 0);
+}
+addEventListener('popstate', () => {
+  if (NAV_ROUTE.ignorePop) { NAV_ROUTE.ignorePop--; return; }
+  if (NAV_ROUTE.sheet || $('#layer .veil:not(.out)')) { NAV_ROUTE.sheet = false; setLayer('', true); if (location.pathname + location.search === pathFor()) return; }
+  const route = parseRoute(), y = (history.state && history.state.y) || 0;
+  if (route.landing && !S.user && !S.authPage && !$('#landing').hidden) return; // a jump to a section of the front page, not a new screen
+  NAV_ROUTE.mode = 'none';
+  if (!S.user) {
+    if (route.auth) { S.authPage = { mode: route.auth === 'reset' ? 'signin' : route.auth, audience: route.audience }; hideLanding(); render(true); }
+    else if (route.landing && !isStandalone()) { S.authPage = null; S.authNotice = ''; showLanding(); render(true); }
+    else { S.authPage = { mode: 'signin', audience: route.role === 'owner' ? 'owner' : 'housing' }; S.pendingRoute = route.landing ? null : route; hideLanding(); render(true); }
+  } else if (route.auth || route.landing) { NAV_ROUTE.mode = 'replace'; render(true); } // signed in: there is nothing to go back to before the app
+  else { applyRoute(route); render(true); }
+  if (y) requestAnimationFrame(() => scrollTo(0, y));
+});
 
 function go(spec) {
   let [t, arg] = spec.split(':');
