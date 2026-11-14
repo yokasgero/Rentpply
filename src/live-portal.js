@@ -2,9 +2,10 @@ import { supabase } from './lib/supabase.js';
 
 /* ---------- small helpers ---------- */
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const money = value => 'UGX ' + Math.round(Number(value) || 0).toLocaleString('en-US');
+const NUM = new Intl.NumberFormat('en-US'), DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }), MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+const money = value => 'UGX ' + NUM.format(Math.round(Number(value) || 0));
 const mil = value => { const v = (Number(value) || 0) / 1e6; return v >= 10 ? Math.round(v) + 'm' : v.toFixed(1) + 'm'; };
-const date = value => value ? new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not set';
+const date = value => value && !isNaN(new Date(value)) ? DAY.format(new Date(value)) : value ? 'Invalid Date' : 'Not set';
 const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const TYPE = { hostel: 'Hostel', rental: 'Rental', airbnb: 'Airbnb' };
 const STAT = [['occupied', 'Occupied'], ['reserved', 'Reserved'], ['vacant', 'Vacant'], ['maint', 'Maintenance']];
@@ -267,7 +268,7 @@ function paymentsTable(data, lid, withActions, list) {
 }
 /* Monthly reports: this month first; earlier months fold away below, each with its own print button. */
 const monthKey = d => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`; };
-const monthName = k => { const [y, m] = k.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }); };
+const monthName = k => { const [y, m] = k.split('-').map(Number); return MONTH.format(new Date(y, m - 1, 1)); };
 function monthStats(list) {
   const ok = list.filter(p => p.status === 'confirmed');
   return { n: list.length, confirmed: ok.length, total: sum(ok.map(payTotal)), pending: list.filter(p => p.status === 'pending').length, rejected: list.filter(p => p.status === 'rejected').length };

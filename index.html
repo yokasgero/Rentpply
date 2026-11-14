@@ -938,7 +938,7 @@ body.auth-page #main{max-width:none;padding:0}
 .gateveil{position:fixed;inset:0;z-index:80;background:rgba(20,6,8,.55);display:grid;place-items:end center;animation:rpFade .25s ease both}
 .gatebox{width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:26px 26px 0 0;background:var(--bg)}.gatebox .in{display:flex;flex-direction:column;gap:14px;padding:22px 20px 26px}
 @media (min-width:720px){.gateveil{place-items:center}.gatebox{border-radius:26px}}
-body:has(.gateveil) .dock{display:none}
+body.gated .dock{display:none}
 .fpager{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}.fpager::-webkit-scrollbar{display:none}.fpage{flex:0 0 100%;scroll-snap-align:start;min-width:0}
 .fchips{display:flex;gap:8px;align-items:center;overflow-x:auto;padding-bottom:2px}.fchip{font:inherit;font-weight:700;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:8px 16px;cursor:pointer;white-space:nowrap}.fchip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}.fhint{font-size:12.5px;white-space:nowrap;margin-left:auto}
 .unit.empty{border:1.5px dashed var(--line);background:transparent;color:var(--muted);display:grid;place-items:center;min-height:70px;cursor:default}.unit.empty small{font-size:11px;opacity:.7}
@@ -1266,7 +1266,7 @@ html.theming *,html.theming *::before,html.theming *::after{transition:backgroun
 #landing{position:relative!important;inset:auto!important;overflow:visible!important;z-index:1!important;min-height:100vh;min-height:100svh}
 body.landing{overflow:visible!important;background:#fbf8f7}
 body.landing>header.top,body.landing>#main,body.landing>.dock,body.landing::before{display:none!important}
-html:has(body.landing){scroll-behavior:smooth}
+html.landing-on{scroll-behavior:smooth}
 
 /* ===== listing viewer: photos, map, street view ===== */
 .lview{position:relative;border-radius:22px;overflow:hidden;aspect-ratio:16/9;background:var(--surface-2);box-shadow:0 10px 30px rgba(60,12,20,.12)}
@@ -1542,6 +1542,12 @@ html{background:var(--bg)}
   .fp-nav{background:rgba(255,255,255,.97)!important}
 }
 .fp-last,.fp-foot{content-visibility:auto;contain-intrinsic-size:auto 600px}
+/* Smoothness: a page slides in as one piece, not card by card */
+#main.enter .grid>*,#main.enter .stack>.card,#main.enter .tgrid>*{animation:none}
+#main.enter>*{will-change:transform,opacity}
+.fp-sky{inset:0 0 auto 0;height:250%;background-size:100% 100%;background-position:0 0;translate:0 calc(var(--p,0) * -60%)}
+.fp-stage{overflow:hidden}
+.fp-sky,.fp-jphoto,.fp-clouds,.fp-hills,.fp-bgphoto,.fp-chip,.fp-live{will-change:translate}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -1559,10 +1565,11 @@ import { currentPropertyName, handlePortalChange, handlePortalClick, handlePorta
 const isAdminRole = r => r === 'admin' || r === 'super'; // the super user can do everything an admin can
 /* ---------- helpers ---------- */
 const $ = (s, r = document) => r.querySelector(s);
-const fmt = n => 'UGX ' + Math.round(n).toLocaleString('en-US');
+const NUM = new Intl.NumberFormat('en-US'), FMT_DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }), FMT_DAYTIME = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const fmt = n => 'UGX ' + NUM.format(Math.round(n));
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const DAY = 864e5;
-const fdate = d => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const fdate = d => { const x = new Date(d); return isNaN(x) ? 'Invalid Date' : FMT_DAY.format(x); };
 const iso = d => new Date(d).toISOString().slice(0, 10);
 const IC = {
   globe: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z',
@@ -1623,7 +1630,7 @@ const store = {
 };
 const NOW = Date.now();
 const hash = str => { let h = 7; for (const c of str) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h };
-const fdt = d => new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const fdt = d => { const x = new Date(d); return isNaN(x) ? 'Invalid Date' : FMT_DAYTIME.format(x); };
 const S = {
   role: 'tenant', tab: 'home',
   user: null, profile: null,
@@ -2730,7 +2737,7 @@ function landCount(el, to) {
   const from = Number(el.dataset.shown || 0); el.dataset.to = to;
   if (matchMedia('(prefers-reduced-motion:reduce)').matches || from === to) { el.textContent = to.toLocaleString('en-US'); el.dataset.shown = to; return; }
   const t0 = performance.now(), dur = 1100;
-  const tick = now => { const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3), v = Math.round(from + (to - from) * e); el.textContent = v.toLocaleString('en-US'); el.dataset.shown = v; if (k < 1) requestAnimationFrame(tick); };
+  const tick = now => { const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3), v = Math.round(from + (to - from) * e); el.textContent = NUM.format(v); el.dataset.shown = v; if (k < 1) requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
 }
 function updateLandingLive() {
@@ -2826,20 +2833,34 @@ function landBind() {
   const road = $('#fpRoad', root), fill = $('#fpRoadFill', root), car = $('#fpCar', root), stage = $('#fpStage', root), jny = $('#how-it-works', root), prog = $('#fpProg', root), jbar = $('#fpJbar', root);
   const nodes = [...root.querySelectorAll('.fp-node')], cards = [...root.querySelectorAll('.fp-jc')];
   const len = road ? road.getTotalLength() : 0;
-  if (road) { fill.style.strokeDasharray = len; nodes.forEach((n, i) => { const pt = road.getPointAtLength(len * i / (nodes.length - 1)); n.setAttribute('transform', `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`); }); }
-  let raf = 0;
+  // The road is measured once into 241 points; scrolling then only looks a point up.
+  const PTS = road ? Array.from({ length: 241 }, (_, i) => road.getPointAtLength(len * i / 240)) : [];
+  const at = p => { const f = p * 240, i = Math.min(239, Math.floor(f)), a = PTS[i], b = PTS[i + 1], t = f - i; return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }; };
+  if (road) { fill.style.strokeDasharray = len; nodes.forEach((n, i) => { const pt = at(i / (nodes.length - 1)); n.setAttribute('transform', `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`); }); }
+  // Scroll values go on the few pieces that move, not on the page: a value set on the page makes the browser restyle every element in it.
+  const heroMovers = [...root.querySelectorAll('.fp-bgphoto,.fp-chip.c1,.fp-chip.c2,.fp-live')], jMovers = [...root.querySelectorAll('.fp-sky,.fp-jphoto,.fp-clouds,.fp-hills')];
+  // Sizes are read once (and again when the page changes size), never inside the scroll handler.
+  let geo = null;
+  const measure = () => { geo = { vh: innerHeight, max: Math.max(1, document.documentElement.scrollHeight - innerHeight), top: jny ? jny.offsetTop : 0, span: jny ? Math.max(1, jny.offsetHeight - innerHeight) : 1 }; };
+  let raf = 0, lastP = -1, lastIdx = -1, lastDone = -1;
   const update = () => {
-    raf = 0; const st = scrollY, vh = innerHeight, max = Math.max(1, document.documentElement.scrollHeight - vh);
-    root.style.setProperty('--sy', st.toFixed(0)); if (prog) prog.style.transform = `scaleX(${(st / max).toFixed(4)})`;
+    raf = 0; if (!geo) measure(); const st = scrollY, { vh, max } = geo;
+    if (prog) prog.style.transform = `scaleX(${(st / max).toFixed(4)})`;
+    if (st < vh * 1.3) { const v = st.toFixed(0); heroMovers.forEach(e => e.style.setProperty('--sy', v)); }
     if (!road || !jny) return;
-    const span = Math.max(1, jny.offsetHeight - vh), p = reduce ? 1 : Math.max(0, Math.min(1, (st - jny.offsetTop) / span));
-    stage.style.setProperty('--p', p.toFixed(4)); fill.style.strokeDashoffset = (len * (1 - p)).toFixed(1);
-    const pt = road.getPointAtLength(len * p); car.setAttribute('transform', `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`);
-    if (jbar) jbar.style.transform = `scaleX(${p.toFixed(4)})`;
+    const p = reduce ? 1 : Math.max(0, Math.min(1, (st - geo.top) / geo.span));
+    if (Math.abs(p - lastP) < .0005) return; lastP = p;
+    const ps = p.toFixed(4); jMovers.forEach(e => e.style.setProperty('--p', ps));
+    fill.style.strokeDashoffset = (len * (1 - p)).toFixed(1);
+    const pt = at(p); car.setAttribute('transform', `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`);
+    if (jbar) jbar.style.transform = `scaleX(${ps})`;
     const idx = Math.min(cards.length - 1, Math.floor(p * cards.length * .999));
-    cards.forEach((c, i) => c.classList.toggle('on', reduce || i === idx));
-    nodes.forEach((n, i) => n.classList.toggle('done', p >= i / (nodes.length - 1) - .001));
+    if (idx !== lastIdx) { lastIdx = idx; cards.forEach((c, i) => c.classList.toggle('on', reduce || i === idx)); }
+    const done = nodes.filter((n, i) => p >= i / (nodes.length - 1) - .001).length;
+    if (done !== lastDone) { lastDone = done; nodes.forEach((n, i) => n.classList.toggle('done', i < done)); }
   };
+  if (landBind.ro) landBind.ro.disconnect();
+  if ('ResizeObserver' in window) (landBind.ro = new ResizeObserver(() => { geo = null; lastP = -1; })).observe(root);
   const rail = $('#fpPlaces', root);
   if (rail) {
     let resume = 0; // a finger on the strip holds it still; it carries on shortly after
@@ -2862,10 +2883,10 @@ function landBind() {
   addEventListener('scroll', landScrollFn, { passive: true });
   update();
 }
-function showLanding() { const n = $('#landing'); n.innerHTML = landingHTML(); n.hidden = false; document.body.classList.add('landing'); scrollTo(0, 0); updateLandingLive();
+function showLanding() { const n = $('#landing'); n.innerHTML = landingHTML(); n.hidden = false; document.body.classList.add('landing'); document.documentElement.classList.add('landing-on'); scrollTo(0, 0); updateLandingLive();
   // the scroll effects measure the whole page; do that just after the first paint so the page shows straight away
   requestAnimationFrame(() => setTimeout(landBind, 0)); }
-function hideLanding() { $('#landing').hidden = true; document.body.classList.remove('landing'); if (landScrollFn) removeEventListener('scroll', landScrollFn); scrollTo(0, 0); store.set('landed1', 1); }
+function hideLanding() { $('#landing').hidden = true; document.body.classList.remove('landing'); document.documentElement.classList.remove('landing-on'); if (landScrollFn) removeEventListener('scroll', landScrollFn); scrollTo(0, 0); store.set('landed1', 1); }
 function landGo(k) {
   if (k === 'owner' && S.profile?.role === 'owner') { hideLanding(); S.role = 'owner'; S.tab = FIRST.owner; render(true); return; }
   if (k === 'owner' && isAdminRole(S.profile?.role)) { hideLanding(); S.role = 'owner'; S.viewRole = 'owner'; S.tab = FIRST.owner; render(true); return; }
@@ -3181,10 +3202,17 @@ const flowKey = el => el.className + '|' + el.textContent.replace(/\s+/g, ' ').t
 function flowSnapshot(root) { return new Set([...root.querySelectorAll(FLOW)].map(flowKey)); }
 function flowIn(root, before, cap = 14) {
   if (matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  // Read everything first, then change classes, so the browser lays the page out once instead of once per card.
+  const vh = innerHeight + 40, pick = [...root.querySelectorAll(FLOW)].filter(el => !(before && before.has(flowKey(el))));
+  const onScreen = before ? null : pick.map(el => el.getBoundingClientRect().top < vh);
+  const chosen = new Set();
+  pick.forEach((el, i) => {
+    if ((onScreen && !onScreen[i]) || chosen.size > cap + 6) return;
+    for (let a = el.parentElement; a && a !== root; a = a.parentElement) if (chosen.has(a) || a.classList.contains('flowin')) return;
+    chosen.add(el);
+  });
   let n = 0;
-  root.querySelectorAll(FLOW).forEach(el => {
-    if ((before && before.has(flowKey(el))) || el.parentElement.closest('.flowin')) return;
-    if (!before) { const r = el.getBoundingClientRect(); if (r.top > innerHeight + 40) return; } // a new page: animate what is on screen
+  chosen.forEach(el => {
     el.classList.add('flowin'); el.style.setProperty('--fi', Math.min(n++, cap));
     el.addEventListener('animationend', () => { el.classList.remove('flowin'); el.style.removeProperty('--fi'); }, { once: true });
   });
@@ -3207,7 +3235,7 @@ function render(top) {
   // The sign-in form is never redrawn while it is open, so what someone has typed is kept when data loads in the background.
   const shownForm = $('#main form[data-auth-form]'), want = S.authPage || { mode: 'signin', audience: 'housing' };
   const keepAuth = authVisible && shownForm && shownForm.dataset.authForm === want.mode && shownForm.dataset.authAudience === want.audience && !S.authNotice;
-  try { if (!keepAuth) { $('#main').innerHTML = draw(); i18nTree($('#main')); flowIn($('#main'), flowBefore); } } catch (err) {
+  try { if (!keepAuth) { $('#main').innerHTML = draw(); i18nTree($('#main')); if (!top) flowIn($('#main'), flowBefore); } } catch (err) {
     console.error(err);
     $('#main').innerHTML = '<section class="sec"><div class="card stack"><b>This page hit a problem</b><p class="muted">Please reload and try again.</p><button class="btn" style="background:#FF5A36;color:#fff;border:0" onclick="location.reload()">Reload</button></div></section>';
   }
@@ -3218,6 +3246,7 @@ function render(top) {
   updateUserInfo();
   if (liveOwnerAdmin && S.liveData) portalBind();
   document.querySelectorAll('[data-role]').forEach(b => b.setAttribute('aria-pressed', b.dataset.role === S.role));
+  document.body.classList.toggle('gated', !!document.querySelector('#main .gateveil'));
   placeDockIndicator();
   if (top) {
     const idx = pg ? 99 : nav.indexOf(cur), dir = S._navIdx === undefined || idx === S._navIdx ? 'up' : idx > S._navIdx ? 'fwd' : 'back';
