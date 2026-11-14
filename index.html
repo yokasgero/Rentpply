@@ -1510,6 +1510,18 @@ html{background:var(--bg)}
 .nearbar>span{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .nearbar svg{width:16px;height:16px;color:var(--accent)}
 .sbox .xbtn{right:42px!important}
+
+/* ===== language ===== */
+.fp-langbtn{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;border:1px solid var(--fline);background:#fff;color:var(--fm);cursor:pointer;flex:none}
+.fp-langbtn svg{width:19px;height:19px}
+.fp-footbtns{display:inline-flex;gap:16px;align-items:center}
+.fp-creditlink{display:inline-flex;align-items:center;gap:6px}
+.fp-creditlink svg{width:15px;height:15px}
+.langs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.langopt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-align:left;cursor:pointer}
+.langopt small{color:var(--muted);font-size:12px}
+.langopt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.acct-val{font-weight:700;color:var(--muted);font-size:14px}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -1532,6 +1544,7 @@ const DAY = 864e5;
 const fdate = d => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const iso = d => new Date(d).toISOString().slice(0, 10);
 const IC = {
+  globe: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z',
   walk: 'M13 4.5a1.5 1.5 0 1 0 0-.01M9 21l3-7 2.5 2.5V21M8 12l2-4.5 3 1 2 3.5 3 1M10 7.5 7 9.5V13',
   plus: 'M12 5v14M5 12h14', doc: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h6', chevL: 'M15 18l-6-6 6-6', chevR: 'M9 18l6-6-6-6', image: 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15.5 9.5h.01',
   home: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
@@ -1784,6 +1797,289 @@ function sheet(inner, title) {
   setLayer(`<div class="veil" data-veil><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="bar"><span class="eyebrow">${esc(title)}</span><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div><div class="in">${inner}</div></div></div>`);
 }
 const closeSheet = () => setLayer('');
+/* ---------- languages ----------
+   English is the default. The interface text is translated from this dictionary wherever it appears, including
+   screens drawn later; names, places, amounts and what people type are left as they are.
+   Columns: Kiswahili, Luganda, Français, Kinyarwanda. */
+const LANGS = [['en', 'English'], ['sw', 'Kiswahili'], ['lg', 'Luganda'], ['fr', 'Français'], ['rw', 'Kinyarwanda']];
+const LCOL = { sw: 0, lg: 1, fr: 2, rw: 3 };
+const T = {
+  'Sign in': ['Ingia', 'Yingira', 'Se connecter', 'Injira'],
+  'Sign up': ['Jisajili', 'Weewandiise', "S'inscrire", 'Iyandikishe'],
+  'Sign out': ['Toka', 'Fuluma', 'Se déconnecter', 'Sohoka'],
+  'Log out': ['Toka', 'Fuluma', 'Se déconnecter', 'Sohoka'],
+  'Create an account': ['Fungua akaunti', 'Kola akawunti', 'Créer un compte', 'Fungura konti'],
+  'Create account': ['Fungua akaunti', 'Kola akawunti', 'Créer le compte', 'Fungura konti'],
+  'Create your account': ['Fungua akaunti yako', 'Kola akawunti yo', 'Créez votre compte', 'Fungura konti yawe'],
+  'Welcome back': ['Karibu tena', 'Tukwanirizza nate', 'Bon retour', 'Murakaza neza nanone'],
+  'Email': ['Barua pepe', 'Email', 'E-mail', 'Imeyili'],
+  'Password': ['Nenosiri', "Ekigambo ky'ekyama", 'Mot de passe', "Ijambo ry'ibanga"],
+  'Forgot password?': ['Umesahau nenosiri?', "Weerabidde ekigambo ky'ekyama?", 'Mot de passe oublié ?', "Wibagiwe ijambo ry'ibanga?"],
+  'New to Rentpply?': ['Mgeni kwenye Rentpply?', 'Oli mupya ku Rentpply?', 'Nouveau sur Rentpply ?', 'Uri mushya kuri Rentpply?'],
+  'Already registered?': ['Tayari umesajiliwa?', 'Wewandiisa dda?', 'Déjà inscrit ?', 'Usanzwe wiyandikishije?'],
+  '← Back': ['← Rudi', '← Ddayo', '← Retour', '← Subira inyuma'],
+  'Full name': ['Jina kamili', 'Erinnya lyo lyonna', 'Nom complet', 'Amazina yombi'],
+  'Account type': ['Aina ya akaunti', "Ekika ky'akawunti", 'Type de compte', 'Ubwoko bwa konti'],
+  'Tenant': ['Mpangaji', 'Mupangisa', 'Locataire', 'Ukodesha'],
+  'Student': ['Mwanafunzi', 'Muyizi', 'Étudiant', 'Umunyeshuri'],
+  'Property owner': ['Mmiliki wa mali', 'Nnannyini kizimbe', 'Propriétaire', "Nyir'inyubako"],
+  'Owner': ['Mmiliki', 'Nnannyini', 'Propriétaire', 'Nyirayo'],
+  'Administrator': ['Msimamizi', 'Omukulembeze', 'Administrateur', 'Umuyobozi'],
+  'Super user': ['Msimamizi mkuu', 'Omukulembeze omukulu', 'Super administrateur', 'Umuyobozi mukuru'],
+  'Why Rentpply': ['Kwa nini Rentpply', 'Lwaki Rentpply', 'Pourquoi Rentpply', 'Kuki Rentpply'],
+  'How it works': ['Jinsi inavyofanya kazi', 'Bwe ekola', 'Comment ça marche', 'Uko bikora'],
+  'Places': ['Makazi', 'Ebifo', 'Logements', 'Aho kuba'],
+  'For owners': ['Kwa wamiliki', 'Eri bannannyini', 'Propriétaires', "Ku ba nyir'inyubako"],
+  'FAQ': ['Maswali', 'Ebibuuzo', 'FAQ', 'Ibibazo'],
+  'Find a place': ['Tafuta mahali', "Noonya w'osula", 'Trouver un logement', 'Shaka aho kuba'],
+  "I'm a property owner": ['Mimi ni mmiliki wa mali', 'Nze nnannyini kizimbe', 'Je suis propriétaire', "Ndi nyir'inyubako"],
+  'Hostels, rentals and stays in Uganda': ['Hosteli, nyumba za kupanga na malazi Uganda', "Hostela, amayumba ag'okupangisa n'ebifo eby'okusula mu Uganda", 'Foyers, locations et séjours en Ouganda', "Amacumbi, inzu zikodeshwa n'aho kurara muri Uganda"],
+  'Hostels, rentals and short stays in one place': ['Hosteli, nyumba za kupanga na malazi mafupi mahali pamoja', "Hostela, amayumba n'ebifo eby'okusula akaseera mu kifo kimu", 'Foyers, locations et courts séjours au même endroit', "Amacumbi, inzu zikodeshwa n'aho kurara igihe gito ahantu hamwe"],
+  'Read the agreement before you pay': ['Soma makubaliano kabla ya kulipa', 'Soma endagaano nga tonnasasula', 'Lisez le contrat avant de payer', 'Soma amasezerano mbere yo kwishyura'],
+  'Owners confirm every payment': ['Wamiliki huthibitisha kila malipo', 'Bannannyini bakakasa buli nsasula', 'Les propriétaires confirment chaque paiement', 'Ba nyirayo bemeza buri kwishyura'],
+  'Find a roommate who fits': ['Pata mwenzako wa chumba anayefaa', 'Funa munno w’ekisenge akugwanira', 'Trouvez un colocataire qui vous convient', 'Bona uwo mubana ukubereye'],
+  'Property owners: run your rooms from one workspace': ['Wamiliki: simamieni vyumba vyenu mahali pamoja', 'Bannannyini: muddukanye ebisenge byammwe mu kifo kimu', 'Propriétaires : gérez vos chambres depuis un seul espace', "Ba nyir'inyubako: mucunge ibyumba byanyu ahantu hamwe"],
+  'Verified owners only': ['Wamiliki waliothibitishwa pekee', 'Bannannyini abakakasiddwa bokka', 'Propriétaires vérifiés uniquement', 'Ba nyirayo bemejwe gusa'],
+  'Rent records in one place': ['Kumbukumbu za kodi mahali pamoja', "Ebiwandiiko by'obupangisa mu kifo kimu", 'Vos loyers au même endroit', "Inyandiko z'ubukode ahantu hamwe"],
+  'Live now': ['Sasa hivi', 'Kati kati', 'En direct', 'Ubu'],
+  'Verified places': ['Makazi yaliyothibitishwa', 'Ebifo ebikakasiddwa', 'Logements vérifiés', 'Aho kuba hemejwe'],
+  'Rooms available now': ['Vyumba vinavyopatikana sasa', 'Ebisenge ebiriwo kati', 'Chambres disponibles', 'Ibyumba biboneka ubu'],
+  'Areas covered': ['Maeneo yanayohudumiwa', 'Ebitundu ebituukiddwako', 'Quartiers couverts', 'Uduce tugerwaho'],
+  'Move in with peace of mind': ['Hamia kwa amani', 'Senguka ng’oli mu ddembe', "Emménagez l'esprit tranquille", 'Imuka ufite amahoro'],
+  'Verified listings only': ['Matangazo yaliyothibitishwa pekee', 'Ebirango ebikakasiddwa byokka', 'Annonces vérifiées uniquement', 'Amatangazo yemejwe gusa'],
+  'Agreement before payment': ['Makubaliano kabla ya malipo', 'Endagaano nga tonnasasula', 'Contrat avant paiement', 'Amasezerano mbere yo kwishyura'],
+  'Owner confirms receipt': ['Mmiliki anathibitisha kupokea', 'Nnannyini akakasa nti afunye', 'Le propriétaire confirme la réception', 'Nyirayo yemeza ko yakiriye'],
+  'Roommate matching': ['Kupata mwenzako wa chumba', "Okufuna munno w'ekisenge", 'Trouver un colocataire', 'Kubona uwo mubana'],
+  'Browse places': ['Angalia makazi', 'Laba ebifo', 'Parcourir les logements', 'Reba aho kuba'],
+  'Places open for booking': ['Makazi yaliyo wazi kuhifadhiwa', 'Ebifo ebiggule okupangisa', 'Logements ouverts à la réservation', 'Aho kuba hafunguye'],
+  'Live from verified owners': ['Moja kwa moja kutoka kwa wamiliki waliothibitishwa', 'Butereevu okuva ku bannannyini abakakasiddwa', 'En direct de propriétaires vérifiés', 'Bivuye ku ba nyirayo bemejwe'],
+  'The journey': ['Safari', 'Olugendo', 'Le parcours', 'Urugendo'],
+  'From search to move-in': ['Kutoka kutafuta hadi kuhamia', 'Okuva ku kunoonya okutuuka ku kusenguka', "De la recherche à l'emménagement", 'Kuva ku gushakisha kugeza ku kwimuka'],
+  'Keep scrolling to travel the road.': ['Endelea kusogeza kusafiri njia.', 'Weeyongere okuseeyeeza otambule ekkubo.', 'Continuez à défiler pour suivre la route.', 'Komeza umanure ukurikire inzira.'],
+  'Search': ['Tafuta', 'Noonya', 'Rechercher', 'Shakisha'],
+  'Pick your area': ['Chagua eneo lako', 'Londa ekitundu kyo', 'Choisissez votre quartier', 'Hitamo agace kawe'],
+  'Compare': ['Linganisha', 'Geraageranya', 'Comparer', 'Gereranya'],
+  'Look closer': ['Angalia kwa karibu', 'Tunuulira bulungi', 'Regardez de plus près', 'Reba neza'],
+  'Agree': ['Kubali', 'Kkiriza', 'Accepter', 'Emera'],
+  'Read, accept, pay': ['Soma, kubali, lipa', 'Soma, kkiriza, sasula', 'Lisez, acceptez, payez', 'Soma, wemere, wishyure'],
+  'Move in': ['Hamia', 'Senguka', 'Emménager', 'Imuka'],
+  'Settle in': ['Tulia', 'Teeka', 'Installez-vous', 'Tura neza'],
+  'Choose your place': ['Chagua makazi yako', "Londa w'onoosula", 'Choisissez votre logement', 'Hitamo aho uzaba'],
+  'All': ['Yote', 'Byonna', 'Tous', 'Byose'],
+  'Hostels': ['Hosteli', 'Hostela', 'Foyers', 'Amacumbi'],
+  'Rentals': ['Nyumba za kupanga', "Amayumba ag'okupangisa", 'Locations', 'Inzu zikodeshwa'],
+  'Short stays': ['Malazi mafupi', 'Okusula akaseera', 'Courts séjours', 'Igihe gito'],
+  'Hostel': ['Hosteli', 'Hostela', 'Foyer', 'Icumbi'],
+  'Rental': ['Nyumba ya kupanga', "Ennyumba ey'okupangisa", 'Location', 'Inzu ikodeshwa'],
+  'Short stay': ['Malazi mafupi', 'Okusula akaseera', 'Court séjour', 'Igihe gito'],
+  'View': ['Tazama', 'Laba', 'Voir', 'Reba'],
+  'See all places': ['Tazama makazi yote', 'Laba ebifo byonna', 'Voir tous les logements', 'Reba aho kuba hose'],
+  'For property owners': ['Kwa wamiliki wa mali', 'Eri bannannyini bizimbe', 'Pour les propriétaires', "Ku ba nyir'inyubako"],
+  'Run your property from one workspace.': ['Simamia mali yako mahali pamoja.', 'Ddukanya ekizimbe kyo mu kifo kimu.', 'Gérez votre bien depuis un seul espace.', 'Cunga inyubako yawe ahantu hamwe.'],
+  'Open the owner workspace': ['Fungua eneo la mmiliki', 'Ggulawo ekifo kya nnannyini', "Ouvrir l'espace propriétaire", 'Fungura aho nyirayo akorera'],
+  'Good to know': ['Ni vizuri kujua', 'Kirungi okumanya', 'Bon à savoir', 'Ni byiza kumenya'],
+  'How does payment work?': ['Malipo yanafanyaje kazi?', 'Okusasula kukola kutya?', 'Comment fonctionne le paiement ?', 'Kwishyura bikora gute?'],
+  'Are the places verified?': ['Je, makazi yamethibitishwa?', 'Ebifo bikakasiddwa?', 'Les logements sont-ils vérifiés ?', 'Aho kuba haremejwe?'],
+  'Are my ID documents safe?': ['Je, nyaraka zangu za utambulisho ziko salama?', "Ebiwandiiko byange eby'endagamuntu biri bulungi?", "Mes pièces d'identité sont-elles en sécurité ?", 'Ibyangombwa byanjye birinzwe?'],
+  'Can I find a roommate?': ['Naweza kupata mwenzangu wa chumba?', "Nsobola okufuna munnange w'ekisenge?", 'Puis-je trouver un colocataire ?', 'Nshobora kubona uwo tubana?'],
+  'Can I pass my room on?': ['Naweza kumpa mtu mwingine chumba changu?', 'Nsobola okuwa omulala ekisenge kyange?', 'Puis-je céder ma chambre ?', 'Nshobora guha undi icyumba cyanjye?'],
+  'Your next place is waiting.': ['Makazi yako yajayo yanakusubiri.', 'Ekifo kyo ekiddako kikulindiridde.', 'Votre prochain logement vous attend.', 'Aho uzaba hagutegereje.'],
+  'Places to stay in Uganda, made simple.': ['Makazi Uganda, kwa urahisi.', "Ebifo eby'okusulamu mu Uganda, mu ngeri ennyangu.", 'Se loger en Ouganda, en toute simplicité.', 'Aho kuba muri Uganda, mu buryo bworoshye.'],
+  'Credits': ['Shukrani', 'Abaayamba', 'Crédits', 'Abagize uruhare'],
+  'Language': ['Lugha', 'Olulimi', 'Langue', 'Ururimi'],
+  'Home': ['Nyumbani', 'Awaka', 'Accueil', 'Ahabanza'],
+  'Explore': ['Gundua', 'Noonya', 'Explorer', 'Shakisha'],
+  'Roommates': ['Wenzangu wa chumba', "Bannange b'ekisenge", 'Colocataires', 'Abo tubana'],
+  'My stay': ['Makazi yangu', 'Bwe nsula', 'Mon séjour', 'Aho mba'],
+  'Campus home': ['Nyumbani chuoni', 'Awaka ku ssomero', 'Accueil campus', 'Ahabanza ku ishuri'],
+  'Find housing': ['Tafuta makazi', "Noonya w'osula", 'Trouver un logement', 'Shaka aho kuba'],
+  'Study partners': ['Wenzangu wa masomo', 'Bannange mu kusoma', "Partenaires d'étude", 'Abo twigana'],
+  'My housing': ['Makazi yangu', "W'enzula", 'Mon logement', 'Aho mba'],
+  'Overview': ['Muhtasari', 'Ebikulu', 'Aperçu', 'Incamake'],
+  'Units': ['Vyumba', 'Ebisenge', 'Chambres', 'Ibyumba'],
+  'Payments': ['Malipo', 'Ensasula', 'Paiements', 'Kwishyura'],
+  'Board': ['Ubao', 'Olubaawo', 'Tableau', 'Ikibaho'],
+  'Requests': ['Maombi', 'Okusaba', 'Demandes', 'Ibyifuzo'],
+  'Onboard': ['Sajili', 'Wandiika', 'Intégrer', 'Andika'],
+  'Property': ['Mali', 'Ekizimbe', 'Bien', 'Inyubako'],
+  'Listings': ['Matangazo', 'Ebirango', 'Annonces', 'Amatangazo'],
+  'Explore stays': ['Gundua makazi', 'Noonya ebifo', 'Explorer les séjours', 'Shakisha aho kuba'],
+  'Any budget': ['Bajeti yoyote', 'Ssente zonna', 'Tout budget', "Amafaranga ayo ari yo yose"],
+  'Recommended': ['Yanayopendekezwa', 'Ebisemba', 'Recommandé', 'Byatoranyijwe'],
+  'Price: low to high': ['Bei: chini hadi juu', 'Ebbeeyi: ntono okudda ku nnyingi', 'Prix croissant', 'Igiciro: gito kugeza kinini'],
+  'Price: high to low': ['Bei: juu hadi chini', 'Ebbeeyi: nnyingi okudda ku ntono', 'Prix décroissant', 'Igiciro: kinini kugeza gito'],
+  'Closest first': ['Karibu zaidi kwanza', 'Ebiri okumpi okusooka', "Les plus proches d'abord", 'Ibiri hafi mbere'],
+  'Top rated': ['Zilizopimwa juu', 'Ebisinga okusiimibwa', 'Les mieux notés', 'Ibyakunzwe cyane'],
+  'Places near me': ['Makazi karibu nami', 'Ebifo okumpi nange', 'Logements près de moi', 'Aho kuba hafi yanjye'],
+  'Place, district, university or name': ['Mahali, wilaya, chuo kikuu au jina', 'Ekifo, disitulikiti, yunivasite oba erinnya', 'Lieu, district, université ou nom', 'Ahantu, akarere, kaminuza cyangwa izina'],
+  'Area, district or university (try Ntinda)': ['Eneo, wilaya au chuo kikuu (jaribu Ntinda)', 'Ekitundu, disitulikiti oba yunivasite (gezaako Ntinda)', 'Quartier, district ou université (essayez Ntinda)', 'Agace, akarere cyangwa kaminuza (gerageza Ntinda)'],
+  'All stays': ['Makazi yote', 'Ebifo byonna', 'Tous les séjours', 'Aho kuba hose'],
+  'Payment': ['Malipo', 'Okusasula', 'Paiement', 'Kwishyura'],
+  'Sell space': ['Uza nafasi', 'Tunda ekifo', 'Céder une place', 'Gurisha umwanya'],
+  'Verified': ['Imethibitishwa', 'Kikakasiddwa', 'Vérifié', 'Byemejwe'],
+  'No reviews yet': ['Hakuna maoni bado', 'Tewannabaawo bya kulowooza', "Pas encore d'avis", 'Nta bitekerezo biraboneka'],
+  'Share the rent': ['Gawana kodi', 'Gabana obupangisa', 'Partagez le loyer', 'Gabana ubukode'],
+  'Find a roommate': ['Tafuta mwenzako wa chumba', "Noonya munno w'ekisenge", 'Trouver un colocataire', 'Shaka uwo mubana'],
+  'Edit': ['Hariri', 'Kyusa', 'Modifier', 'Hindura'],
+  'Verified profiles': ['Wasifu uliothibitishwa', 'Ebikwata ku bantu ebikakasiddwa', 'Profils vérifiés', 'Imyirondoro yemejwe'],
+  'Ask to share a room': ['Omba kushiriki chumba', 'Saba okugabana ekisenge', 'Proposer de partager', 'Saba gusangira icyumba'],
+  'Request sent': ['Ombi limetumwa', 'Okusaba kutumiddwa', 'Demande envoyée', 'Icyifuzo cyoherejwe'],
+  'ID verified': ['Kitambulisho kimethibitishwa', 'Endagamuntu ekakasiddwa', 'Identité vérifiée', 'Indangamuntu yemejwe'],
+  'Your stay': ['Makazi yako', "W'osula", 'Votre séjour', 'Aho uba'],
+  'My room': ['Chumba changu', 'Ekisenge kyange', 'Ma chambre', 'Icyumba cyanjye'],
+  'Receipts': ['Stakabadhi', 'Lisiiti', 'Reçus', 'Inyemezabwishyu'],
+  'Pass it on': ['Mpe mwingine', 'Kiwe omulala', 'Céder', 'Bihe undi'],
+  'Sell your space': ['Uza nafasi yako', 'Tunda ekifo kyo', 'Cédez votre place', 'Gurisha umwanya wawe'],
+  'Report a problem': ['Ripoti tatizo', 'Loopa ekizibu', 'Signaler un problème', 'Tanga ikibazo'],
+  'View agreement': ['Tazama makubaliano', 'Laba endagaano', 'Voir le contrat', 'Reba amasezerano'],
+  'Receipt': ['Stakabadhi', 'Lisiiti', 'Reçu', 'Inyemezabwishyu'],
+  'Notifications': ['Arifa', 'Obubaka', 'Notifications', 'Ubutumwa'],
+  'Appearance': ['Mwonekano', 'Endabika', 'Apparence', 'Imigaragarire'],
+  'Light': ['Mwangaza', 'Kitangaala', 'Clair', 'Urumuri'],
+  'Dark': ['Giza', 'Kizikiza', 'Sombre', 'Umwijima'],
+  'Change password': ['Badilisha nenosiri', "Kyusa ekigambo ky'ekyama", 'Changer le mot de passe', "Hindura ijambo ry'ibanga"],
+  'Account': ['Akaunti', 'Akawunti', 'Compte', 'Konti'],
+  'Close': ['Funga', 'Ggalawo', 'Fermer', 'Funga'],
+  'Needs you today': ['Inakuhitaji leo', 'Ebikwetaaga leero', "À traiter aujourd'hui", 'Ibigukeneye uyu munsi'],
+  'Pending payment approval': ['Malipo yanayosubiri idhini', 'Ensasula erindiridde okukakasibwa', 'Paiement en attente de validation', 'Kwishyura bitegereje kwemezwa'],
+  'No payments waiting': ['Hakuna malipo yanayosubiri', 'Tewali nsasula erindiridde', 'Aucun paiement en attente', 'Nta kwishyura bitegereje'],
+  'Occupancy': ['Ukaliaji', 'Abasula', 'Occupation', 'Ibyumba bikoreshwa'],
+  'Still to collect': ['Bado kukusanywa', 'Ebikyasigadde okusolooza', 'Reste à encaisser', 'Bisigaye kwakirwa'],
+  'Vacant or reserved': ['Wazi au vimehifadhiwa', 'Ebyereere oba ebikwatiddwa', 'Libres ou réservés', 'Ibirimo ubusa cyangwa byafashwe'],
+  'Needs a reminder': ['Wanahitaji kukumbushwa', 'Beetaaga okujjukizibwa', 'À relancer', 'Bakeneye kwibutswa'],
+  'What tenants see': ['Wapangaji wanachoona', 'Abapangisa kye balaba', 'Ce que voient les locataires', 'Ibyo abakodesha babona'],
+  'Photos and videos': ['Picha na video', "Ebifaananyi ne vidiyo", 'Photos et vidéos', "Amafoto n'amashusho"],
+  'Add photos or videos': ['Ongeza picha au video', 'Yongerako ebifaananyi oba vidiyo', 'Ajouter des photos ou vidéos', 'Ongeraho amafoto cyangwa amashusho'],
+  'Remove': ['Ondoa', 'Ggyawo', 'Retirer', 'Kuraho'],
+  'Cover': ['Jalada', 'Ekisooka', 'Couverture', 'Ifoto nyamukuru'],
+  'Make cover': ['Fanya jalada', 'Kifuule ekisooka', 'Mettre en couverture', 'Bigire ifoto nyamukuru'],
+  'Vacant': ['Wazi', 'Kyereere', 'Libre', 'Kirimo ubusa'],
+  'Maintenance': ['Matengenezo', 'Okuddaabiriza', 'Entretien', 'Isana'],
+  'Reserved': ['Kimehifadhiwa', 'Kikwatiddwa', 'Réservé', 'Cyafashwe'],
+  'Occupied': ['Kimekaliwa', 'Kirimu abantu', 'Occupé', 'Kirimo abantu'],
+  'Due': ['Inadaiwa', 'Kibanjibwa', 'À payer', 'Kigomba kwishyurwa'],
+  'Overdue': ['Imechelewa', 'Kiyiseewo', 'En retard', 'Byatinze'],
+  'Bills': ['Bili', 'Bbiiru', 'Factures', 'Inyemezabuguzi'],
+  'Tax': ['Kodi', 'Omusolo', 'Impôts', 'Umusoro'],
+  'This month': ['Mwezi huu', 'Omwezi guno', 'Ce mois-ci', 'Uku kwezi'],
+  'In progress': ['Inaendelea', 'Kigenda mu maaso', 'En cours', 'Birakorwa'],
+  'For': ['Kwa ajili ya', 'Kya', 'Objet', 'Icyo ari cyo'],
+  'Total': ['Jumla', 'Omugatte', 'Total', 'Igiteranyo'],
+  'Method': ['Njia', 'Engeri', 'Moyen', 'Uburyo'],
+  'Status': ['Hali', 'Embeera', 'Statut', 'Imimerere'],
+  'Review': ['Kagua', 'Kebera', 'Vérifier', 'Suzuma'],
+  'Confirm': ['Thibitisha', 'Kakasa', 'Confirmer', 'Emeza'],
+  'Reject': ['Kataa', 'Gaana', 'Refuser', 'Anga'],
+  'Approve': ['Idhinisha', 'Kkiriza', 'Approuver', 'Emeza'],
+  'Decline': ['Kataa', 'Gaana', 'Refuser', 'Anga'],
+  'Start work': ['Anza kazi', 'Tandika omulimu', 'Commencer', 'Tangira akazi'],
+  'Mark done': ['Imekamilika', 'Kiwedde', 'Marquer comme fait', 'Byarangiye'],
+  'Reopen': ['Fungua tena', 'Ggulawo nate', 'Rouvrir', 'Fungura nanone'],
+  'Needs attention': ['Inahitaji kushughulikiwa', 'Kyetaaga okutunuulirwa', 'À traiter', 'Bikeneye kwitabwaho'],
+  'Fixed': ['Imerekebishwa', 'Kiddaabiriziddwa', 'Réparé', 'Byakozwe'],
+  'Print': ['Chapisha', 'Kuba ku lupapula', 'Imprimer', 'Sohora'],
+  'Your approval needed': ['Idhini yako inahitajika', 'Okukkiriza kwo kwetaagibwa', 'Votre accord est requis', 'Uruhushya rwawe rurakenewe'],
+  'Viewing request': ['Ombi la kuona', 'Okusaba okulaba', 'Demande de visite', 'Icyifuzo cyo gusura'],
+  'Onboarding': ['Usajili', 'Okuwandiisa', 'Intégration', 'Kwandika'],
+  'Add property': ['Ongeza mali', 'Yongerako ekizimbe', 'Ajouter un bien', 'Ongeraho inyubako'],
+  'Verification': ['Uthibitishaji', 'Okukakasa', 'Vérification', 'Kwemeza'],
+  'Owner logins': ['Kuingia kwa wamiliki', 'Okuyingira kwa bannannyini', 'Accès propriétaires', 'Kwinjira kwa ba nyirayo'],
+  'Activity': ['Shughuli', 'Ebikolebwa', 'Activité', 'Ibikorwa'],
+  'Accounts': ['Akaunti', 'Akawunti', 'Comptes', 'Konti'],
+  'Analytics': ['Takwimu', 'Ebibalo', 'Statistiques', 'Imibare'],
+  'How Rentpply is doing': ['Rentpply inavyoendelea', "Rentpply bw'etambula", 'Performance de Rentpply', 'Uko Rentpply ihagaze'],
+  'View the platform as': ['Tazama jukwaa kama', 'Laba omukutu nga', 'Voir la plateforme en tant que', 'Reba urubuga nka'],
+  'Back to results': ['Rudi kwenye matokeo', 'Ddayo ku bivudde', 'Retour aux résultats', 'Subira ku bisubizo'],
+  'Photos': ['Picha', 'Ebifaananyi', 'Photos', 'Amafoto'],
+  'Map': ['Ramani', 'Maapu', 'Carte', 'Ikarita'],
+  'Street view': ['Mtazamo wa mtaani', 'Okulaba oluguudo', 'Vue de la rue', 'Kureba umuhanda'],
+  'Apply now': ['Omba sasa', 'Saba kati', 'Postuler', 'Saba ubu'],
+  'Book a viewing': ['Panga kuona', 'Saba okulaba', 'Réserver une visite', 'Saba gusura'],
+  'Show more': ['Onyesha zaidi', 'Laga ebisingawo', 'Afficher plus', 'Erekana ibindi'],
+  'Community amenities': ['Huduma za jumuiya', "Ebyetaago eby'awamu", 'Équipements communs', 'Ibikorwa rusange'],
+  'Interior amenities': ['Huduma za ndani', 'Ebiri munda', 'Équipements intérieurs', "Ibikoresho by'imbere"],
+  'Rules and policies': ['Kanuni na sera', "Amateeka n'enkola", 'Règles et conditions', "Amategeko n'amabwiriza"],
+  'Parking': ['Maegesho', 'Paakingi', 'Stationnement', 'Parikingi'],
+  'Contact information': ['Maelezo ya mawasiliano', 'Ebikwata ku kukwatagana', 'Coordonnées', 'Uko wabavugisha'],
+  'Local information': ['Taarifa za eneo', 'Ebikwata ku kitundu', 'Infos du quartier', "Amakuru y'agace"],
+  'See it on the map': ['Ione kwenye ramani', 'Kiraba ku maapu', 'Voir sur la carte', 'Reba ku ikarita'],
+  'No room yet': ['Bado huna chumba', 'Tonnaba kufuna kisenge', 'Pas encore de chambre', 'Nta cyumba uragira'],
+  'Near campus': ['Karibu na chuo', 'Okumpi ne ssomero', 'Près du campus', "Hafi y'ishuri"],
+  'Campus housing': ['Makazi ya chuo', "Ebifo by'abayizi", 'Logement étudiant', "Amacumbi y'abanyeshuri"],
+  'Closest to Makerere': ['Karibu zaidi na Makerere', 'Okumpi ne Makerere', 'Les plus proches de Makerere', 'Ibiri hafi ya Makerere'],
+  'All hostels': ['Hosteli zote', 'Hostela zonna', 'Tous les foyers', 'Amacumbi yose'],
+  'Find a place near your campus.': ['Pata makazi karibu na chuo chako.', 'Funa ekifo okumpi ne ssomero lyo.', 'Trouvez un logement près de votre campus.', "Bona aho kuba hafi y'ishuri ryawe."],
+  'Install the app': ['Sakinisha programu', 'Teeka app ku ssimu', "Installer l'application", 'Shyira porogaramu muri telefoni'],
+  'Phone notifications': ['Arifa za simu', 'Obubaka ku ssimu', 'Notifications sur le téléphone', 'Ubutumwa kuri telefoni'],
+  'Choose your language': ['Chagua lugha yako', 'Londa olulimi lwo', 'Choisissez votre langue', 'Hitamo ururimi rwawe'],
+  "Compare verified hostels, rentals and short stays, agree the terms and keep every rent record in one place.": ["Linganisha hosteli, nyumba za kupanga na malazi mafupi yaliyothibitishwa, kubaliana masharti na uweke kumbukumbu zote za kodi mahali pamoja.", "Geraageranya hostela, amayumba n'ebifo eby'okusula ebikakasiddwa, kkiriziganya ku nkola era okuume ebiwandiiko byonna eby'obupangisa mu kifo kimu.", "Comparez des foyers, locations et courts séjours vérifiés, acceptez les conditions et gardez tous vos loyers au même endroit.", "Gereranya amacumbi, inzu zikodeshwa n'aho kurara byemejwe, wemere amabwiriza kandi ubike inyandiko zose z'ubukode ahantu hamwe."],
+  "See who owes rent": ["Ona nani anadaiwa kodi", "Laba abatannasasula", "Voir qui doit le loyer", "Reba abatarishyura"],
+  "New tenants, transfers, roommates and viewings": ["Wapangaji wapya, uhamisho, wenzao wa chumba na matembezi", "Abapangisa abapya, okukyusa, bannaabwe mu bisenge n’okulaba", "Nouveaux locataires, transferts, colocataires et visites", "Abakodesha bashya, kwimura, abo babana n'abasura"],
+  "ready for new bookings": ["tayari kwa uhifadhi mpya", "byetegefu okupangisibwa", "prêts pour de nouvelles réservations", "biteguye kubikwa"],
+  "UGX, from confirmed payments": ["UGX, kutoka malipo yaliyothibitishwa", "UGX, okuva mu nsasula ekakasiddwa", "UGX, des paiements confirmés", "UGX, bivuye mu kwishyura kwemejwe"],
+  "No complicated processes and no payments to strangers. A clear path from search to move-in, with the owner confirming every payment.": ["Hakuna taratibu ngumu wala malipo kwa wageni. Njia wazi kutoka kutafuta hadi kuhamia, mmiliki akithibitisha kila malipo.", "Tewali nkola nzibu era tosasula bantu b'otomanyi. Ekkubo eddungi okuva ku kunoonya okutuuka ku kusenguka, nga nnannyini akakasa buli nsasula.", "Pas de démarches compliquées ni de paiements à des inconnus. Un parcours clair de la recherche à l'emménagement, chaque paiement étant confirmé par le propriétaire.", "Nta nzira zigoye kandi nta kwishyura abo utazi. Inzira isobanutse kuva ku gushakisha kugeza ku kwimuka, nyirayo yemeza buri kwishyura."],
+  "Hostels, rentals and short stays across Uganda, with photos straight from the owners.": ["Hosteli, nyumba za kupanga na malazi mafupi kote Uganda, pamoja na picha kutoka kwa wamiliki.", "Hostela, amayumba n'ebifo eby'okusula mu Uganda yonna, n'ebifaananyi okuva ku bannannyini.", "Foyers, locations et courts séjours dans toute l’Ouganda, avec des photos des propriétaires.", "Amacumbi, inzu zikodeshwa n'aho kurara muri Uganda hose, n'amafoto avuye kuri ba nyirayo."],
+  "Join the students, families and workers already finding a place across Uganda.": ["Jiunge na wanafunzi, familia na wafanyakazi wanaopata makazi kote Uganda.", "Weegatte ku bayizi, amaka n'abakozi abafuna ebifo mu Uganda yonna.", "Rejoignez les étudiants, familles et travailleurs qui trouvent déjà un logement en Ouganda.", "Ifatanye n'abanyeshuri, imiryango n'abakozi basanzwe babona aho kuba muri Uganda."],
+  "Straight answers about payments, verification and your documents.": ["Majibu ya moja kwa moja kuhusu malipo, uthibitishaji na nyaraka zako.", "Eby'okuddamu ebitegeerekeka ku nsasula, okukakasa n'ebiwandiiko byo.", "Des réponses claires sur les paiements, la vérification et vos documents.", "Ibisubizo bisobanutse ku kwishyura, kwemeza n'ibyangombwa byawe."],
+  "Upload your own photos, confirm payments, handle tenant requests and keep your records tidy.": ["Pakia picha zako, thibitisha malipo, shughulikia maombi ya wapangaji na weka kumbukumbu zako safi.", "Teekako ebifaananyi byo, kakasa ensasula, kola ku kusaba kw'abapangisa era okuume ebiwandiiko byo bulungi.", "Ajoutez vos photos, confirmez les paiements, traitez les demandes et gardez vos registres en ordre.", "Shyiraho amafoto yawe, wemeze kwishyura, ukemure ibyifuzo by'abakodesha kandi ubike neza inyandiko zawe."],
+  "Tap a room to see who lives there. Press and hold a room to change its status.": ["Gusa chumba kuona anayeishi humo. Bonyeza na ushikilie kubadilisha hali yake.", "Kwata ku kisenge okulaba abakibeeramu. Kinyige okumala akaseera okukyusa embeera yaakyo.", "Touchez une chambre pour voir qui y vit. Appuyez longuement pour changer son statut.", "Kanda ku cyumba urebe ukibamo. Kanda ugumye uhindure imimerere yacyo."],
+  "Select a room to see the tenant, what they pay, their payment history and any repair requests.": ["Chagua chumba kuona mpangaji, anacholipa, historia ya malipo na maombi ya matengenezo.", "Londa ekisenge olabe omupangisa, ky'asasula, ebyafaayo by'ensasula n'okusaba kw'okuddaabiriza.", "Choisissez une chambre pour voir le locataire, son loyer, ses paiements et les réparations demandées.", "Hitamo icyumba urebe ukodesha, ibyo yishyura, amateka yo kwishyura n'ibyifuzo byo gusana."],
+  "Nothing needs your approval right now.": ["Hakuna kinachohitaji idhini yako sasa.", "Tewali kyetaaga kukkiriza kwo kati.", "Rien n'attend votre accord pour le moment.", "Nta kintu gikeneye uruhushya rwawe ubu."],
+  "Show tenants your real rooms and building. Changes appear on your listing and the home page straight away.": ["Waonyeshe wapangaji vyumba na jengo halisi. Mabadiliko yanaonekana mara moja.", "Laga abapangisa ebisenge n’ekizimbe ebituufu. Enkyukakyuka zirabika amangu ago.", "Montrez vos vraies chambres et votre bâtiment. Les changements apparaissent aussitôt.", "Erekana abakodesha ibyumba n'inyubako nyabyo. Impinduka zigaragara ako kanya."],
+  '§hero': ['Pata mahali utakapojisikia nyumbani.', "Funa ekifo w'onowulira nga oli waka.", 'Trouvez un endroit où vous sentir chez vous.', "Bona aho wiyumva nk'iwawe."]
+};
+let LANG = 'en';
+const ORIG = new WeakMap();
+const trWord = s => LANG === 'en' ? null : (T[s] || [])[LCOL[LANG]] || null;
+function i18nText(n) {
+  const raw = ORIG.has(n) ? ORIG.get(n) : n.nodeValue, key = raw.trim();
+  if (!key) return;
+  const t = trWord(key);
+  if (t) { if (!ORIG.has(n)) ORIG.set(n, raw); const out = raw.replace(key, t); if (n.nodeValue !== out) n.nodeValue = out; }
+  else if (ORIG.has(n)) { if (n.nodeValue !== raw) n.nodeValue = raw; ORIG.delete(n); }
+}
+function i18nAttrs(el) {
+  for (const a of ['placeholder', 'aria-label', 'title']) {
+    if (!el.hasAttribute(a)) continue;
+    const k = 'i18n' + a.replace(/-./g, m => m[1].toUpperCase()), orig = el.dataset[k] ?? el.getAttribute(a), t = trWord(orig.trim());
+    if (t) { el.dataset[k] = orig; el.setAttribute(a, t); } else if (el.dataset[k] != null) { el.setAttribute(a, orig); delete el.dataset[k]; }
+  }
+}
+function i18nTree(root) {
+  if (!root || root.nodeType !== 1) return;
+  if (LANG === 'en' && !root.querySelector('[data-i18n-placeholder],[data-i18n-aria-label],[data-i18n-title],[data-i18n-key][data-i18n-orig]') && !document.documentElement.dataset.i18nUsed) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => { const p = n.parentElement; return p && !p.closest('script,style,.mono,[data-noi18n],textarea') ? 1 : 2; } });
+  let n; while ((n = w.nextNode())) i18nText(n);
+  [root, ...root.querySelectorAll('[placeholder],[aria-label],[title]')].forEach(el => el.hasAttribute && i18nAttrs(el));
+  root.querySelectorAll('[data-i18n-key]').forEach(el => {
+    const t = trWord('§' + el.dataset.i18nKey);
+    if (t) { if (el.dataset.i18nOrig == null) el.dataset.i18nOrig = el.innerHTML; el.textContent = t; }
+    else if (el.dataset.i18nOrig != null) { el.innerHTML = el.dataset.i18nOrig; delete el.dataset.i18nOrig; }
+  });
+}
+function setLang(code, remember = true) {
+  if (LCOL[code] == null && code !== 'en') code = 'en';
+  LANG = code; document.documentElement.lang = code === 'en' ? 'en' : code;
+  if (code !== 'en') document.documentElement.dataset.i18nUsed = '1';
+  if (remember) store.set('lang', code);
+  i18nTree(document.body);
+}
+/* Whatever the app draws later is translated as it appears. */
+let i18nQueue = [], i18nRaf = 0;
+new MutationObserver(ms => {
+  if (LANG === 'en') return;
+  for (const m of ms) m.addedNodes.forEach(x => i18nQueue.push(x));
+  if (!i18nRaf) i18nRaf = requestAnimationFrame(() => { i18nRaf = 0; const q = i18nQueue; i18nQueue = []; q.forEach(x => x.isConnected && (x.nodeType === 3 ? i18nText(x) : i18nTree(x))); });
+}).observe(document.body, { childList: true, subtree: true });
+const browserLang = () => { for (const l of navigator.languages || [navigator.language || 'en']) { const c = String(l).toLowerCase().split('-')[0]; if (c === 'en') return 'en'; if (LCOL[c] != null) return c; if (c === 'kin') return 'rw'; } return 'en'; };
+function langPicker(first) {
+  const det = browserLang(), cur = store.get('lang', null) || 'en';
+  const list = [...LANGS].sort((a, b) => (b[0] === det) - (a[0] === det));
+  sheet(`<div class="stack" style="gap:12px"><h2 style="font-size:24px">${first ? 'Choose your language' : 'Language'}</h2>${first && det !== 'en' ? `<p class="muted">Your browser is set to ${LANGS.find(l => l[0] === det)[1]}. English stays the default unless you switch.</p>` : '<p class="muted">You can change this at any time from the menu.</p>'}
+    <div class="langs">${list.map(([c, n]) => `<button class="langopt" data-lang="${c}" aria-pressed="${c === (first ? 'none' : cur)}" data-noi18n><b>${n}</b>${c === det && det !== 'en' ? '<small>From your browser</small>' : c === 'en' ? '<small>Default</small>' : ''}</button>`).join('')}</div>
+    ${first ? '<button class="btn ghost" data-lang="en">Keep English</button>' : ''}</div>`, 'Language');
+}
+
 let BK = null; // booking draft
 
 
@@ -2427,9 +2723,9 @@ function landingHTML() {
   ];
   return `<i class="fp-prog" id="fpProg" aria-hidden="true"></i>
   <div class="fp-ann" id="fpAnn" role="marquee" aria-label="Rentpply news">${annHTML()}</div>
-  <nav class="fp-nav" aria-label="Main">${logo}<div class="fp-links"><a href="#why">Why Rentpply</a><a href="#how-it-works">How it works</a><a href="#places">Places</a><a href="#for-owners">For owners</a><a href="#faq">FAQ</a></div><button class="fp-btn sm" data-auth-open="signin">Sign in</button></nav>
+  <nav class="fp-nav" aria-label="Main">${logo}<div class="fp-links"><a href="#why">Why Rentpply</a><a href="#how-it-works">How it works</a><a href="#places">Places</a><a href="#for-owners">For owners</a><a href="#faq">FAQ</a></div><button class="fp-langbtn" data-lang-pick aria-label="Language">${ic('globe')}</button><button class="fp-btn sm" data-auth-open="signin">Sign in</button></nav>
   <header class="fp-hero" id="top"><div class="fp-bg" aria-hidden="true"><div class="fp-bgphoto" style="background-image:url(${IMG.home})"></div><span class="fp-orb o1"></span><span class="fp-orb o2"></span></div>
-    <div class="fp-wrap fp-herogrid"><div class="fp-copy"><span class="fp-pill">${ic('pin')}Hostels, rentals and stays in Uganda</span><h1>${h1}</h1><p>Compare verified hostels, rentals and short stays, agree the terms and keep every rent record in one place.</p><div class="fp-cta"><button class="fp-btn lg" data-scrollto="places">Find a place</button><button class="fp-line lg" data-land="owner">I'm a property owner</button></div></div>
+    <div class="fp-wrap fp-herogrid"><div class="fp-copy"><span class="fp-pill">${ic('pin')}Hostels, rentals and stays in Uganda</span><h1 data-i18n-key="hero">${h1}</h1><p>Compare verified hostels, rentals and short stays, agree the terms and keep every rent record in one place.</p><div class="fp-cta"><button class="fp-btn lg" data-scrollto="places">Find a place</button><button class="fp-line lg" data-land="owner">I'm a property owner</button></div></div>
       <div class="fp-visual"><div class="fp-chip c1">${ic('shield')}<span>Verified owners only</span></div><div class="fp-chip c2">${ic('key')}<span>Rent records in one place</span></div><div class="fp-live" id="fpLive">${landLiveHTML()}</div></div></div>
     <div class="fp-wrap fp-stats"><div class="fp-stat"><i>${ic('building')}</i><div><b data-stat="n">0</b><span>Verified places</span></div></div><div class="fp-stat"><i>${ic('key')}</i><div><b data-stat="rooms">0</b><span>Rooms available now</span></div></div><div class="fp-stat"><i>${ic('pin')}</i><div><b data-stat="areas">0</b><span>Areas covered</span></div></div></div></header>
   <div class="fp-marq" aria-label="Areas with verified places"><div class="fp-track" id="fpTrack">${landTrackHTML()}</div></div>
@@ -2458,7 +2754,7 @@ function landingHTML() {
     <div class="fp-faq fp-reveal" style="--d:120ms">${faq.map(([q, a]) => `<details><summary>${q}<i>${ic('plus')}</i></summary><div class="fp-ans"><p>${a}</p></div></details>`).join('')}</div></div></section>
   <section class="fp-wrap fp-sec fp-last"><div class="fp-cta2 fp-reveal"><div class="fp-cta2bg"><img class="fp-fade" src="${IMG.hood}" alt="" loading="lazy" decoding="async"></div><div class="fp-cta2in"><h2>Your next place is waiting.</h2><p>Join the students, families and workers already finding a place across Uganda.</p><div class="fp-cta"><button class="fp-btn orange lg" data-auth-open="signin">Sign in</button><button class="fp-line lg light" data-auth-open="signup">Create an account</button></div></div></div></section>
   <footer class="fp-foot"><div class="fp-wrap fp-footgrid">${logo}<p>Places to stay in Uganda, made simple.</p><div class="fp-flinks"><a href="#how-it-works">How it works</a><a href="#places">Places</a><a href="#for-owners">For owners</a><a href="#faq">FAQ</a></div></div>
-    <div class="fp-wrap fp-copy2"><span>© ${new Date().getFullYear()} Rentpply</span><button class="fp-creditlink" data-credits>Credits</button></div></footer>`;
+    <div class="fp-wrap fp-copy2"><span>© ${new Date().getFullYear()} Rentpply</span><span class="fp-footbtns"><button class="fp-creditlink" data-lang-pick>${ic('globe')}<span>Language</span></button><button class="fp-creditlink" data-credits>Credits</button></span></div></footer>`;
 }
 let landScrollFn = null;
 function landBind() {
@@ -2598,6 +2894,7 @@ function accountHTML() {
     <div class="acct-head"><span class="avbig">${esc(initials(p.full_name || S.user?.email))}</span><div style="min-width:0"><b>${esc(p.full_name || 'Your account')}</b><small>${esc(S.user?.email || '')}</small><span class="pill ok">${roleName}</span></div><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div>
     <div class="acct-row"><span>${ic(dark ? 'moon' : 'sun')}Appearance</span><div class="seg" role="radiogroup" aria-label="Appearance"><button role="radio" data-theme-set="light" aria-checked="${!dark}">${ic('sun')}Light</button><button role="radio" data-theme-set="dark" aria-checked="${dark}">${ic('moon')}Dark</button></div></div>
     ${views}
+    <button class="acct-row acct-btn" data-lang-pick><span>${ic('globe')}Language</span><b class="acct-val" data-noi18n>${(LANGS.find(l => l[0] === LANG) || LANGS[0])[1]}</b></button>
     <button class="acct-row acct-btn" data-pw-change><span>${ic('key')}Change password</span>${ic('chevR')}</button>
     <button class="acct-out" data-auth-signout>${ic('arrow')}${p.role === 'owner' ? 'Log out' : 'Sign out'}</button></div></div></div>`;
 }
@@ -2794,14 +3091,14 @@ function render(top) {
   // The sign-in form is never redrawn while it is open, so what someone has typed is kept when data loads in the background.
   const shownForm = $('#main form[data-auth-form]'), want = S.authPage || { mode: 'signin', audience: 'housing' };
   const keepAuth = authVisible && shownForm && shownForm.dataset.authForm === want.mode && shownForm.dataset.authAudience === want.audience && !S.authNotice;
-  try { if (!keepAuth) { $('#main').innerHTML = draw(); flowIn($('#main'), flowBefore); } } catch (err) {
+  try { if (!keepAuth) { $('#main').innerHTML = draw(); i18nTree($('#main')); flowIn($('#main'), flowBefore); } } catch (err) {
     console.error(err);
     $('#main').innerHTML = '<section class="sec"><div class="card stack"><b>This page hit a problem</b><p class="muted">Please reload and try again.</p><button class="btn" style="background:#FF5A36;color:#fff;border:0" onclick="location.reload()">Reload</button></div></section>';
   }
   if (pg && pg.name === 'agreement') { agrFill(); accSync(); }
   const badge = n => n[0] === 'wallet' && S.payments.some(p => p.st === 'pending') ? '<i class="dot"></i>' : '';
   document.body.classList.toggle('auth-page', !!authVisible);
-  $('#dock').innerHTML = nav.map(n => `<button data-tab="${n[0]}" ${n[0] === S.tab ? 'aria-current="page"' : ''}>${ic(n[2])}<span>${n[1]}</span>${badge(n)}</button>`).join('');
+  $('#dock').innerHTML = nav.map(n => `<button data-tab="${n[0]}" ${n[0] === S.tab ? 'aria-current="page"' : ''}>${ic(n[2])}<span>${n[1]}</span>${badge(n)}</button>`).join(''); i18nTree($('#dock'));
   updateUserInfo();
   if (liveOwnerAdmin && S.liveData) portalBind();
   document.querySelectorAll('[data-role]').forEach(b => b.setAttribute('aria-pressed', b.dataset.role === S.role));
@@ -2864,6 +3161,8 @@ document.addEventListener('click', async e => {
   }
   if (!c('.acwrap')) document.querySelectorAll('.acpop').forEach(x => { x.hidden = true; });
   if ((el = c('[data-budtoggle]'))) { const pop = $('#acBud'); pop.hidden = !pop.hidden; el.setAttribute('aria-expanded', !pop.hidden); return; }
+  if (c('[data-lang-pick]')) { langPicker(false); return; }
+  if ((el = c('[data-lang]'))) { setLang(el.dataset.lang); closeSheet(); return; }
   if (c('[data-account]')) { setLayer(accountHTML()); return; }
   if (c('[data-credits]')) { sheet(`<div class="stack" style="gap:10px"><h2 style="font-size:24px">Photo credits</h2><p class="muted">Photos of Kampala from Wikimedia Commons, resized for this site.</p><ul class="credits">${PHOTO_CREDITS.map(([t, a, l, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${esc(t)}</a><span>${esc(a)} · ${l}</span></li>`).join('')}</ul></div>`, 'Credits'); return; }
   if (c('[data-pw-change]')) { sheet(`<form class="stack" data-pw-form style="gap:12px"><h2 style="font-size:24px">Change password</h2><p class="muted">Use at least 10 characters. You stay signed in on this device.</p><label class="field"><span>New password</span><input class="inp" type="password" name="p1" autocomplete="new-password" minlength="10" required></label><label class="field"><span>New password again</span><input class="inp" type="password" name="p2" autocomplete="new-password" minlength="10" required></label><button class="btn" type="submit">Save new password</button></form>`, 'Account'); return; }
@@ -3046,7 +3345,7 @@ document.addEventListener('submit', async e => {
 document.addEventListener('input', e => {
   if (handlePortalInput(e.target)) return;
   const id = e.target.id;
-  if (id === 'fq') { S.f.q = e.target.value; if (S.f.near) { S.f.near = null; document.querySelectorAll('.nearbar,.nearbar+.notice').forEach(x => x.remove()); } const l = exploreList(), fb = flowSnapshot($('#exList')); $('#exList').innerHTML = exploreBody(l); flowIn($('#exList'), fb); $('#exCount').textContent = l.length + (l.length === 1 ? ' place' : ' places'); areaSuggest(e.target.value); }
+  if (id === 'fq') { S.f.q = e.target.value; if (S.f.near) { S.f.near = null; document.querySelectorAll('.nearbar,.nearbar+.notice').forEach(x => x.remove()); } const l = exploreList(), fb = flowSnapshot($('#exList')); $('#exList').innerHTML = exploreBody(l); i18nTree($('#exList')); flowIn($('#exList'), fb); $('#exCount').textContent = l.length + (l.length === 1 ? ' place' : ' places'); areaSuggest(e.target.value); }
   else if (id === 'bs') { BK.start = e.target.value || BK.start; if (!(S.page && S.page.name === 'payment')) agrRefresh(); }
   else if (id === 'bq') { BK.qty = +e.target.value; if (!(S.page && S.page.name === 'payment')) agrRefresh(); }
 });
@@ -3079,6 +3378,14 @@ render();
 if (!S.user && !S.authPage) showLanding();
 initLiveAuth();
 
+
+/* Language at start-up: a saved choice wins; a browser in another language is asked once; English otherwise. */
+(() => {
+  const saved = store.get('lang', null);
+  if (saved) { setLang(saved, false); return; }
+  const nav = (navigator.languages || [navigator.language || 'en']).map(l => String(l).toLowerCase().split('-')[0]);
+  if (nav[0] && nav[0] !== 'en') setTimeout(() => { if (!store.get('lang', null) && !$('#layer .veil')) langPicker(true); }, 1600);
+})();
 </script>
 
 </body></html>
