@@ -1522,6 +1522,15 @@ html{background:var(--bg)}
 .langopt small{color:var(--muted);font-size:12px}
 .langopt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
 .acct-val{font-weight:700;color:var(--muted);font-size:14px}
+
+/* ===== install and notifications ===== */
+.acct-right{display:flex;align-items:center;gap:10px}
+.sw{position:relative;width:40px;height:24px;border-radius:999px;background:var(--line);flex:none;transition:background-color .25s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .25s var(--ease)}
+.sw[aria-checked="true"]{background:var(--ok)}
+.sw[aria-checked="true"]::after{transform:translateX(16px)}
+.isteps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;font-size:15px}
+.isteps li::marker{color:var(--accent);font-weight:800}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -2754,7 +2763,7 @@ function landingHTML() {
     <div class="fp-faq fp-reveal" style="--d:120ms">${faq.map(([q, a]) => `<details><summary>${q}<i>${ic('plus')}</i></summary><div class="fp-ans"><p>${a}</p></div></details>`).join('')}</div></div></section>
   <section class="fp-wrap fp-sec fp-last"><div class="fp-cta2 fp-reveal"><div class="fp-cta2bg"><img class="fp-fade" src="${IMG.hood}" alt="" loading="lazy" decoding="async"></div><div class="fp-cta2in"><h2>Your next place is waiting.</h2><p>Join the students, families and workers already finding a place across Uganda.</p><div class="fp-cta"><button class="fp-btn orange lg" data-auth-open="signin">Sign in</button><button class="fp-line lg light" data-auth-open="signup">Create an account</button></div></div></div></section>
   <footer class="fp-foot"><div class="fp-wrap fp-footgrid">${logo}<p>Places to stay in Uganda, made simple.</p><div class="fp-flinks"><a href="#how-it-works">How it works</a><a href="#places">Places</a><a href="#for-owners">For owners</a><a href="#faq">FAQ</a></div></div>
-    <div class="fp-wrap fp-copy2"><span>© ${new Date().getFullYear()} Rentpply</span><span class="fp-footbtns"><button class="fp-creditlink" data-lang-pick>${ic('globe')}<span>Language</span></button><button class="fp-creditlink" data-credits>Credits</button></span></div></footer>`;
+    <div class="fp-wrap fp-copy2"><span>© ${new Date().getFullYear()} Rentpply</span><span class="fp-footbtns"><button class="fp-creditlink" data-install>${ic('home')}<span>Install the app</span></button><button class="fp-creditlink" data-lang-pick>${ic('globe')}<span>Language</span></button><button class="fp-creditlink" data-credits>Credits</button></span></div></footer>`;
 }
 let landScrollFn = null;
 function landBind() {
@@ -2894,6 +2903,8 @@ function accountHTML() {
     <div class="acct-head"><span class="avbig">${esc(initials(p.full_name || S.user?.email))}</span><div style="min-width:0"><b>${esc(p.full_name || 'Your account')}</b><small>${esc(S.user?.email || '')}</small><span class="pill ok">${roleName}</span></div><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div>
     <div class="acct-row"><span>${ic(dark ? 'moon' : 'sun')}Appearance</span><div class="seg" role="radiogroup" aria-label="Appearance"><button role="radio" data-theme-set="light" aria-checked="${!dark}">${ic('sun')}Light</button><button role="radio" data-theme-set="dark" aria-checked="${dark}">${ic('moon')}Dark</button></div></div>
     ${views}
+    <button class="acct-row acct-btn" data-push-toggle><span>${ic('bell')}Phone notifications</span><span class="acct-right"><b class="acct-val">…</b><i class="sw" role="switch" aria-checked="false"></i></span></button>
+    ${isStandalone() ? '' : `<button class="acct-row acct-btn" data-install><span>${ic('home')}Install the app</span>${ic('chevR')}</button>`}
     <button class="acct-row acct-btn" data-lang-pick><span>${ic('globe')}Language</span><b class="acct-val" data-noi18n>${(LANGS.find(l => l[0] === LANG) || LANGS[0])[1]}</b></button>
     <button class="acct-row acct-btn" data-pw-change><span>${ic('key')}Change password</span>${ic('chevR')}</button>
     <button class="acct-out" data-auth-signout>${ic('arrow')}${p.role === 'owner' ? 'Log out' : 'Sign out'}</button></div></div></div>`;
@@ -3058,6 +3069,58 @@ function initLiveAuth() {
   loadPublicListings().then(() => { if (!S.user) render(); }).catch(error => console.error('Listings load failed:', error));
 }
 
+
+/* ---------- installing the app, and phone notifications ---------- */
+const swReady = 'serviceWorker' in navigator ? navigator.serviceWorker.register('/sw.js').then(() => navigator.serviceWorker.ready).catch(() => null) : Promise.resolve(null);
+let installEvt = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+addEventListener('appinstalled', () => { installEvt = null; toast('Rentpply is on your home screen.'); });
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function installHelp(reason) {
+  const ios = isIOS();
+  sheet(`<div class="stack" style="gap:12px"><h2 style="font-size:24px">Add Rentpply to your Home Screen</h2>
+    ${reason === 'notify' ? '<p class="notice">On iPhone, phone notifications work once Rentpply is on your Home Screen. Add it, open it from there, then turn notifications on.</p>' : '<p class="muted">It opens full screen like an app, loads faster and can send you notifications.</p>'}
+    <ol class="isteps">${ios ? '<li>In Safari, tap the <b>Share</b> button (the square with an arrow).</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>, then open Rentpply from your Home Screen.</li>' : '<li>Open the browser menu (⋮ or ⋯).</li><li>Tap <b>Install app</b> or <b>Add to Home screen</b>.</li><li>Confirm. Rentpply then opens like an app.</li>'}</ol></div>`, 'Install');
+}
+async function installApp() {
+  if (isStandalone()) { toast('You are already using the installed app.'); return; }
+  if (installEvt) { installEvt.prompt(); try { await installEvt.userChoice; } catch (e) {} installEvt = null; return; }
+  installHelp();
+}
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const b64u = s => { const pad = '='.repeat((4 - s.length % 4) % 4), raw = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(raw, c => c.charCodeAt(0)); };
+async function pushState() {
+  if (!pushSupported()) return isIOS() && !isStandalone() ? 'install' : 'unsupported';
+  if (Notification.permission === 'denied') return 'blocked';
+  const reg = await swReady, sub = reg && await reg.pushManager.getSubscription();
+  return sub && Notification.permission === 'granted' ? 'on' : 'off';
+}
+async function pushOn() {
+  if (!pushSupported()) { if (isIOS() && !isStandalone()) installHelp('notify'); else toast('This browser cannot show phone notifications.'); return; }
+  if (await Notification.requestPermission() !== 'granted') { toast('Notifications are blocked. Allow them for Rentpply in your browser settings.'); return; }
+  let { data: key } = await supabase.rpc('push_public_key');
+  if (!key) { await supabase.functions.invoke('send-push', { body: { action: 'init' } }); ({ data: key } = await supabase.rpc('push_public_key')); }
+  if (!key) { toast('Phone notifications are not ready yet. Try again shortly.'); return; }
+  const reg = await swReady; if (!reg) { toast('This browser cannot show phone notifications.'); return; }
+  let sub;
+  try { sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(key) }); }
+  catch (err) { toast(isIOS() && !isStandalone() ? 'Add Rentpply to your Home Screen first, then turn notifications on there.' : 'This browser could not sign up for notifications. Try Chrome, or the installed app.'); return; }
+  const j = sub.toJSON();
+  const { error } = await supabase.from('push_subscriptions').upsert({ user_id: S.user.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_agent: navigator.userAgent.slice(0, 200) }, { onConflict: 'endpoint' });
+  if (error) { toast(error.message || 'Could not turn notifications on.'); return; }
+  toast('Phone notifications are on.');
+}
+async function pushOff() {
+  const reg = await swReady, sub = reg && await reg.pushManager.getSubscription();
+  if (sub) { await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); }
+  toast('Phone notifications are off.');
+}
+async function paintPushRow() {
+  const row = $('.acct [data-push-toggle]'); if (!row) return;
+  const st = await pushState(), label = { on: 'On', off: 'Off', blocked: 'Blocked in settings', install: 'Add to Home Screen first', unsupported: 'Not available here' }[st];
+  row.dataset.state = st; row.querySelector('.acct-val').textContent = label; row.querySelector('.sw')?.setAttribute('aria-checked', st === 'on');
+}
 /* Content flows in: after an update, only the pieces that are new or changed glide in, one after another.
    Unchanged pieces stay still, so a page never flashes. */
 const FLOW = '.card,.lrow,.lcard,.tile,.unit,tbody tr,.mrep,.tcard,.notice,.alertbar,.needrow,.kgrid>*,.grid>*,.tgrid>*,.lv-tabs,.lview,.prefbar,.fpanel,.paytabs,.hubs,.fchips,.legend,.sec-h,.mgrid>*';
@@ -3163,7 +3226,9 @@ document.addEventListener('click', async e => {
   if ((el = c('[data-budtoggle]'))) { const pop = $('#acBud'); pop.hidden = !pop.hidden; el.setAttribute('aria-expanded', !pop.hidden); return; }
   if (c('[data-lang-pick]')) { langPicker(false); return; }
   if ((el = c('[data-lang]'))) { setLang(el.dataset.lang); closeSheet(); return; }
-  if (c('[data-account]')) { setLayer(accountHTML()); return; }
+  if (c('[data-account]')) { setLayer(accountHTML()); paintPushRow(); return; }
+  if (c('[data-install]')) { installApp(); return; }
+  if ((el = c('[data-push-toggle]'))) { el.disabled = true; try { if (el.dataset.state === 'on') await pushOff(); else if (el.dataset.state === 'install') installHelp('notify'); else await pushOn(); } catch (err) { toast(err.message || 'Could not change notifications.'); } el.disabled = false; paintPushRow(); return; }
   if (c('[data-credits]')) { sheet(`<div class="stack" style="gap:10px"><h2 style="font-size:24px">Photo credits</h2><p class="muted">Photos of Kampala from Wikimedia Commons, resized for this site.</p><ul class="credits">${PHOTO_CREDITS.map(([t, a, l, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${esc(t)}</a><span>${esc(a)} · ${l}</span></li>`).join('')}</ul></div>`, 'Credits'); return; }
   if (c('[data-pw-change]')) { sheet(`<form class="stack" data-pw-form style="gap:12px"><h2 style="font-size:24px">Change password</h2><p class="muted">Use at least 10 characters. You stay signed in on this device.</p><label class="field"><span>New password</span><input class="inp" type="password" name="p1" autocomplete="new-password" minlength="10" required></label><label class="field"><span>New password again</span><input class="inp" type="password" name="p2" autocomplete="new-password" minlength="10" required></label><button class="btn" type="submit">Save new password</button></form>`, 'Account'); return; }
   if ((el = c('[data-lv-tab]'))) { lvTab(el.dataset.lvTab); if (el.hasAttribute('data-lv-up')) $('#lview')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
