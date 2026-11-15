@@ -175,7 +175,7 @@ function ownerOverview(data, profile) {
   const occ = units.filter(u => u.status === 'occupied').length, late = units.filter(u => u.payment_status && u.payment_status !== 'paid' && u.status !== 'vacant' && u.status !== 'maint');
   const owed = sum(units.map(u => u.balance)), free = units.filter(u => u.status === 'vacant' || u.status === 'reserved').length;
   const admin = profile.role === 'admin' || profile.role === 'super';
-  return `<section class="sec">${head(admin ? 'Admin view · property owner' : 'Property owner', p.name, `<span class="pill ${p.verified ? 'ok' : 'warn'}">${icn('shield')}${p.verified ? 'Verified' : 'Pending check'}</span>`)}${propChips(data)}
+  return `<section class="sec">${head(admin ? staffName() + ' view · property owner' : 'Property owner', p.name, `<span class="pill ${p.verified ? 'ok' : 'warn'}">${icn('shield')}${p.verified ? 'Verified' : 'Pending check'}</span>`)}${propChips(data)}
     ${needsYou(data, p.id)}${boardStrip(data, p.id)}
     <div class="kgrid">
       <div class="card stat"><span class="eyebrow">Occupancy</span><b>${units.length ? Math.round(occ / units.length * 100) : 0}%</b><span class="muted">${occ} of ${units.length} units</span></div>
@@ -426,7 +426,7 @@ function adminQueue(data) {
   const hubs = [['add', 'plus', 'Add property', 0], ['verify', 'shield', 'Verification', pend + kyc + openQ], ['logins', 'key', 'Owner logins', unsent], ['activity', 'receipt', 'Activity', act], ['accounts', 'users', 'Accounts', 0]];
   const isSuper = me && me.role === 'super';
   if (isSuper) hubs.unshift(['team', 'shield', 'Admins', 0]);
-  const hub = ui.hub || (isSuper ? 'team' : 'add');
+  const hub = ui.hub === 'team' && !isSuper ? 'add' : ui.hub || (isSuper ? 'team' : 'add');
   return `<section class="sec">${head(staffName(), 'Onboarding')}
     <div class="kgrid"><div class="card stat"><span class="eyebrow">Pending properties</span><b>${pend}</b><span class="muted">waiting for verification</span></div><div class="card stat"><span class="eyebrow">Identity reviews</span><b>${kyc}</b><span class="muted">waiting for a decision</span></div><div class="card stat"><span class="eyebrow">Open queue items</span><b>${openQ}</b><span class="muted">needing follow-up</span></div><div class="card stat"><span class="eyebrow">Accounts</span><b>${data.profiles.length}</b><span class="muted">on the platform</span></div></div>
     <div class="hubs" role="group" aria-label="Onboarding steps">${hubs.map(h => `<button class="hubb" data-p-hub="${h[0]}" aria-pressed="${hub === h[0]}">${icn(h[1])}<b>${h[2]}</b>${h[3] ? `<i class="hbadge">${h[3]}</i>` : ''}</button>`).join('')}</div>

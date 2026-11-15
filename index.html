@@ -2785,15 +2785,17 @@ function updateUserInfo() {
   const unread = (S.notifications || []).filter(notification => !notification.read).length;
   const roleName = S.profile.role === 'super' ? 'Super user' : admin ? 'Admin' : S.profile.role === 'student' ? 'Student' : S.profile.role === 'owner' ? 'Owner' : 'Tenant';
   const shown = S.profile.role === 'owner' && S.liveData ? ((PORTAL && PORTAL.currentPropertyName(S.liveData)) || S.profile.full_name) : (S.profile.full_name || S.user.email);
-  el.innerHTML = `<span>${esc(shown)}</span><span class="pill ok">${admin && S.role !== 'admin' ? (S.profile.role === 'super' ? 'Super user' : 'Admin') + ' · viewing ' + esc(S.role) : roleName}</span><button class="ibtn" data-notifications aria-label="Notifications${unread ? ', ' + unread + ' unread' : ''}">${ic('bell')}${unread ? `<small class="not-count">${unread}</small>` : ''}</button><button class="avbtn" data-account aria-haspopup="dialog" aria-label="Account, appearance and sign out">${esc(initials(S.profile.full_name || S.user.email))}</button>`;
+  el.innerHTML = `<span>${esc(shown)}</span><span class="pill ok">${admin && viewName() !== (S.profile.role === 'super' ? 'super' : 'admin') ? (S.profile.role === 'super' ? 'Super user' : 'Admin') + ' · viewing ' + esc(viewName()) : roleName}</span><button class="ibtn" data-notifications aria-label="Notifications${unread ? ', ' + unread + ' unread' : ''}">${ic('bell')}${unread ? `<small class="not-count">${unread}</small>` : ''}</button><button class="avbtn" data-account aria-haspopup="dialog" aria-label="Account, appearance and sign out">${esc(initials(S.profile.full_name || S.user.email))}</button>`;
 }
 
+/* Which view the admin menu shows as chosen. The super user has two admin views: their own (with the Admins section) and the plain admin one. */
+const viewName = () => S.role === 'admin' && S.profile?.role === 'super' && !S.plainAdmin ? 'super' : S.role;
 const initials = n => String(n || '?').replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
 /* Account menu: who is signed in, light or dark, the admin's view switch and sign out. */
 function accountHTML() {
   const p = S.profile || {}, admin = isAdminRole(p.role), dark = document.documentElement.getAttribute('data-theme') === 'dark';
   const roleName = p.role === 'super' ? 'Super user' : admin ? 'Administrator' : p.role === 'student' ? 'Student' : p.role === 'owner' ? 'Property owner' : 'Tenant';
-  const views = admin ? `<label class="acct-row"><span>${ic('users')}View the platform as</span><select class="inp" data-admin-view aria-label="View the platform as">${[['admin', p.role === 'super' ? 'Super user' : 'Admin'], ['owner', 'Property owner'], ['tenant', 'Tenant'], ['student', 'Student']].map(([v, t]) => `<option value="${v}" ${S.role === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>` : '';
+  const views = admin ? `<label class="acct-row"><span>${ic('users')}View the platform as</span><select class="inp" data-admin-view aria-label="View the platform as">${[...(p.role === 'super' ? [['super', 'Super user']] : []), ['admin', 'Admin'], ['owner', 'Property owner'], ['tenant', 'Tenant'], ['student', 'Student']].map(([v, t]) => `<option value="${v}" ${viewName() === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>` : '';
   return `<div class="veil acctv" data-veil><div class="sheet acct" role="dialog" aria-modal="true" aria-label="Account"><div class="in">
     <div class="acct-head"><span class="avbig">${esc(initials(p.full_name || S.user?.email))}</span><div style="min-width:0"><b>${esc(p.full_name || 'Your account')}</b><small>${esc(S.user?.email || '')}</small><span class="pill ok">${roleName}</span></div><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div>
     <div class="acct-row"><span>${ic(dark ? 'moon' : 'sun')}Appearance</span><div class="seg" role="radiogroup" aria-label="Appearance"><button role="radio" data-theme-set="light" aria-checked="${!dark}">${ic('sun')}Light</button><button role="radio" data-theme-set="dark" aria-checked="${dark}">${ic('moon')}Dark</button></div></div>
@@ -2945,6 +2947,7 @@ function takeProfile(profile) {
   };
 }
 function enterRole(profile) {
+  S.plainAdmin = false;
   S.role = profile.role;
   S.viewRole = isAdminRole(profile.role) ? (S.viewRole || 'admin') : profile.role;
   S.role = S.viewRole;
@@ -3179,7 +3182,7 @@ function render(top) {
   if (pg && pg.name === 'listing' && !BK) initBK(pg.lid);
   const liveOwnerAdmin = S.profile && ['owner', 'admin', 'super'].includes(S.profile.role) && ['owner', 'admin'].includes(S.role);
   document.body.classList.toggle('flow', !!pg);
-  const draw = () => authVisible ? authPageHTML() : liveOwnerAdmin ? (S.liveError ? `<section class="sec"><div class="card"><b>Could not load live records</b><p class="muted">${esc(S.liveError)}</p><button class="btn" data-live-retry>Retry</button></div></section>` : PORTAL && S.liveData ? PORTAL.renderPortal(S.role, S.tab, S.liveData, S.profile) : '<section class="sec"><div class="card skeleton" style="height:120px"></div></section>') : pg ? ({ listing: pgListing, agreement: pgAgreement, payment: pgPayment, status: pgStatus })[pg.name]() : cur[3] ? cur[3]() : '';
+  const draw = () => authVisible ? authPageHTML() : liveOwnerAdmin ? (S.liveError ? `<section class="sec"><div class="card"><b>Could not load live records</b><p class="muted">${esc(S.liveError)}</p><button class="btn" data-live-retry>Retry</button></div></section>` : PORTAL && S.liveData ? PORTAL.renderPortal(S.role, S.tab, S.liveData, S.plainAdmin && S.profile.role === 'super' ? { ...S.profile, role: 'admin' } : S.profile) : '<section class="sec"><div class="card skeleton" style="height:120px"></div></section>') : pg ? ({ listing: pgListing, agreement: pgAgreement, payment: pgPayment, status: pgStatus })[pg.name]() : cur[3] ? cur[3]() : '';
   const flowBefore = top ? null : flowSnapshot($('#main'));
   if (top) window.scrollTo({ top: 0 });
   // The sign-in form is never redrawn while it is open, so what someone has typed is kept when data loads in the background.
@@ -3543,7 +3546,8 @@ document.addEventListener('change', async e => {
   const id = e.target.id, v = e.target.value;
   if (e.target.matches('[data-admin-view]')) {
     if (!isAdminRole(S.profile?.role)) return;
-    S.role = e.target.value;
+    S.plainAdmin = e.target.value === 'admin' && S.profile.role === 'super'; // the super user seeing exactly what an admin sees
+    S.role = e.target.value === 'super' ? 'admin' : e.target.value;
     S.viewRole = S.role;
     S.tab = FIRST[S.role];
     setLayer('');
