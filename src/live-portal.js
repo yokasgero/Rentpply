@@ -663,22 +663,7 @@ export function portalBind() {
   document.addEventListener('contextmenu', e => { const u = e.target.closest && e.target.closest('.unit[data-p-unit]'); if (u) { e.preventDefault(); clearTimeout(pressTimer); pressFired = false; quickMenu(u.dataset.pUnit, (u.querySelector('b') || {}).textContent || ''); } });
 }
 
-/* Photos are uploaded at full quality. Only very large camera photos (over 2,560 pixels on the long side) are scaled
-   down to 2,560 pixels, which is still sharper than any phone or laptop screen, and saved at high quality (92%).
-   Anything smaller is uploaded exactly as it is, and so is anything that cannot be scaled or would not get smaller. */
-async function shrinkPhoto(file) {
-  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || !window.createImageBitmap) return file;
-  try {
-    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    if (Math.max(bmp.width, bmp.height) <= 2560) { bmp.close && bmp.close(); return file; }
-    const k = 2560 / Math.max(bmp.width, bmp.height), w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
-    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-    cv.getContext('2d').drawImage(bmp, 0, 0, w, h); bmp.close && bmp.close();
-    const blob = await new Promise(r => cv.toBlob(r, 'image/webp', 0.92));
-    if (!blob || blob.type !== 'image/webp' || blob.size >= file.size) return file;
-    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webp', { type: 'image/webp' });
-  } catch { return file; }
-}
+/* Photos and videos are uploaded exactly as they are: never scaled down or recompressed. */
 
 async function issueLogin(ownerId) {
   const out = await ownerLoginsCall({ action: 'issue_login', owner_id: ownerId });
@@ -837,7 +822,7 @@ export async function handlePortalChange(target, refresh, ctx = {}) {
     try {
     for (let i = 0; i < files.length; i++) {
       if (txt) txt.textContent = `Uploading ${i + 1} of ${files.length}…`;
-      const f = await shrinkPhoto(files[i]), ext = (f.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, ''), path = `${id}/${crypto.randomUUID()}.${ext}`;
+      const f = files[i], ext = (f.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, ''), path = `${id}/${crypto.randomUUID()}.${ext}`;
       const up = await supabase.storage.from('listing-media').upload(path, f, { contentType: f.type, upsert: false });
       if (up.error) throw up.error;
       const url = supabase.storage.from('listing-media').getPublicUrl(path).data.publicUrl;

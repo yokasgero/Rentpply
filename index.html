@@ -1618,8 +1618,6 @@ const IC = {
 const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="${IC[n]}"/></svg>`;
 
 /* property art: generated skyline so every listing has a distinct picture until real photos are uploaded */
-/* Wikimedia photos come in fixed sizes; cards use a lighter one than the gallery. */
-const sized = (url, w) => /^https:\/\/(upload|thumb)\.wikimedia\.org\/.+\/\d+px-/.test(url || '') ? url.replace(/\/\d+px-/, `/${w}px-`) : url;
 let art = function (l, big) {
   const photo = (l.media || []).find(m => m.type === 'photo');
   if (photo) return `<img class="aimg" src="${esc(photo.url)}" alt="${esc(l.name)}" loading="lazy" decoding="async">`;
