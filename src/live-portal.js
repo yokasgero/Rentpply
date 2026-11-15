@@ -663,17 +663,18 @@ export function portalBind() {
   document.addEventListener('contextmenu', e => { const u = e.target.closest && e.target.closest('.unit[data-p-unit]'); if (u) { e.preventDefault(); clearTimeout(pressTimer); pressFired = false; quickMenu(u.dataset.pUnit, (u.querySelector('b') || {}).textContent || ''); } });
 }
 
-/* Photos from phone cameras are often 3 to 5 MB. Before uploading, they are shrunk to at most 1,600 pixels on the
-   long side and saved as WebP, which looks the same on screen and is about a tenth of the size for every tenant who
-   opens the listing. Anything that cannot be shrunk (or would not get smaller) is uploaded as it is. */
+/* Photos are uploaded at full quality. Only very large camera photos (over 2,560 pixels on the long side) are scaled
+   down to 2,560 pixels, which is still sharper than any phone or laptop screen, and saved at high quality (92%).
+   Anything smaller is uploaded exactly as it is, and so is anything that cannot be scaled or would not get smaller. */
 async function shrinkPhoto(file) {
   if (!/^image\/(jpeg|png|webp)$/.test(file.type) || !window.createImageBitmap) return file;
   try {
     const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height)), w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+    if (Math.max(bmp.width, bmp.height) <= 2560) { bmp.close && bmp.close(); return file; }
+    const k = 2560 / Math.max(bmp.width, bmp.height), w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
     const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
     cv.getContext('2d').drawImage(bmp, 0, 0, w, h); bmp.close && bmp.close();
-    const blob = await new Promise(r => cv.toBlob(r, 'image/webp', 0.8));
+    const blob = await new Promise(r => cv.toBlob(r, 'image/webp', 0.92));
     if (!blob || blob.type !== 'image/webp' || blob.size >= file.size) return file;
     return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webp', { type: 'image/webp' });
   } catch { return file; }

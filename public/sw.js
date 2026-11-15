@@ -1,6 +1,6 @@
 /* Rentpply service worker: opens instantly on repeat visits, works through short drops in connection,
    and shows phone notifications. Live data (Supabase), maps and photos from other sites always come from the network. */
-const VERSION = 'rp-2';
+const VERSION = 'rp-3';
 const SHELL = ['/', '/manifest.webmanifest', '/img/icon-192.png', '/img/apple-touch-icon.png', '/fonts/figtree-latin.woff2', '/fonts/bricolage-grotesque-latin.woff2'];
 
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).catch(() => {})); self.skipWaiting(); });

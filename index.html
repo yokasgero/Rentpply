@@ -2,8 +2,7 @@
 <title>Rentpply</title>
 <script>/* rentpply.pages.dev is the old address: send visitors to rentpply.com, to the same page. Preview builds (xyz.rentpply.pages.dev) stay where they are. */if(location.hostname==="rentpply.pages.dev"){window.__rpMoving=1;location.replace("https://rentpply.com"+location.pathname+location.search+location.hash)}</script>
 <link rel="preconnect" href="https://uacsoexkrvvdgdqotimg.supabase.co" crossorigin>
-<link rel="preload" as="image" href="/img/home-820.webp" media="(max-width:820px)" type="image/webp">
-<link rel="preload" as="image" href="/img/home.webp" media="(min-width:821px)" type="image/webp">
+<link rel="preload" as="image" href="/img/home.jpg">
 <link rel="preload" as="font" href="/fonts/figtree-latin.woff2" type="font/woff2" crossorigin>
 <link rel="preload" as="font" href="/fonts/bricolage-grotesque-latin.woff2" type="font/woff2" crossorigin>
 <style>@font-face{font-family:'Figtree';font-style:normal;font-weight:300 900;font-display:swap;src:url(/fonts/figtree-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Bricolage Grotesque';font-style:normal;font-weight:200 800;font-stretch:100%;font-display:swap;src:url(/fonts/bricolage-grotesque-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}</style>
@@ -15,7 +14,6 @@
 <meta name="apple-mobile-web-app-title" content="Rentpply">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Find verified hostels, rentals and short stays across Uganda, agree the terms and keep every rent record in one place.">
-<script>/* Lite mode: phones with 2 GB of memory or less, or Data Saver on, skip the decorative motion. */try{var n=navigator,c=n.connection||{};if((n.deviceMemory&&n.deviceMemory<=2)||c.saveData)document.documentElement.classList.add("lite")}catch(e){}</script>
 <script>try{document.documentElement.setAttribute("data-theme",JSON.parse(localStorage.getItem("rp_theme")||"null")==="dark"?"dark":"light")}catch(e){document.documentElement.setAttribute("data-theme","light")}</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
@@ -1545,21 +1543,11 @@ html{background:var(--bg)}
   .fp-nav{background:rgba(255,255,255,.97)!important}
 }
 .fp-last,.fp-foot{content-visibility:auto;contain-intrinsic-size:auto 600px}
-/* Smoothness: a page slides in as one piece, not card by card */
-#main.enter .grid>*,#main.enter .stack>.card,#main.enter .tgrid>*{animation:none}
-#main.enter>*{will-change:transform,opacity}
 .fp-sky{inset:0 0 auto 0;height:250%;background-size:100% 100%;background-position:0 0;translate:0 calc(var(--p,0) * -60%)}
 .fp-stage{overflow:hidden}
 .fp-sky,.fp-jphoto,.fp-clouds,.fp-hills,.fp-bgphoto,.fp-chip,.fp-live{will-change:translate}
-/* Sections below the journey are only laid out and drawn when they come near the screen */
-.fp-places,#for-owners,#faq{content-visibility:auto;contain-intrinsic-size:auto 900px}
 /* The decorations at the top of the front page rest once it is scrolled away */
 #landing.hero-off .fp-orb,#landing.hero-off .fp-chip,#landing.hero-off .fp-float,#landing.hero-off .fp-live-l i,#landing.hero-off .fp-anntrack{animation-play-state:paused}
-/* Lite mode: same layout, no decorative motion */
-html.lite .fp-orb,html.lite .fp-chip,html.lite .fp-float,html.lite .fp-live-l i,html.lite #fpCar .pulse,html.lite .fp-popen i,html.lite .fp-owners::before,html.lite .fp-ophoto img,html.lite .fp-owners.in .fp-ocard,html.lite .fp-cta2bg img,html.lite .fp-anntrack,html.lite .fp-track,html.lite .fp-rail.loop,html.lite .bell.ring{animation:none!important}
-html.lite .fp-railwin{overflow-x:auto}
-html.lite .fp-bgphoto,html.lite .fp-chip,html.lite .fp-live,html.lite .fp-jphoto,html.lite .fp-clouds,html.lite .fp-hills{translate:none!important;will-change:auto}
-html.lite .flowin,html.lite #main.enter>*{animation:rpFade .18s ease both!important}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="rpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1d2c"/><stop offset=".55" stop-color="#c2332f"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs></svg>
 <header class="top wrap">
@@ -1632,13 +1620,9 @@ const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="
 /* property art: generated skyline so every listing has a distinct picture until real photos are uploaded */
 /* Wikimedia photos come in fixed sizes; cards use a lighter one than the gallery. */
 const sized = (url, w) => /^https:\/\/(upload|thumb)\.wikimedia\.org\/.+\/\d+px-/.test(url || '') ? url.replace(/\/\d+px-/, `/${w}px-`) : url;
-/* The phone picks the smallest photo that is still sharp at the card's size: 330, 500 or 960 pixels wide. */
-const photoSrc = (url, sizes) => /^https:\/\/(upload|thumb)\.wikimedia\.org\/.+\/\d+px-/.test(url || '')
-  ? `src="${esc(sized(url, 500))}" srcset="${[330, 500, 960].map(w => esc(sized(url, w)) + ' ' + w + 'w').join(', ')}" sizes="${sizes}"`
-  : `src="${esc(url)}"`;
 let art = function (l, big) {
   const photo = (l.media || []).find(m => m.type === 'photo');
-  if (photo) return `<img class="aimg" ${big ? `src="${esc(photo.url)}"` : photoSrc(photo.url, '(max-width:640px) 92vw, (max-width:1100px) 46vw, 360px')} alt="${esc(l.name)}" loading="lazy" decoding="async">`;
+  if (photo) return `<img class="aimg" src="${esc(photo.url)}" alt="${esc(l.name)}" loading="lazy" decoding="async">`;
   const h = [352, 14, 28, 40, 338, 22, 6][Math.abs(Math.round(l.hue || 0)) % 7], r = n => { const x = Math.sin(l.id * 99.7 + n * 12.9898) * 43758.5453; return x - Math.floor(x) };
   let b = '';
   const n = 5 + Math.floor(r(1) * 3);
@@ -2495,8 +2479,7 @@ const TYPE_NAME = { hostel: 'Hostel', rental: 'Rental', airbnb: 'Airbnb' };
 /* ---------- owner: login and per-property view ---------- */
 
 
-const SMALL = matchMedia('(max-width:820px)').matches;
-const IMG = SMALL ? { home: '/img/home-820.webp', aerial: '/img/kampala-aerial-820.webp', blocks: '/img/apartments-kololo-820.webp', hood: '/img/kampala-neighbourhood-820.webp' } : { home: '/img/home.webp', aerial: '/img/kampala-aerial.webp', blocks: '/img/apartments-kololo.webp', hood: '/img/kampala-neighbourhood.webp' };
+const IMG = { home: '/img/home.jpg', aerial: '/img/kampala-aerial.jpg', blocks: '/img/apartments-kololo.jpg', hood: '/img/kampala-neighbourhood.jpg' }; // the original photos, full size on every screen
 /* Photos of Kampala from Wikimedia Commons (resized). Listing photos are replaced by admins and owners from their dashboards. */
 const PHOTO_CREDITS = [["Ariel view of Kampala Urban suburb, Uganda", "Chapelle musa", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Ariel_view_of_Kampala_Urban_suburb,_Uganda.jpg"], ["Apartment block in kololo Kampala", "Alvinategyeka", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Apartment_block_in_kololo_Kampala.jpg"], ["My neighnourhood Home and Habitat", "Muyindi", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:My_neighnourhood_Home_and_Habitat.jpg"], ["Students hostels in Katanga", "Faintsmoke", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Students_hostels_in_Katanga.JPG"], ["Makerere, Kikoni", "Timothy Akolamazima", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Makerere,_Kikoni.jpg"], ["Apartments Found In Kololo", "Matovu Trevor", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Apartments_Found_In_Kololo.jpg"], ["Shopping Arcade, Apartments, KAMPALA, Uganda", "Chapelle musa", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Shopping_Arcade,_Apartments,_KAMPALA,_Uganda.jpg"], ["A mansion in Uganda", "Okware timothy", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:A_mansion_in_Uganda.jpg"], ["Apartments in Kampala City, Uganda", "Chapelle musa", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Apartments_in_Kampala_City,_Uganda.jpg"], ["Uganda-Development", "Andrew Regan", "CC BY-SA 3.0", "https://commons.wikimedia.org/wiki/File:Uganda-Development.JPG"], ["Good Looking Homeland", "Matovu Trevor", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Good_Looking_Homeland.jpg"], ["Residence in Lower Naguru", "Micheal Kaluba", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Residence_in_Lower_Naguru.jpg"], ["Over the roofs of Kamokya, Kampala (4331540123)", "SuSanA Secretariat", "CC BY 2.0", "https://commons.wikimedia.org/wiki/File:Over_the_roofs_of_Kamokya,_Kampala_(4331540123).jpg"]];
 const logoMark = (cls = 'lm') => `<svg class="${cls}" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3.5 44 19.6V40a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V19.6z" fill="url(#rpg)"/><path d="M17.5 36.5V20.5h8a5.8 5.8 0 0 1 1.4 11.4l4.8 4.6" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -2522,7 +2505,7 @@ function landPlacesHTML() {
   if (!list.length) return L.length ? '<div class="fp-empty">No places of this type are listed yet.</div>' : '<div class="fp-pc sk"></div>'.repeat(4);
   const one = (copy) => list.map((l, i) => { const c = coverOf(l), dist = l.dist ? ` · ${l.dist} km ${l.type === 'hostel' ? 'to campus' : 'from centre'}` : '';
     return `<article class="fp-pc${copy ? ' dup' : ''}" style="--d:${Math.min(i, 6)}"${copy ? ' aria-hidden="true"' : ''}><button class="fp-pcin" data-land="tenant" ${copy ? 'tabindex="-1"' : `aria-label="View ${esc(l.name)}"`}>
-      <div class="fp-ph">${c ? `<img ${photoSrc(c.url, '(max-width:640px) 78vw, 340px')} alt="" loading="lazy" decoding="async">` : art(l)}</div>
+      <div class="fp-ph">${c ? `<img src="${esc(c.url)}" alt="" loading="${i < 4 && !copy ? 'eager' : 'lazy'}" decoding="async">` : art(l)}</div>
       <span class="fp-ptag">${esc(TYPE_NAME[l.type] || l.type)}</span><span class="fp-popen ${l.avail > 0 ? '' : 'full'}"><i></i>${l.avail > 0 ? l.avail + ' open' : 'Full'}</span>
       <div class="fp-pbody"><h3>${esc(l.name)}</h3><p>${ic('pin')}${esc(l.area)}${dist}</p>
         <div class="fp-pams">${(l.am || []).slice(0, 3).map(a => `<span>${esc(a)}</span>`).join('')}</div>
@@ -2638,7 +2621,6 @@ function landingHTML() {
   <footer class="fp-foot"><div class="fp-wrap fp-footgrid">${logo}<p>Places to stay in Uganda, made simple.</p><div class="fp-flinks"><a href="#how-it-works">How it works</a><a href="#places">Places</a><a href="#for-owners">For owners</a><a href="#faq">FAQ</a></div></div>
     <div class="fp-wrap fp-copy2"><span>© ${new Date().getFullYear()} Rentpply</span><span class="fp-footbtns"><button class="fp-creditlink" data-install>${ic('home')}<span>Install the app</span></button><button class="fp-creditlink" data-lang-pick>${ic('globe')}<span>Language</span></button><button class="fp-creditlink" data-credits>Credits</button></span></div></footer>`;
 }
-const LITE = document.documentElement.classList.contains('lite');
 let landScrollFn = null;
 function landBind() {
   const root = $('#landing'); if (!root) return;
@@ -2664,11 +2646,11 @@ function landBind() {
     if (prog) prog.style.transform = `scaleX(${(st / max).toFixed(4)})`;
     const heroOff = st > vh * 1.3;
     if (heroOff !== root.classList.contains('hero-off')) root.classList.toggle('hero-off', heroOff);
-    if (!heroOff && !LITE) { const v = st.toFixed(0); heroMovers.forEach(e => e.style.setProperty('--sy', v)); }
+    if (!heroOff) { const v = st.toFixed(0); heroMovers.forEach(e => e.style.setProperty('--sy', v)); }
     if (!road || !jny) return;
     const p = reduce ? 1 : Math.max(0, Math.min(1, (st - geo.top) / geo.span));
     if (Math.abs(p - lastP) < .0005) return; lastP = p;
-    const ps = p.toFixed(4); (LITE ? jMovers.filter(e => e.classList.contains('fp-sky')) : jMovers).forEach(e => e.style.setProperty('--p', ps));
+    const ps = p.toFixed(4); jMovers.forEach(e => e.style.setProperty('--p', ps));
     fill.style.strokeDashoffset = (len * (1 - p)).toFixed(1);
     const pt = at(p); car.setAttribute('transform', `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`);
     if (jbar) jbar.style.transform = `scaleX(${ps})`;
@@ -3188,7 +3170,7 @@ function render(top) {
   // The sign-in form is never redrawn while it is open, so what someone has typed is kept when data loads in the background.
   const shownForm = $('#main form[data-auth-form]'), want = S.authPage || { mode: 'signin', audience: 'housing' };
   const keepAuth = authVisible && shownForm && shownForm.dataset.authForm === want.mode && shownForm.dataset.authAudience === want.audience && !S.authNotice;
-  try { if (!keepAuth) { $('#main').innerHTML = draw(); i18nTree($('#main')); if (!top) flowIn($('#main'), flowBefore); } } catch (err) {
+  try { if (!keepAuth) { $('#main').innerHTML = draw(); i18nTree($('#main')); flowIn($('#main'), flowBefore); } } catch (err) {
     console.error(err);
     $('#main').innerHTML = '<section class="sec"><div class="card stack"><b>This page hit a problem</b><p class="muted">Please reload and try again.</p><button class="btn" style="background:#FF5A36;color:#fff;border:0" onclick="location.reload()">Reload</button></div></section>';
   }
