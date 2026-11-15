@@ -1574,6 +1574,17 @@ html.lite .flowin,html.lite #main.enter>*{animation:rpFade .18s ease both!import
 /* The backend client loads alongside the page instead of before it, so the front page can show straight away. */
 let supabase = null, auth = null;
 const backendReady = import('./src/lib/supabase.js').then(m => { supabase = m.supabase; auth = m.auth; });
+/* The start-up data (see app_start below) is asked for at once, while the backend client is still downloading. */
+const SB_URL = import.meta.env.VITE_SUPABASE_URL, SB_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const savedSession = (() => { try { const k = Object.keys(localStorage).find(x => /^sb-.+-auth-token$/.test(x)); const s = k && JSON.parse(localStorage.getItem(k)); return s && s.user && s.access_token ? s : null; } catch { return null; } })();
+const EARLY = (() => {
+  if (!SB_URL || !SB_KEY) return null;
+  const s = savedSession;
+  if (s && !(s.expires_at * 1000 > Date.now() + 30e3)) return null; // the sign-in needs renewing first, which the backend client does
+  const headers = { apikey: SB_KEY, 'Content-Type': 'application/json' };
+  if (s) headers.Authorization = 'Bearer ' + s.access_token;
+  return { uid: s ? s.user.id : null, p: fetch(SB_URL + '/rest/v1/rpc/app_start', { method: 'POST', headers, body: '{}' }).then(r => r.ok ? r.json() : null).catch(() => null) };
+})();
 /* The owner and admin dashboard is its own file, fetched only when an owner or admin signs in. */
 let PORTAL = null;
 const portalReady = () => PORTAL ? Promise.resolve(PORTAL) : (portalReady.p || (portalReady.p = import('./src/live-portal.js').then(m => (PORTAL = m))));
@@ -2804,6 +2815,8 @@ async function refreshPortal() {
     const { loadPortalData } = await portalReady();
     S.liveData = await loadPortalData(S.profile.role, S.user.id);
     S.notifications = S.liveData.notifications || [];
+    BOOT.portal = JSON.stringify(S.liveData);
+    const rec = bootRead(S.user.id); if (rec) bootWrite(S.user.id, { ...rec, portal: S.liveData });
   } catch (error) {
     S.liveError = error.message || 'Could not load live records.';
     console.error('Portal data load failed:', error);
@@ -2811,31 +2824,111 @@ async function refreshPortal() {
   render();
 }
 
-async function syncLiveSession(session) {
-  if (!session?.user) {
-    S.user = null; S.profile = null; S.liveData = null; S.liveError = null; ME = 'Guest';
-    S.role = 'tenant'; S.tab = 'home'; S.page = null;
-    // The first time (opening the app or a link) the address decides the screen; after signing out it is the start.
-    const route = NAV_ROUTE.ready ? { landing: true } : parseRoute();
-    if (!S.authPage) {
-      if (route.auth) S.authPage = { mode: route.auth === 'reset' ? 'signin' : route.auth, audience: route.audience };
-      else if (!route.landing) { S.pendingRoute = route; S.authPage = { mode: 'signin', audience: route.role === 'owner' ? 'owner' : 'housing' }; }
-      else if (isStandalone()) S.authPage = { mode: 'signin', audience: 'housing' }; // the installed app opens on sign-in, not the website's front page
-    }
-    NAV_ROUTE.ready = true; NAV_ROUTE.mode = 'replace';
-    updateUserInfo();
-    if (S.authPage) hideLanding();
-    render(true);
-    if (!S.authPage) showLanding();
-    return;
-  }
-  S.user = session.user;
-  const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-  if (error) { toast(error.message || 'Could not load your account.'); return; }
-  if (!profile?.role || !FIRST[profile.role]) { toast('Your account role is not configured. Contact Rentpply support.'); return; }
+/* ---------- start-up data: one trip to the server, and a copy kept on the phone ----------
+   app_start() (a database function) answers in one trip what used to take 38 requests in 6 rounds: the places with their
+   photos, locations and terms, the signed-in person's account and their own records. It runs under the same access rules.
+   The last answer is kept on the phone, so a returning visitor sees their screen straight away while it is refreshed;
+   the screen is only redrawn if something actually changed. Signing out removes the signed-in copies. */
+const BOOT = { start: '', portal: '' }; // what is on screen now, as text, to tell whether a fresh answer changed anything
+const bootKey = uid => 'rp_boot_' + (uid || 'public');
+const bootRead = uid => { try { const v = localStorage.getItem(bootKey(uid)); return v ? JSON.parse(v) : null; } catch { return null; } };
+const bootWrite = (uid, rec) => { try { localStorage.setItem(bootKey(uid), JSON.stringify(rec)); } catch {} };
+const bootClear = () => { try { Object.keys(localStorage).filter(k => k.startsWith('rp_boot_') && k !== 'rp_boot_public').forEach(k => localStorage.removeItem(k)); } catch {} };
+const isPortalRole = r => ['owner', 'admin', 'super'].includes(r);
+
+let startFlight = null;
+/* One answer from app_start. Callers at the same moment share one request; `fresh` asks again after a change was saved. */
+function fetchStart(uid, fresh) {
+  if (!fresh && EARLY && EARLY.uid === uid && !EARLY.used) { EARLY.used = true; const p = EARLY.p.then(d => d || fetchStart(uid, true)); return p; }
+  if (!fresh && startFlight && startFlight.uid === uid) return startFlight.p;
+  const p = (async () => {
+    const { data, error } = await supabase.rpc('app_start');
+    if (!error && data) return data;
+    console.error('app_start failed, loading in parts:', error);
+    return startByParts(uid);
+  })();
+  startFlight = { uid, p };
+  p.finally(() => { if (startFlight && startFlight.p === p) startFlight = null; }).catch(() => {});
+  return p;
+}
+/* The old way, request by request, only used if app_start is unavailable. Gives the same shape of answer. */
+async function startByParts(uid) {
+  const rows = r => { if (r.error) throw r.error; return r.data || []; };
+  const listings = rows(await supabase.from('listings').select('*').eq('verified', true).order('created_at', { ascending: false }));
+  const ids = listings.map(item => item.id);
+  const [templates, locations, media] = ids.length ? (await Promise.all([
+    supabase.from('agreement_templates').select('listing_id, deposit_months, late_fee_percent, notice_days, house_rules').in('listing_id', ids),
+    supabase.from('listing_locations').select('listing_id, lat, lng, address').in('listing_id', ids),
+    supabase.from('listing_media').select('listing_id, type, url, sort_order').in('listing_id', ids).order('sort_order')
+  ])).map(rows) : [[], [], []];
+  const out = { listings, templates, locations, media };
+  if (!uid) return out;
+  const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', uid).single();
+  if (error) throw error;
+  out.profile = profile;
+  if (!['tenant', 'student'].includes(profile?.role)) return out;
+  const q = await Promise.all([
+    supabase.from('saved_listings').select('listing_id').eq('user_id', uid),
+    supabase.from('bookings').select('*').eq('tenant_id', uid).order('created_at', { ascending: false }),
+    supabase.from('payments').select('*').eq('tenant_id', uid).order('created_at', { ascending: false }),
+    supabase.from('agreements').select('*').eq('tenant_id', uid).order('created_at', { ascending: false }),
+    supabase.from('maintenance_requests').select('*').eq('tenant_id', uid).order('created_at', { ascending: false }),
+    supabase.from('roommate_profiles').select('*').eq('is_verified', true).neq('user_id', uid),
+    supabase.from('roommate_requests').select('to_user_id').eq('from_user_id', uid),
+    supabase.from('roommate_requests').select('id,status,created_at,from_user:profiles!roommate_requests_from_user_id_fkey(id,full_name)').eq('to_user_id', uid).order('created_at', { ascending: false }),
+    supabase.from('rent_transfers').select('*, bookings!inner(reference,tenant_id)').eq('bookings.tenant_id', uid).order('created_at', { ascending: false }),
+    supabase.from('rent_transfers').select('*, bookings!inner(tenant_id,tenant_name)').eq('status', 'listed').neq('bookings.tenant_id', uid).order('created_at', { ascending: false }),
+    supabase.from('rent_transfer_requests').select('transfer_id,status').eq('requester_id', uid),
+    supabase.from('notifications').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50)
+  ]);
+  ['saved', 'bookings', 'payments', 'agreements', 'maintenance', 'roommates', 'roommates_asked', 'roommate_requests', 'own_transfers', 'open_transfers', 'transfer_requests', 'notifications'].forEach((k, i) => { out[k] = rows(q[i]); });
+  return out;
+}
+
+/* Put an app_start answer on screen: the places, and for tenants and students their own records. */
+function setListings(d) {
+  const used = new Set();
+  const liveListings = (d.listings || []).map((item, index) => {
+    let id = Math.abs(hash(item.id)) || index + 1;
+    while (used.has(id)) id++;
+    used.add(id);
+    return { id, dbId: item.id, name: item.name, type: item.type, area: item.area, price: item.price, per: item.per, unit: item.unit_type, dist: Number(item.distance_km) || 0, avail: item.available_units, total: item.total_units, v: item.verified ? 1 : 0, rating: 0, n: 0, hue: item.hue || 168, owner: item.owner_name, am: item.amenities || [], desc: item.description || '' };
+  });
+  const tpl = d.templates || [], locs = d.locations || [], media = d.media || [];
+  liveListings.forEach(l => {
+    const t = tpl.find(x => x.listing_id === l.dbId);
+    if (t) l.terms = { deposit: t.deposit_months ?? 0, late: t.late_fee_percent ?? 0, notice: t.notice_days ?? 30, ...(t.house_rules && t.house_rules.trim() ? { rules: t.house_rules.trim() } : {}) };
+    const loc = locs.find(x => x.listing_id === l.dbId);
+    if (loc && loc.lat != null && loc.lng != null) l.loc = { lat: Number(loc.lat), lng: Number(loc.lng), address: loc.address || '' };
+    l.media = media.filter(x => x.listing_id === l.dbId && x.url);
+  });
+  L.splice(0, L.length, ...liveListings);
+  AREAS.splice(0, AREAS.length, ...new Set(liveListings.map(item => item.area)));
+  updateLandingLive();
+}
+function setTenant(d) {
+  const listingId = id => L.find(item => item.dbId === id)?.id;
+  S.saved = (d.saved || []).map(item => listingId(item.listing_id)).filter(Boolean);
+  S.bookings = (d.bookings || []).map(item => ({ id: item.reference, dbId: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, ts: Date.parse(item.created_at), listed: item.listed_for_transfer, purpose: item.purpose })).filter(item => item.lid);
+  S.payments = (d.payments || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, purpose: item.purpose, ref: item.reference, ts: Date.parse(item.created_at), st: item.status, tenant: item.tenant_name, from: item.from_source, fdn: item.efris_document_no, vc: item.verification_code })).filter(item => item.lid);
+  S.agreements = (d.agreements || []).map(item => ({ id: item.reference, dbId: item.id, lid: listingId(item.listing_id), room: item.room_code, tenant: item.tenant_name, qty: item.quantity, start: item.start_date, status: item.status, issued: Date.parse(item.issued_at || item.created_at), accepted: item.accepted_at ? Date.parse(item.accepted_at) : null, paid: item.paid })).filter(item => item.lid);
+  S.maint = (d.maintenance || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, tenant: item.tenant_name, type: item.type, urgent: item.urgent, note: item.note, ts: Date.parse(item.created_at), st: item.status })).filter(item => item.lid);
+  PEOPLE.splice(0, PEOPLE.length, ...(d.roommates || []).map(item => ({ id: item.user_id, n: item.full_name, course: item.course || '', college: item.college || '', g: item.gender, yr: item.year || '', budget: item.budget, sleep: item.sleep, clean: item.clean_level, study: item.study, loc: item.location || '' })));
+  S.asked = (d.roommates_asked || []).map(item => item.to_user_id);
+  S.roommateRequests = d.roommate_requests || [];
+  S.transfers = (d.own_transfers || []).map(item => ({ id: item.id, bid: item.bookings.reference, price: item.price_per_month, from: item.available_from, why: item.reason, status: item.status, room: item.room_code }));
+  S.openTransfers = (d.open_transfers || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, left: item.months_left, price: item.price_per_month, from: item.available_from, why: item.reason, status: item.status })).filter(item => item.lid);
+  S.transferRequests = d.transfer_requests || [];
+  S.notifications = d.notifications || [];
+}
+const isTenantRole = r => ['tenant', 'student'].includes(r);
+function applyStart(d) {
+  setListings(d);
+  if (d.profile && isTenantRole(d.profile.role)) setTenant(d);
+}
+/* The signed-in person's account details, and the screen they start on. */
+function takeProfile(profile) {
   S.profile = profile; ME = profile.full_name || 'Guest';
-  if (S.authPage?.mode !== 'reset') S.authPage = null;
-  S.authNotice = '';
   S.kyc = { st: profile.kyc_status || 'none', type: profile.id_type, mask: profile.id_number_masked, name: profile.full_name, student: profile.is_student, kin: profile.next_of_kin_name ? `${profile.next_of_kin_name}, ${profile.next_of_kin_phone || ''}` : '', ts: Date.parse(profile.updated_at || profile.created_at) };
   S.prefs = {
     ...S.prefs,
@@ -2848,92 +2941,121 @@ async function syncLiveSession(session) {
     study: profile.study || S.prefs.study,
     done: Boolean(profile.prefs_done)
   };
+}
+function enterRole(profile) {
   S.role = profile.role;
   S.viewRole = isAdminRole(profile.role) ? (S.viewRole || 'admin') : profile.role;
   S.role = S.viewRole;
   S.tab = FIRST[S.role] || 'home';
-  if (['owner', 'admin', 'super'].includes(profile.role)) portalReady().catch(() => {});
-  hideLanding();
-  await loadPublicListings();
-  if (['tenant', 'student'].includes(profile.role)) {
-    try { await loadTenantData(); }
-    catch (loadError) { console.error('Tenant data load failed:', loadError); toast('Some account records could not be loaded.'); }
+}
+
+/* A returning visitor: show the copy kept on the phone at once, before the server has answered. */
+function bootFromCopy() {
+  const user = savedSession && savedSession.user, rec = user ? bootRead(user.id) : null, pub = bootRead(null);
+  const d = (rec && rec.start) || (pub && pub.start);
+  if (!d) return;
+  applyStart(d);
+  BOOT.start = JSON.stringify(d);
+  const profile = rec && rec.start.profile;
+  if (!user || !profile || !FIRST[profile.role]) return;
+  const route = parseRoute();
+  if (route.auth && route.auth === 'reset') return;
+  S.user = user; takeProfile(profile); enterRole(profile);
+  if (isPortalRole(profile.role)) {
+    portalReady().then(() => render()).catch(() => {});
+    if (rec.portal) { S.liveData = rec.portal; S.notifications = rec.portal.notifications || []; BOOT.portal = JSON.stringify(rec.portal); }
   }
-  // Open the screen the address names: a link someone followed, the screen they refreshed on, or where they were
-  // going before signing in. The session also re-syncs now and then (token refresh), and that keeps the current screen.
-  const want = S.pendingRoute || parseRoute(); S.pendingRoute = null;
-  if (!want.auth && !want.landing) applyRoute(want);
-  NAV_ROUTE.ready = true; NAV_ROUTE.mode = 'replace';
+  if (!route.auth && !route.landing) applyRoute(route);
+  NAV_ROUTE.ready = true; NAV_ROUTE.mode = 'replace'; NAV_ROUTE.cached = true;
+  hideLanding();
+}
+
+async function syncLiveSession(session) {
+  if (!session?.user) {
+    if (S.user) bootClear();
+    S.user = null; S.profile = null; S.liveData = null; S.liveError = null; ME = 'Guest';
+    S.role = 'tenant'; S.tab = 'home'; S.page = null;
+    BOOT.portal = '';
+    // The first time (opening the app or a link) the address decides the screen; after signing out it is the start.
+    const route = NAV_ROUTE.ready && !NAV_ROUTE.cached ? { landing: true } : parseRoute();
+    NAV_ROUTE.cached = false;
+    if (!S.authPage) {
+      if (route.auth) S.authPage = { mode: route.auth === 'reset' ? 'signin' : route.auth, audience: route.audience };
+      else if (!route.landing) { S.pendingRoute = route; S.authPage = { mode: 'signin', audience: route.role === 'owner' ? 'owner' : 'housing' }; }
+      else if (isStandalone()) S.authPage = { mode: 'signin', audience: 'housing' }; // the installed app opens on sign-in, not the website's front page
+    }
+    NAV_ROUTE.ready = true; NAV_ROUTE.mode = 'replace';
+    updateUserInfo();
+    if (S.authPage) hideLanding();
+    render(true);
+    if (!S.authPage) showLanding();
+    // The places for the front page and Explore.
+    fetchStart(null).then(d => {
+      if (S.user || !d) return;
+      const text = JSON.stringify(d);
+      bootWrite(null, { start: d });
+      if (text === BOOT.start) return;
+      BOOT.start = text; applyStart(d); render();
+    }).catch(error => console.error('Listings load failed:', error));
+    return;
+  }
+  const uid = session.user.id, hint = (S.user?.id === uid && S.profile?.role) || session.user.user_metadata?.role;
+  // Owners and admins: their dashboard records are asked for at the same moment, not after.
+  const portalP = isPortalRole(hint) ? portalReady().then(m => m.loadPortalData(hint, uid)) : null;
+  if (portalP) portalP.catch(() => {});
+  let d;
+  try { d = await fetchStart(uid); } catch (error) { toast(error.message || 'Could not load your account.'); return; }
+  const profile = d && d.profile;
+  if (!profile) { toast('Could not load your account.'); return; }
+  if (!profile.role || !FIRST[profile.role]) { toast('Your account role is not configured. Contact Rentpply support.'); return; }
+  // The same person already on screen (from the copy on the phone, or a session re-check): keep their screen, only refresh the data.
+  const same = S.user?.id === uid && S.profile?.role === profile.role;
+  S.user = session.user;
+  const text = JSON.stringify(d), changed = text !== BOOT.start || !same;
+  BOOT.start = text;
+  takeProfile(profile);
+  if (!same) enterRole(profile);
+  if (changed) applyStart(d);
+  const reset = S.authPage?.mode === 'reset';
+  if (!reset) S.authPage = null;
+  S.authNotice = '';
+  hideLanding();
+  if (!same) {
+    // Open the screen the address names: a link someone followed, the screen they refreshed on, or where they were going before signing in.
+    const want = S.pendingRoute || parseRoute(); S.pendingRoute = null;
+    if (!want.auth && !want.landing) applyRoute(want);
+  }
+  NAV_ROUTE.ready = true; NAV_ROUTE.mode = 'replace'; NAV_ROUTE.cached = false;
   updateUserInfo();
-  if (['owner', 'admin', 'super'].includes(profile.role)) await refreshPortal();
-  else render(true);
+  const rec = { start: d };
+  if (isPortalRole(profile.role)) {
+    if (!same || reset) render(true); // the menu and header now; the dashboard fills in when its records arrive
+    let portalChanged = false;
+    try {
+      const live = await (portalP || portalReady().then(m => m.loadPortalData(profile.role, uid)));
+      const ptext = JSON.stringify(live);
+      portalChanged = ptext !== BOOT.portal || S.liveError;
+      BOOT.portal = ptext; S.liveError = null;
+      if (portalChanged) { S.liveData = live; S.notifications = live.notifications || []; }
+      rec.portal = live;
+    } catch (error) {
+      S.liveError = error.message || 'Could not load live records.'; portalChanged = true;
+      console.error('Portal data load failed:', error);
+    }
+    if (portalChanged || changed) render();
+  } else if (!same || reset) render(true);
+  else if (changed) render();
+  bootWrite(uid, rec);
 }
 
-async function loadPublicListings() {
-  if (!supabase) return;
-  const { data, error } = await supabase.from('listings').select('*').eq('verified', true).order('created_at', { ascending: false });
-  if (error || !data) return;
-  const used = new Set();
-  const liveListings = data.map((item, index) => {
-    let id = Math.abs(hash(item.id)) || index + 1;
-    while (used.has(id)) id++;
-    used.add(id);
-    return { id, dbId: item.id, name: item.name, type: item.type, area: item.area, price: item.price, per: item.per, unit: item.unit_type, dist: Number(item.distance_km) || 0, avail: item.available_units, total: item.total_units, v: item.verified ? 1 : 0, rating: 0, n: 0, hue: item.hue || 168, owner: item.owner_name, am: item.amenities || [], desc: item.description || '' };
-  });
-  const ids = data.map(item => item.id);
-  const [tpl, locs, media] = ids.length ? await Promise.all([
-    supabase.from('agreement_templates').select('listing_id, deposit_months, late_fee_percent, notice_days, house_rules').in('listing_id', ids),
-    supabase.from('listing_locations').select('listing_id, lat, lng, address').in('listing_id', ids),
-    supabase.from('listing_media').select('listing_id, type, url, sort_order').in('listing_id', ids).order('sort_order')
-  ]) : [{ data: [] }, { data: [] }, { data: [] }];
-  liveListings.forEach(l => {
-    const t = (tpl.data || []).find(x => x.listing_id === l.dbId);
-    if (t) l.terms = { deposit: t.deposit_months ?? 0, late: t.late_fee_percent ?? 0, notice: t.notice_days ?? 30, ...(t.house_rules && t.house_rules.trim() ? { rules: t.house_rules.trim() } : {}) };
-    const loc = (locs.data || []).find(x => x.listing_id === l.dbId);
-    if (loc && loc.lat != null && loc.lng != null) l.loc = { lat: Number(loc.lat), lng: Number(loc.lng), address: loc.address || '' };
-    l.media = (media.data || []).filter(x => x.listing_id === l.dbId && x.url);
-  });
-  L.splice(0, L.length, ...liveListings);
-  AREAS.splice(0, AREAS.length, ...new Set(liveListings.map(item => item.area)));
-  updateLandingLive();
-}
-
+/* After a tenant saves something: ask again (one trip) and keep the copy on the phone up to date. */
 async function loadTenantData() {
   if (!S.user) return;
-  const [saved, bookings, payments, agreements, maintenance] = await Promise.all([
-    supabase.from('saved_listings').select('listing_id').eq('user_id', S.user.id),
-    supabase.from('bookings').select('*').eq('tenant_id', S.user.id).order('created_at', { ascending: false }),
-    supabase.from('payments').select('*').eq('tenant_id', S.user.id).order('created_at', { ascending: false }),
-    supabase.from('agreements').select('*').eq('tenant_id', S.user.id).order('created_at', { ascending: false }),
-    supabase.from('maintenance_requests').select('*').eq('tenant_id', S.user.id).order('created_at', { ascending: false })
-  ]);
-  const failed = [saved, bookings, payments, agreements, maintenance].find(result => result.error);
-  if (failed) throw failed.error;
-  const listingId = id => L.find(item => item.dbId === id)?.id;
-  S.saved = (saved.data || []).map(item => listingId(item.listing_id)).filter(Boolean);
-  S.bookings = (bookings.data || []).map(item => ({ id: item.reference, dbId: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, ts: Date.parse(item.created_at), listed: item.listed_for_transfer, purpose: item.purpose })).filter(item => item.lid);
-  S.payments = (payments.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, start: item.start_date, months: item.months, nights: item.nights, amount: item.amount, fee: item.fee, dep: item.deposit, method: item.payment_method, paidBy: item.paid_by, purpose: item.purpose, ref: item.reference, ts: Date.parse(item.created_at), st: item.status, tenant: item.tenant_name, from: item.from_source, fdn: item.efris_document_no, vc: item.verification_code })).filter(item => item.lid);
-  S.agreements = (agreements.data || []).map(item => ({ id: item.reference, dbId: item.id, lid: listingId(item.listing_id), room: item.room_code, tenant: item.tenant_name, qty: item.quantity, start: item.start_date, status: item.status, issued: Date.parse(item.issued_at || item.created_at), accepted: item.accepted_at ? Date.parse(item.accepted_at) : null, paid: item.paid })).filter(item => item.lid);
-  S.maint = (maintenance.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, tenant: item.tenant_name, type: item.type, urgent: item.urgent, note: item.note, ts: Date.parse(item.created_at), st: item.status })).filter(item => item.lid);
-  const [roommates, sentRoommateRequests, receivedRoommateRequests, ownTransfers, openTransfers, transferRequests, notifications] = await Promise.all([
-    supabase.from('roommate_profiles').select('*').eq('is_verified', true).neq('user_id', S.user.id),
-    supabase.from('roommate_requests').select('to_user_id').eq('from_user_id', S.user.id),
-    supabase.from('roommate_requests').select('id,status,created_at,from_user:profiles!roommate_requests_from_user_id_fkey(id,full_name)').eq('to_user_id', S.user.id).order('created_at', { ascending: false }),
-    supabase.from('rent_transfers').select('*, bookings!inner(reference,tenant_id)').eq('bookings.tenant_id', S.user.id).order('created_at', { ascending: false }),
-    supabase.from('rent_transfers').select('*, bookings!inner(tenant_id,tenant_name)').eq('status', 'listed').neq('bookings.tenant_id', S.user.id).order('created_at', { ascending: false }),
-    supabase.from('rent_transfer_requests').select('transfer_id,status').eq('requester_id', S.user.id),
-    supabase.from('notifications').select('*').eq('user_id', S.user.id).order('created_at', { ascending: false }).limit(50)
-  ]);
-  if (roommates.error) throw roommates.error;
-  const requestError = [sentRoommateRequests, receivedRoommateRequests, ownTransfers, openTransfers, transferRequests, notifications].find(result => result.error);
-  if (requestError) throw requestError.error;
-  PEOPLE.splice(0, PEOPLE.length, ...(roommates.data || []).map(item => ({ id: item.user_id, n: item.full_name, course: item.course || '', college: item.college || '', g: item.gender, yr: item.year || '', budget: item.budget, sleep: item.sleep, clean: item.clean_level, study: item.study, loc: item.location || '' })));
-  S.asked = (sentRoommateRequests.data || []).map(item => item.to_user_id);
-  S.roommateRequests = receivedRoommateRequests.data || [];
-  S.transfers = (ownTransfers.data || []).map(item => ({ id: item.id, bid: item.bookings.reference, price: item.price_per_month, from: item.available_from, why: item.reason, status: item.status, room: item.room_code }));
-  S.openTransfers = (openTransfers.data || []).map(item => ({ id: item.id, lid: listingId(item.listing_id), room: item.room_code, left: item.months_left, price: item.price_per_month, from: item.available_from, why: item.reason, status: item.status })).filter(item => item.lid);
-  S.transferRequests = transferRequests.data || [];
-  S.notifications = notifications.data || [];
+  const d = await fetchStart(S.user.id, true);
+  if (!d || !S.user) return;
+  applyStart(d);
+  BOOT.start = JSON.stringify(d);
+  bootWrite(S.user.id, { start: d });
 }
 
 async function saveRoommatePreferences() {
@@ -2959,12 +3081,12 @@ async function saveRoommatePreferences() {
 async function initLiveAuth() {
   try { await backendReady; } catch { toast('Could not reach Rentpply. Check your connection and reload.'); }
   if (!supabase) { updateUserInfo(); return; }
+  // The session is checked once (the first event says who is signed in); a renewed sign-in token changes nothing on screen.
   auth.onAuthStateChange((event, session) => {
     if (event === 'PASSWORD_RECOVERY') S.authPage = { mode: 'reset', audience: 'housing' };
-    queueMicrotask(() => syncLiveSession(session));
+    if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') { if (session?.user && S.user?.id === session.user.id) S.user = session.user; return; }
+    queueMicrotask(() => syncLiveSession(session).catch(error => { console.error(error); toast(error.message || 'Could not check your session.'); }));
   });
-  auth.getSession().then(syncLiveSession).catch(error => toast(error.message || 'Could not check your session.'));
-  loadPublicListings().then(() => { if (!S.user) render(); }).catch(error => console.error('Listings load failed:', error));
 }
 
 
@@ -3055,7 +3177,7 @@ function render(top) {
   if (pg && pg.name === 'listing' && !BK) initBK(pg.lid);
   const liveOwnerAdmin = S.profile && ['owner', 'admin', 'super'].includes(S.profile.role) && ['owner', 'admin'].includes(S.role);
   document.body.classList.toggle('flow', !!pg);
-  const draw = () => authVisible ? authPageHTML() : liveOwnerAdmin ? (S.liveError ? `<section class="sec"><div class="card"><b>Could not load live records</b><p class="muted">${esc(S.liveError)}</p><button class="btn" data-live-retry>Retry</button></div></section>` : PORTAL ? PORTAL.renderPortal(S.role, S.tab, S.liveData, S.profile) : '<section class="sec"><div class="card skeleton" style="height:120px"></div></section>') : pg ? ({ listing: pgListing, agreement: pgAgreement, payment: pgPayment, status: pgStatus })[pg.name]() : cur[3] ? cur[3]() : '';
+  const draw = () => authVisible ? authPageHTML() : liveOwnerAdmin ? (S.liveError ? `<section class="sec"><div class="card"><b>Could not load live records</b><p class="muted">${esc(S.liveError)}</p><button class="btn" data-live-retry>Retry</button></div></section>` : PORTAL && S.liveData ? PORTAL.renderPortal(S.role, S.tab, S.liveData, S.profile) : '<section class="sec"><div class="card skeleton" style="height:120px"></div></section>') : pg ? ({ listing: pgListing, agreement: pgAgreement, payment: pgPayment, status: pgStatus })[pg.name]() : cur[3] ? cur[3]() : '';
   const flowBefore = top ? null : flowSnapshot($('#main'));
   if (top) window.scrollTo({ top: 0 });
   // The sign-in form is never redrawn while it is open, so what someone has typed is kept when data loads in the background.
@@ -3440,7 +3562,8 @@ document.addEventListener('change', async e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 
-render();
+bootFromCopy();
+render(true);
 if (!S.user && !S.authPage && !bootHold()) showLanding();
 initLiveAuth();
 

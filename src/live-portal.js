@@ -33,8 +33,23 @@ const niceMax = v => { if (!(v > 0)) return 1; const p = Math.pow(10, Math.floor
 const ui = { prop: null, admProp: null, unit: null, floor: null, pay: 'students', range: 1, hub: 'add' };
 
 /* ---------- data ---------- */
+/* Everything the dashboard shows, in one trip (portal_start in the database), under the same access rules.
+   If that function is unavailable, the records are fetched the old way, request by request. */
+const sortProps = list => (list || []).slice().sort((x, y) => (Number(y.verified) - Number(x.verified)) || x.name.localeCompare(y.name));
 export async function loadPortalData(role, userId) {
   if (!supabase || !userId) return null;
+  const { data: d, error: rpcError } = await supabase.rpc('portal_start');
+  if (!rpcError && d) return {
+    listings: sortProps(d.listings), units: d.units, payments: d.payments, agreements: d.agreements, maintenance: d.maintenance, bills: d.bills,
+    transfers: d.transfers, ownerRequests: d.owner_requests, board: d.board, layouts: d.layouts, media: d.media, locations: d.locations, templates: d.templates,
+    kyc: Object.fromEntries((d.kyc || []).map(x => [x.tenant_id, x.kyc_status])),
+    boardPayments: d.board_payments, transferRequests: d.transfer_requests, notifications: d.notifications,
+    profiles: d.profiles, queue: d.queue, logins: d.logins
+  };
+  console.error('portal_start failed, loading in parts:', rpcError);
+  return loadPortalByParts(role, userId);
+}
+async function loadPortalByParts(role, userId) {
   const query = supabase.from('listings').select('*').order('created_at', { ascending: false });
   const admin = role === 'admin' || role === 'super';
   if (!admin) query.eq('owner_id', userId);
@@ -73,7 +88,7 @@ export async function loadPortalData(role, userId) {
   const failure = detail.find(result => result.error) || profileResult.error || queueResult.error || notificationsResult.error || transferRequestsResult.error || boardPaymentsResult.error || loginsResult.error;
   if (failure) throw failure.error || failure;
   return {
-    listings: (properties || []).slice().sort((x, y) => (Number(y.verified) - Number(x.verified)) || x.name.localeCompare(y.name)),
+    listings: sortProps(properties),
     units: at(0), payments: at(1), agreements: at(2), maintenance: at(3), bills: at(4), transfers: at(5), ownerRequests: at(6),
     board: at(7), layouts: at(8), media: at(9), locations: at(10), templates: at(11),
     kyc: Object.fromEntries(at(12).map(x => [x.tenant_id, x.kyc_status])),
