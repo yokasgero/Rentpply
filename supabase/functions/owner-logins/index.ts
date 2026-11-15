@@ -1,5 +1,5 @@
-// Owner logins, as described in "Rentpply: Platform Logic", Part 3.
-// Only an administrator may call this. It runs on Supabase with the service role key,
+// Owner logins, as described in "Rentpply: Platform Logic", Part 3, and administrator accounts.
+// Only an administrator may call this; the administrator actions are for the super user only. It runs on Supabase with the service role key,
 // which never reaches the browser. Passwords are returned once and never stored.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -65,6 +65,50 @@ Deno.serve(async (req: Request) => {
     if (error) return json({ error: error.message }, 400);
     await admin.from('owner_logins').upsert({ owner_id: ownerId, username: found.user.email, issued_at: new Date().toISOString(), sent_at: null });
     return json({ username: found.user.email, password });
+  }
+
+  // ---------- Administrators: only the super user may add them, reset their password or see their sign-in details ----------
+  const isSuper = me?.role === 'super';
+  if (['create_admin', 'admin_password', 'admin_list'].includes(body.action) && !isSuper) {
+    return json({ error: 'Only the super user can manage administrators.' }, 403);
+  }
+
+  // A new administrator: their account is made here, and the password is shown once to the super user.
+  if (body.action === 'create_admin') {
+    const email = String(body.email ?? '').trim().toLowerCase();
+    const fullName = String(body.full_name ?? '').trim();
+    const phone = String(body.phone ?? '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'Enter a valid email address. It becomes their username.' }, 400);
+    if (fullName.length < 2) return json({ error: 'Enter the administrator\'s name.' }, 400);
+    const password = makePassword();
+    // Every new account starts as a tenant; the role is raised here, with the service role, which the role guard allows.
+    const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName, role: 'tenant', phone } });
+    if (error) return json({ error: /already/i.test(error.message) ? 'That email already has an account. Use "Make someone an admin" instead.' : error.message }, 400);
+    const { error: roleError } = await admin.from('profiles').update({ role: 'admin', full_name: fullName, phone: phone || null, updated_at: new Date().toISOString() }).eq('id', data.user.id);
+    if (roleError) { await admin.auth.admin.deleteUser(data.user.id); return json({ error: roleError.message }, 400); }
+    return json({ user_id: data.user.id, username: email, password, full_name: fullName });
+  }
+
+  // A new password for an administrator who lost theirs.
+  if (body.action === 'admin_password') {
+    const targetId = String(body.user_id ?? '');
+    const { data: target } = await admin.from('profiles').select('id, role').eq('id', targetId).single();
+    if (!target || target.role !== 'admin') return json({ error: 'That account is not an administrator.' }, 400);
+    const password = makePassword();
+    const { data: updated, error } = await admin.auth.admin.updateUserById(targetId, { password });
+    if (error) return json({ error: error.message }, 400);
+    return json({ username: updated.user.email, password });
+  }
+
+  // The administrators' email addresses and when they last signed in (these live in the sign-in system, not in profiles).
+  if (body.action === 'admin_list') {
+    const { data: staff, error } = await admin.from('profiles').select('id').in('role', ['admin', 'super']);
+    if (error) return json({ error: error.message }, 400);
+    const admins = await Promise.all((staff ?? []).map(async (p: { id: string }) => {
+      const { data: found } = await admin.auth.admin.getUserById(p.id);
+      return { id: p.id, email: found?.user?.email ?? '', last_sign_in_at: found?.user?.last_sign_in_at ?? null };
+    }));
+    return json({ admins });
   }
 
   return json({ error: 'Unknown action.' }, 400);

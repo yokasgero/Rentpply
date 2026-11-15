@@ -46,7 +46,7 @@ Landing photos are in `public/img/`. The landing photos and the demo listing pho
 
 ## Accounts and roles
 
-- **Super user** (role `super`): has everything an administrator has, and alone can add or remove administrators (enforced in the database by `protect_profile_role`; `is_admin()` is true for both `admin` and `super`). The `super` role can only be given or taken away from the database. Migrations: `supabase/migrations/20261114020000_super_role_value.sql` and `20261114020100_super_role.sql`.
+- **Super user** (role `super`): has everything an administrator has, and alone can add or remove administrators (enforced in the database by `protect_profile_role`; `is_admin()` is true for both `admin` and `super`). The `super` role can only be given or taken away from the database. Migrations: `supabase/migrations/20261114020000_super_role_value.sql` and `20261114020100_super_role.sql`. On the dashboard the super user's Onboarding page opens on **Admins**, where they can add a new admin (an account is created and the password is shown once), make an existing account an admin, take the role away (the person stays as a tenant), or give an admin a new password. The `owner-logins` Edge Function's `create_admin`, `admin_password` and `admin_list` actions refuse anyone but the super user.
 
 ## Search near a place
 

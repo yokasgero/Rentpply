@@ -30,7 +30,7 @@ const head = (eyebrow, title, right = '') => `<div class="sec-h"><div><span clas
 const niceMax = v => { if (!(v > 0)) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p; };
 
 /* ---------- screen state (what is selected), kept between renders ---------- */
-const ui = { prop: null, admProp: null, unit: null, floor: null, pay: 'students', range: 1, hub: 'add' };
+const ui = { prop: null, admProp: null, unit: null, floor: null, pay: 'students', range: 1, hub: null };
 
 /* ---------- data ---------- */
 /* Everything the dashboard shows, in one trip (portal_start in the database), under the same access rules.
@@ -151,7 +151,7 @@ const noProps = () => `<section class="sec"><div class="card stack" style="align
 function propPicker(data, tab, title) {
   const rows = data.listings.map(l => { const n = data.units.filter(u => u.listing_id === l.id).length;
     return `<button class="prow" data-p-adm-prop="${esc(l.id)}" data-q="${esc((l.name + ' ' + l.area + ' ' + l.owner_name + ' ' + (TYPE[l.type] || l.type)).toLowerCase())}"><span class="pav" style="--h:${Number(l.hue) || 0}">${esc(l.name[0] || '?')}</span><span class="pmain"><b>${esc(l.name)}</b><small>${esc(l.area)} · ${esc(l.owner_name)}</small></span><span class="pside"><span class="pill ${l.verified ? 'ok' : 'warn'}">${l.verified ? (TYPE[l.type] || l.type) : 'Pending'}</span><small>${n} units</small></span><span class="pgo" aria-hidden="true">›</span></button>`; }).join('');
-  return `<section class="sec">${head('Admin', title, `<span class="pill mute">${data.listings.length} properties</span>`)}
+  return `<section class="sec">${head(staffName(), title, `<span class="pill mute">${data.listings.length} properties</span>`)}
     <div class="sbox">${icn('search')}<input class="inp" id="admq" type="search" placeholder="Search by property, area or owner" aria-label="Search properties" autocomplete="off"></div>
     <div class="plist" id="plist">${rows || '<div class="card"><p class="muted">No properties yet.</p></div>'}</div><p class="muted" id="pnone" hidden style="text-align:center;padding:18px 0">No property matches that search.</p></section>`;
 }
@@ -380,16 +380,57 @@ function activityHub(data) {
 function accountsHub(data) {
   return `<div class="stack"><h3 style="font-size:22px">Accounts</h3><p class="muted">${me && me.role === 'super' ? 'As the super user you can make people administrators or remove them.' : 'Only the super user can add or remove administrators.'}</p>${table(['Name', 'Role', 'Identity', 'Joined'], data.profiles.map(x => `<tr><td><b>${esc(x.full_name)}</b><div class="muted mono" style="font-size:11px">${esc(x.id.slice(0, 8))}</div></td><td>${x.role === 'super' ? '<span class="pill ok">Super user</span>' : x.role === 'admin' && !(me && me.role === 'super') ? '<span class="pill mute">admin</span>' : `<select class="inp" style="width:auto" data-live-role="${esc(x.id)}" aria-label="Role for ${esc(x.full_name)}">${options(me && me.role === 'super' ? ['tenant', 'student', 'owner', 'admin'] : ['tenant', 'student', 'owner'], x.role)}</select>`}</td><td>${pill(x.kyc_status, x.kyc_status === 'verified' ? 'ok' : x.kyc_status === 'review' ? 'warn' : 'mute')}</td><td>${date(x.created_at)}</td></tr>`), 'No accounts yet.')}</div>`;
 }
+/* ---------- the super user's own section: the administrators ----------
+   Only the super user can add administrators, make an existing account one, take the role away or give one a new password.
+   The database's role guard and the owner-logins function enforce this too; this screen is only the way in. */
+const staffName = () => me && me.role === 'super' ? 'Super user' : 'Admin';
+let team = null; // administrators' emails and last sign-in, from the owner-logins function
+async function loadTeam() {
+  team = { loading: true, list: [] };
+  try { const out = await ownerLoginsCall({ action: 'admin_list' }); team = { list: out.admins || [] }; }
+  catch (e) { team = { list: [], error: e.message || 'Could not load the administrators\' details.' }; }
+  // Fill in the cells already on screen, so nothing being typed on the page is lost.
+  const info = id => team.list.find(x => x.id === id) || {};
+  document.querySelectorAll('[data-team-email]').forEach(td => { td.textContent = info(td.dataset.teamEmail).email || ''; });
+  document.querySelectorAll('[data-team-seen]').forEach(td => { const t = info(td.dataset.teamSeen).last_sign_in_at; td.textContent = t ? date(t) : 'Never'; });
+  const note = document.getElementById('teamerr'); if (note && team.error) { note.textContent = team.error; note.hidden = false; }
+}
+function teamHub(data) {
+  if (!team) loadTeam();
+  const staff = data.profiles.filter(x => x.role === 'admin' || x.role === 'super').sort((a, b) => (b.role === 'super') - (a.role === 'super') || a.full_name.localeCompare(b.full_name));
+  const info = id => (team && team.list.find(x => x.id === id)) || {}, wait = !team || team.loading;
+  const others = data.profiles.filter(x => !['admin', 'super'].includes(x.role));
+  return `<div class="stack"><h3 style="font-size:22px">Administrators</h3><p class="muted">Only you, the super user, can add administrators or take the role away. Administrators can do everything else on this dashboard.</p>
+    <p class="notice" id="teamerr" ${team && team.error ? '' : 'hidden'}>${esc((team && team.error) || '')}</p>
+    ${table(['Name', 'Email', 'Last signed in', ''], staff.map(x => { const i = info(x.id); return `<tr><td><b>${esc(x.full_name)}</b>${me && x.id === me.id ? ' <span class="pill mute">You</span>' : ''}</td><td class="mono" data-team-email="${esc(x.id)}">${wait ? '…' : esc(i.email || '')}</td><td data-team-seen="${esc(x.id)}">${wait ? '…' : i.last_sign_in_at ? date(i.last_sign_in_at) : 'Never'}</td><td>${x.role === 'super' ? '<span class="pill ok">Super user</span>' : `<div class="row" style="flex-wrap:nowrap"><button class="btn ghost sm" data-p-admin-pw="${esc(x.id)}">New password</button><button class="btn ghost sm" data-p-admin-remove="${esc(x.id)}">Remove admin</button></div>`}</td></tr>`; }), 'No administrators yet.')}
+    <form class="card stack" data-live-form="new-admin"><div><span class="eyebrow">New administrator</span><h3>Add an admin</h3><p class="muted">This creates their account. Their password is shown to you once, so you can pass it on.</p></div>
+      <div class="grid">${field('Full name', 'full_name')}${field('Email (their username)', 'email', 'email')}<label class="field"><span>Phone (optional)</span><input class="inp" name="phone" type="tel"></label></div>
+      <button class="btn" type="submit" style="align-self:flex-start">Add admin</button></form>
+    <div class="card stack"><div><span class="eyebrow">Existing account</span><h3>Make someone an admin</h3><p class="muted">For a person who already has a Rentpply account. Search by name or phone.</p></div>
+      <input class="inp" id="teamq" type="search" placeholder="Search ${others.length} accounts" autocomplete="off" aria-label="Search accounts">
+      <div class="stack" style="gap:8px">${others.map(x => `<div class="row trow" data-q="${esc(`${x.full_name} ${x.phone || ''}`.toLowerCase())}" hidden style="justify-content:space-between;flex-wrap:nowrap"><span style="min-width:0"><b>${esc(x.full_name)}</b> <span class="muted">${esc(x.role)}${x.phone ? ' · ' + esc(x.phone) : ''}</span></span><button class="btn sm" data-p-admin-make="${esc(x.id)}">Make admin</button></div>`).join('')}</div>
+      <p class="muted" id="teamnone" hidden>No one matches.</p></div></div>`;
+}
+function showStaffCredentials(title, username, password) {
+  layer(sheetHTML(title, `<div class="stack" style="gap:14px"><h2 style="font-size:24px">${esc(title)}</h2>
+    <p class="notice">Copy these now. For security the password is not stored, so it cannot be shown again. You can give them a new one at any time.</p>
+    <label class="field"><span>Username</span><div class="row" style="flex-wrap:nowrap"><input class="inp mono" readonly value="${esc(username)}"><button class="btn ghost sm" type="button" data-p-copy="${esc(username)}">Copy</button></div></label>
+    <label class="field"><span>Password</span><div class="row" style="flex-wrap:nowrap"><input class="inp mono" id="credPw" type="password" readonly value="${esc(password)}"><button class="btn ghost sm" type="button" data-p-pwtoggle>Show</button><button class="btn ghost sm" type="button" data-p-copy="${esc(password)}">Copy</button></div></label>
+    <button class="btn" type="button" data-close>Done</button></div>`));
+}
+
 function adminQueue(data) {
   const pend = data.listings.filter(l => !l.verified).length, kyc = data.profiles.filter(x => x.kyc_status === 'review').length, openQ = data.queue.filter(x => x.status === 'open').length;
   const unsent = data.logins.filter(x => x.issued_at && !x.sent_at).length + data.profiles.filter(o => o.role === 'owner' && !(data.logins.find(x => x.owner_id === o.id) || {}).issued_at).length;
   const act = data.payments.filter(p => p.status === 'pending').length + data.maintenance.filter(m => m.status === 'open').length + data.transferRequests.filter(r => r.status === 'pending').length;
   const hubs = [['add', 'plus', 'Add property', 0], ['verify', 'shield', 'Verification', pend + kyc + openQ], ['logins', 'key', 'Owner logins', unsent], ['activity', 'receipt', 'Activity', act], ['accounts', 'users', 'Accounts', 0]];
-  const hub = ui.hub;
-  return `<section class="sec">${head('Admin', 'Onboarding')}
+  const isSuper = me && me.role === 'super';
+  if (isSuper) hubs.unshift(['team', 'shield', 'Admins', 0]);
+  const hub = ui.hub || (isSuper ? 'team' : 'add');
+  return `<section class="sec">${head(staffName(), 'Onboarding')}
     <div class="kgrid"><div class="card stat"><span class="eyebrow">Pending properties</span><b>${pend}</b><span class="muted">waiting for verification</span></div><div class="card stat"><span class="eyebrow">Identity reviews</span><b>${kyc}</b><span class="muted">waiting for a decision</span></div><div class="card stat"><span class="eyebrow">Open queue items</span><b>${openQ}</b><span class="muted">needing follow-up</span></div><div class="card stat"><span class="eyebrow">Accounts</span><b>${data.profiles.length}</b><span class="muted">on the platform</span></div></div>
     <div class="hubs" role="group" aria-label="Onboarding steps">${hubs.map(h => `<button class="hubb" data-p-hub="${h[0]}" aria-pressed="${hub === h[0]}">${icn(h[1])}<b>${h[2]}</b>${h[3] ? `<i class="hbadge">${h[3]}</i>` : ''}</button>`).join('')}</div>
-    ${hub === 'add' ? newPropertyForm(data) : hub === 'verify' ? verifyHub(data) : hub === 'logins' ? loginsHub(data) : hub === 'activity' ? activityHub(data) : accountsHub(data)}</section>`;
+    ${hub === 'add' ? newPropertyForm(data) : hub === 'verify' ? verifyHub(data) : hub === 'logins' ? loginsHub(data) : hub === 'activity' ? activityHub(data) : hub === 'team' && isSuper ? teamHub(data) : hub === 'accounts' ? accountsHub(data) : newPropertyForm(data)}</section>`;
 }
 
 function adminUnits(data) {
@@ -679,6 +720,19 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
   if ((el = target.closest('[data-p-hub]'))) return ui1('hub', el.dataset.pHub);
   if ((el = target.closest('[data-p-adm-prop]'))) { ui.admProp = el.dataset.pAdmProp; ui.unit = null; ui.floor = null; if (el.dataset.pAdmTab && ctx.setTab) { ctx.setTab(el.dataset.pAdmTab); return true; } ctx.rerender && ctx.rerender(); return true; }
   if (target.closest('[data-p-adm-back]')) { ui.admProp = null; ui.unit = null; ui.floor = null; ctx.rerender && ctx.rerender(); return true; }
+  if ((el = target.closest('[data-p-admin-make], [data-p-admin-remove]'))) {
+    const make = el.matches('[data-p-admin-make]'), id = make ? el.dataset.pAdminMake : el.dataset.pAdminRemove, who = (ctx.data?.profiles || []).find(x => x.id === id);
+    const name = who ? who.full_name : 'this person';
+    if (!window.confirm(make ? `Make ${name} an administrator? They will be able to verify properties, issue owner logins and see every account and payment.` : `Take the administrator role away from ${name}? They keep their account, as a tenant.`)) return true;
+    const result = await supabase.from('profiles').update({ role: make ? 'admin' : 'tenant', updated_at: new Date().toISOString() }).eq('id', id);
+    if (result.error) throw result.error;
+    team = null; await refresh(); ctx.toast && ctx.toast(make ? `${name} is now an administrator.` : `${name} is no longer an administrator.`); return true;
+  }
+  if ((el = target.closest('[data-p-admin-pw]'))) {
+    if (!window.confirm('This replaces the administrator\'s current password. They will need the new one to sign in. Continue?')) return true;
+    const out = await ownerLoginsCall({ action: 'admin_password', user_id: el.dataset.pAdminPw });
+    showStaffCredentials('New password for the admin', out.username, out.password); return true;
+  }
   if ((el = target.closest('[data-p-copy]'))) { await navigator.clipboard.writeText(el.dataset.pCopy); el.textContent = 'Copied'; return true; }
   if (target.closest('[data-p-pwtoggle]')) { const pw = document.getElementById('credPw'), btn = target.closest('[data-p-pwtoggle]'); if (pw) { pw.type = pw.type === 'password' ? 'text' : 'password'; btn.textContent = pw.type === 'password' ? 'Show' : 'Hide'; } return true; }
   if ((el = target.closest('[data-p-login-issue]'))) {
@@ -802,6 +856,12 @@ export async function handlePortalChange(target, refresh, ctx = {}) {
 }
 
 export function handlePortalInput(target) {
+  if (target.id === 'teamq') {
+    const q = target.value.trim().toLowerCase(); let shown = 0;
+    document.querySelectorAll('.trow').forEach(r => { const hit = q.length > 0 && shown < 20 && r.dataset.q.includes(q); r.hidden = !hit; if (hit) shown++; });
+    const none = document.getElementById('teamnone'); if (none) none.hidden = !q || shown > 0;
+    return true;
+  }
   if (target.id !== 'admq') return false;
   const q = target.value.trim().toLowerCase(); let shown = 0;
   document.querySelectorAll('#plist .prow').forEach(r => { const hit = !q || r.dataset.q.includes(q); r.hidden = !hit; if (hit) shown++; });
@@ -814,6 +874,12 @@ export async function handlePortalSubmit(form, role, user, profile, data, refres
   const values = Object.fromEntries(new FormData(form));
   const kind = form.dataset.liveForm;
   let result;
+  if (kind === 'new-admin') {
+    const out = await ownerLoginsCall({ action: 'create_admin', full_name: values.full_name, email: values.email, phone: values.phone });
+    form.reset(); team = null; await refresh();
+    showStaffCredentials('Login for the new admin', out.username, out.password);
+    return true;
+  }
   if (kind === 'listing') {
     let owner = data.profiles.find(item => item.id === values.owner_id);
     if (values.owner_id === '__new') {
