@@ -1675,6 +1675,9 @@ function toast(msg) {
 const verifiedPill = l => l.v ? `<span class="pill ok">${ic('shield')}Verified</span>` : `<span class="pill warn">Pending check</span>`;
 const unitLabel = l => l.per === 'night' ? '/ night' : '/ month';
 
+/* A place, as a message: name, area, price and its own link. */
+const placeUrl = l => location.origin + '/place/' + l.id;
+const shareText = l => `Have a look at ${l.name} in ${l.area} on Rentpply: ${fmt(l.price)} ${unitLabel(l)}. ${placeUrl(l)}`;
 function card(l) {
   const saved = S.saved.includes(l.id);
   return `<article class="lcard">
@@ -1682,7 +1685,7 @@ function card(l) {
       <div class="badges">${verifiedPill(l)}</div>
       <button class="heart" data-save="${l.id}" aria-pressed="${saved}" aria-label="Save ${esc(l.name)}">${ic('heart')}</button>
     </div>
-    <div class="body">
+    <div class="body" data-open="${l.id}" style="cursor:pointer">
       <div class="row" style="justify-content:space-between;gap:8px">
         <span class="eyebrow">${l.type === 'airbnb' ? 'Short stay' : l.type}</span>
         ${l.n ? `<span class="stars">${ic('star')}${l.rating.toFixed(1)} <span class="muted" style="font-weight:500">(${l.n})</span></span>` : '<span class="muted" style="font-size:12px">No reviews yet</span>'}
@@ -2193,6 +2196,7 @@ function pgListing() {
     ${lsec('doc', 'Rules and policies', bullets(rules, 4))}
     ${lsec('car', 'Parking', `<p class="muted">${hasPark ? 'Parking is available on site.' : 'No parking on site.'}</p>`)}
     ${lsec('phone', 'Contact information', `<p><b>${esc(l.owner)}</b>${l.v ? ' · verified owner' : ''}</p><p class="muted">Phone and email are shared once you apply, so scammers cannot copy them.</p>`)}
+    ${lsec('globe', 'Show someone', `<p class="muted">Send this place to a parent, sponsor or friend. They can open it without an account.</p><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><a class="btn sm" href="https://wa.me/?text=${encodeURIComponent(shareText(l))}" target="_blank" rel="noopener">Send on WhatsApp</a><button class="btn ghost sm" type="button" data-share="${l.id}">Share or copy link</button></div>`)}
     ${lsec('pin', 'Local information', `<div class="row" style="justify-content:space-between;gap:10px;margin-bottom:6px"><span class="muted">${l.area}, Kampala · ${l.dist} km ${l.type === 'hostel' ? 'to campus' : 'from the centre'}</span><a class="btn ghost sm" href="${mapsLink(l)}" target="_blank" rel="noopener">Open in Google Maps</a></div>${l.loc && l.loc.address ? `<p class="muted" style="font-size:13px">${esc(l.loc.address)}</p>` : ''}<button class="btn ghost sm" data-lv-tab="map" data-lv-up style="align-self:flex-start;margin-top:6px">${ic('pin')}See it on the map</button>`)}
     ${ok ? `<div class="actbar always"><div class="inner two"><button class="btn ghost" data-view="${l.id}">Book a viewing</button><button class="btn" data-apply>Apply now</button></div></div>` : ''}
   </section>`;
@@ -2786,9 +2790,26 @@ function accountHTML() {
     <button class="acct-row acct-btn" data-pw-change><span>${ic('key')}Change password</span>${ic('chevR')}</button>
     <button class="acct-out" data-auth-signout>${ic('arrow')}${p.role === 'owner' ? 'Log out' : 'Sign out'}</button></div></div></div>`;
 }
+/* Where a notification leads: [where, button label]. */
+function notifTarget(n) {
+  const d = n.data || {}, staff = S.profile && ['owner', 'admin', 'super'].includes(S.profile.role);
+  if (d.payment_id) return staff ? ['payments', 'Open payments'] : ['receipts', 'See receipt'];
+  if (d.roommate_request_id || d.to_user_id) return staff ? ['requests', 'Open requests'] : ['roommates', 'Open roommates'];
+  if (d.request_id) return staff ? ['requests', 'Open requests'] : null;
+  if (d.listing_id && !staff && L.some(l => l.dbId === d.listing_id)) return ['listing', 'See the place'];
+  // older notifications carry no link: go by their kind
+  const k = `${n.type || ''} ${n.title || ''}`.toLowerCase();
+  if (/payment|receipt|rent/.test(k)) return staff ? ['payments', 'Open payments'] : ['receipts', 'See receipts'];
+  if (/agreement/.test(k)) return staff ? ['board', 'Open the board'] : ['receipts', 'See agreements'];
+  if (/roommate/.test(k)) return staff ? ['requests', 'Open requests'] : ['roommates', 'Open roommates'];
+  if (/viewing|transfer|request/.test(k)) return staff ? ['requests', 'Open requests'] : ['pass', 'Open My stay'];
+  if (/repair|maintenance/.test(k)) return staff ? ['units', 'Open units'] : ['room', 'Open My stay'];
+  return null;
+}
 function showNotifications() {
   const notifications = S.notifications || [];
-  const content = notifications.length ? notifications.map(item => `<article class="card stack" style="gap:6px;${item.read ? 'opacity:.72' : ''}"><div class="row" style="justify-content:space-between"><b>${esc(item.title)}</b><small class="muted">${fdt(item.created_at)}</small></div><p class="muted">${esc(item.message)}</p>${item.read ? '' : `<button class="btn ghost sm" data-notification-read="${esc(item.id)}" style="align-self:flex-start">Mark as read</button>`}</article>`).join('') : '<p class="muted">No notifications yet.</p>';
+  // Each notification opens what it is about (a payment, a request, a place); tapping it also marks it read.
+  const content = notifications.length ? notifications.map(item => `<article class="card stack" style="gap:6px;${item.read ? 'opacity:.72' : ''}"><div class="row" style="justify-content:space-between"><b>${esc(item.title)}</b><small class="muted">${fdt(item.created_at)}</small></div><p class="muted">${esc(item.message)}</p><div class="row" style="gap:8px;flex-wrap:wrap">${notifTarget(item) ? `<button class="btn sm" data-notif-go="${esc(item.id)}">${notifTarget(item)[1]}</button>` : ''}${item.read ? '' : `<button class="btn ghost sm" data-notification-read="${esc(item.id)}">Mark as read</button>`}</div></article>`).join('') : '<p class="muted">No notifications yet.</p>';
   sheet(`<div class="stack"><h2>Notifications</h2>${content}</div>`, 'Notifications');
 }
 
@@ -3315,6 +3336,17 @@ document.addEventListener('click', async e => {
   if (c('[data-auth-back]')) { S.authPage = null; S.authNotice = ''; S.role = 'tenant'; S.tab = 'home'; showLanding(); render(true); return; }
   if (c('[data-auth-signout]')) { setLayer(''); await auth.signOut(); return; }
   if (c('[data-notifications]')) { showNotifications(); return; }
+  if ((el = c('[data-notif-go]'))) {
+    const n = (S.notifications || []).find(x => x.id === el.dataset.notifGo), t = n && notifTarget(n); if (!t) return;
+    setLayer('');
+    if (!n.read) { n.read = true; supabase.from('notifications').update({ read: true }).eq('id', n.id).eq('user_id', S.user.id).then(() => updateUserInfo()); }
+    const d = n.data || {}, staffTab = S.profile.role === 'owner' ? { payments: 'payments', requests: 'requests', board: 'terms', units: 'units' } : { payments: 'queue', requests: 'queue', board: 'listings', units: 'units' };
+    if (['owner', 'admin', 'super'].includes(S.profile.role)) { S.role = S.profile.role === 'owner' ? 'owner' : 'admin'; S.page = null; S.tab = staffTab[t[0]] || FIRST[S.role]; render(true); return; }
+    if (['receipts', 'pass', 'room'].includes(t[0])) { go('wallet:' + t[0]); return; }
+    if (t[0] === 'roommates') { go('roommates'); return; }
+    if (t[0] === 'listing') { const l = L.find(x => x.dbId === d.listing_id); if (l) openListing(l.id); return; }
+    return;
+  }
   if ((el = c('[data-notification-read]'))) {
     const { error } = await supabase.from('notifications').update({ read: true }).eq('id', el.dataset.notificationRead).eq('user_id', S.user.id);
     if (error) { toast(error.message || 'Could not mark notification as read.'); return; }
@@ -3382,6 +3414,12 @@ document.addEventListener('click', async e => {
       if (error) { S.saved = wasSaved ? [...S.saved, id] : S.saved.filter(savedId => savedId !== id); toast(error.message || 'Could not update saved listings.'); return; }
     }
     save(); el.setAttribute('aria-pressed', S.saved.includes(id)); toast(S.saved.includes(id) ? 'Saved to your list' : 'Removed from your list'); return;
+  }
+  if ((el = c('[data-share]'))) {
+    const l = byId(+el.dataset.share); if (!l) return;
+    try { if (navigator.share) { await navigator.share({ title: l.name + ' · Rentpply', text: shareText(l).replace(' ' + placeUrl(l), ''), url: placeUrl(l) }); return; } } catch (err) { if (err && err.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(placeUrl(l)); toast('Link copied. Paste it in a message.'); } catch { toast(placeUrl(l)); }
+    return;
   }
   if ((el = c('[data-open]'))) { openListing(+el.dataset.open); return; }
   if ((el = c('[data-near]'))) { pickNear(UG_PLACES[+el.dataset.near]); return; }
