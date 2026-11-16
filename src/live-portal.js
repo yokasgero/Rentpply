@@ -27,7 +27,7 @@ const pill = (value, tone) => `<span class="pill ${tone || (['verified', 'confir
 const options = (values, selected) => values.map(v => { const [val, label] = Array.isArray(v) ? v : [v, v]; return `<option value="${esc(val)}" ${val === selected ? 'selected' : ''}>${esc(label)}</option>`; }).join('');
 const MAINT = [['open', 'Open'], ['work', 'In progress'], ['done', 'Done']];
 const field = (label, name, type = 'text', extra = '') => `<label class="field"><span>${label}</span><input class="inp" name="${name}" type="${type}" ${extra} required></label>`;
-const table = (head, rows, empty) => rows.length ? `<div class="card scroll-x" style="padding:6px"><table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>` : `<div class="card"><p class="muted">${empty}</p></div>`;
+const table = (head, rows, empty) => rows.length ? `<div class="card scroll-x" tabindex="0" style="padding:6px"><table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>` : `<div class="card"><p class="muted">${empty}</p></div>`;
 const head = (eyebrow, title, right = '') => `<div class="sec-h"><div><span class="eyebrow">${esc(eyebrow)}</span><h2>${esc(title)}</h2></div>${right}</div>`;
 const niceMax = v => { if (!(v > 0)) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p; };
 
@@ -147,7 +147,7 @@ function currentProp(data, key = 'prop') {
 function propChips(data) {
   if (data.listings.length < 2) return '';
   const cur = currentProp(data);
-  return `<div class="fchips pchips" role="tablist" aria-label="Choose a property">${data.listings.map(l => `<button class="fchip" role="tab" data-p-prop="${esc(l.id)}" aria-pressed="${cur && cur.id === l.id}" title="${esc(l.name)}">${icn(l.type === 'hostel' ? 'users' : l.type === 'airbnb' ? 'key' : 'home')}<span>${esc(l.name)}</span></button>`).join('')}</div>`;
+  return `<div class="fchips pchips" role="group" aria-label="Choose a property">${data.listings.map(l => `<button class="fchip" data-p-prop="${esc(l.id)}" aria-pressed="${cur && cur.id === l.id}" title="${esc(l.name)}">${icn(l.type === 'hostel' ? 'users' : l.type === 'airbnb' ? 'key' : 'home')}<span>${esc(l.name)}</span></button>`).join('')}</div>`;
 }
 const noProps = () => `<section class="sec"><div class="card stack" style="align-items:flex-start"><h3>No property yet</h3><p class="muted">Your properties appear here once the Rentpply team has added and verified them.</p></div></section>`;
 function propPicker(data, tab, title) {
@@ -278,7 +278,7 @@ function ownerOverview(data, profile) {
       <div class="card stat"><span class="eyebrow">Vacant or reserved</span><b>${free}</b><span class="muted">ready for new bookings</span></div>
     </div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))">
-      <div class="card stack" style="gap:8px"><span class="eyebrow">Rent collected per month, UGX millions</span><div class="scroll-x">${barChart(bk.map(b => b.label), series, 'Rent collected per month')}</div>${sum(series) ? '' : '<p class="muted" style="font-size:13px">No confirmed payments in the last 6 months yet.</p>'}</div>
+      <div class="card stack" style="gap:8px"><span class="eyebrow">Rent collected per month, UGX millions</span><div class="scroll-x" tabindex="0">${barChart(bk.map(b => b.label), series, 'Rent collected per month')}</div>${sum(series) ? '' : '<p class="muted" style="font-size:13px">No confirmed payments in the last 6 months yet.</p>'}</div>
       <div class="card stack" id="reminders" style="gap:4px;scroll-margin-top:84px"><span class="eyebrow">Needs a reminder</span>${late.length ? late.map(u => `<button class="needrow" type="button" data-p-tenant="${esc(u.id)}" style="padding:10px 4px"><span style="min-width:0;text-align:left"><b>${esc(u.tenant_name || 'Tenant')}</b><small class="muted" style="display:block"><span class="mono">${esc(u.unit_code)}</span> · ${u.payment_status === 'overdue' ? 'overdue' : 'due'}${u.paid_through ? ' since ' + date(u.paid_through) : ''}</small></span><b class="num" style="color:var(--bad);margin-left:auto;flex:none">${money(u.balance)}</b>${ic(ICON.arrow, 'i" style="flex:none')}</button>`).join('') : '<p class="muted">Everyone is paid up.</p>'}</div>
     </div>${admin ? '' : mediaEditor(data, p, false)}</section>`;
 }
@@ -369,7 +369,7 @@ function unitsView(data, p, adminMode) {
     ${open ? `<div class="alertbar" role="alert"><span class="bell ring">${icn('bell')}</span><div><b>${open} maintenance ${open === 1 ? 'complaint needs' : 'complaints need'} attention</b><div style="font-size:13px">Look for the red bell on a unit and tap it.</div></div></div>` : ''}
     <p class="muted" style="max-width:62ch">Tap a room to see who lives there. Press and hold a room to change its status.</p>
     <div class="legend"><span><i style="background:var(--ok-soft);border-color:var(--ok)"></i>Occupied ${n('occupied')}</span><span><i style="background:var(--warn-soft);border-color:var(--warn)"></i>Reserved ${n('reserved')}</span><span><i style="border-style:dashed"></i>Vacant ${n('vacant')}</span><span><i style="background:var(--bad-soft);border-color:var(--bad)"></i>Maintenance ${n('maint')}</span></div>
-    ${floors.length > 1 ? `<div class="fchips" role="tablist" aria-label="Floors">${floors.map(f => `<button class="fchip" role="tab" data-p-floor="${f}" aria-pressed="${f === ui.floor}">${f === 0 ? 'Ground' : floorName(f).replace(' floor', '')}</button>`).join('')}<span class="muted fhint">Swipe for the next floor</span></div>` : ''}
+    ${floors.length > 1 ? `<div class="fchips" role="group" aria-label="Floors">${floors.map(f => `<button class="fchip" data-p-floor="${f}" aria-pressed="${f === ui.floor}">${f === 0 ? 'Ground' : floorName(f).replace(' floor', '')}</button>`).join('')}<span class="muted fhint">Swipe for the next floor</span></div>` : ''}
     ${floors.length ? `<div class="fpager" id="fpager" style="--maxcols:${Math.max(3, ...floors.map(f => (layoutOf(data, p.id, f) || { columns: 3 }).columns))}">${floors.map(page).join('')}</div>` : '<div class="card"><p class="muted">No rooms yet.</p></div>'}
     ${sel ? unitDetail(sel, data) : units.length ? '<div class="card"><p class="muted">Select a room to see the tenant, what they pay, their payment history and any repair requests.</p></div>' : ''}
     ${adminMode ? `<form class="card stack" data-live-form="unit"><div><span class="eyebrow">Add a single room</span><h3>New room</h3></div><input type="hidden" name="listing_id" value="${esc(p.id)}"><div class="grid">${field('Room code', 'unit_code')}${field('Floor', 'floor', 'number', `value="${ui.floor ?? 0}" min="0"`)}${field('Monthly rent (UGX)', 'rent', 'number', `min="1" value="${p.price}"`)}</div><button class="btn" type="submit">Add room</button></form>` : ''}</section>`;
