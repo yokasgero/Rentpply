@@ -3164,6 +3164,10 @@ function render(top) {
   document.body.classList.toggle('flow', !!pg);
   const draw = () => authVisible ? authPageHTML() : liveOwnerAdmin ? (S.liveError ? `<section class="sec"><div class="card"><b>Could not load live records</b><p class="muted">${esc(S.liveError)}</p><button class="btn" data-live-retry>Retry</button></div></section>` : PORTAL && S.liveData ? PORTAL.renderPortal(S.role, S.tab, S.liveData, S.plainAdmin && S.profile.role === 'super' ? { ...S.profile, role: 'admin' } : S.profile) : '<section class="sec"><div class="card skeleton" style="height:120px"></div></section>') : pg ? ({ listing: pgListing, agreement: pgAgreement, payment: pgPayment, status: pgStatus })[pg.name]() : cur[3] ? cur[3]() : '';
   const flowBefore = top ? null : flowSnapshot($('#main'));
+  // The page entrance (#main.enter) belongs to a screen change only. An update on the same screen (a tap, a filter,
+  // data arriving) must not replay it, or the whole page fades in again on every tap. Within the first moments of a
+  // screen change it is left on, so the entrance is not cut short.
+  if (!top) { const m = $('#main'); if (m.classList.contains('enter') && performance.now() - (S._enterAt || 0) > 450) m.classList.remove('enter'); }
   if (top) window.scrollTo({ top: 0 });
   // The sign-in form is never redrawn while it is open, so what someone has typed is kept when data loads in the background.
   const shownForm = $('#main form[data-auth-form]'), want = S.authPage || { mode: 'signin', audience: 'housing' };
@@ -3186,6 +3190,7 @@ function render(top) {
     const idx = pg ? 99 : nav.indexOf(cur), dir = S._navIdx === undefined || idx === S._navIdx ? 'up' : idx > S._navIdx ? 'fwd' : 'back';
     S._navIdx = idx;
     window.scrollTo({ top: 0 }); const m = $('#main'); m.dataset.dir = dir; m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter');
+    S._enterAt = performance.now(); clearTimeout(S._enterT); S._enterT = setTimeout(() => m.classList.remove('enter'), 1400); // after the longest entrance (staggered cards included)
   }
 }
 /* The orange highlight in the menu glides from the old tab to the new one. */

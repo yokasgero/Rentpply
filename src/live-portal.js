@@ -215,7 +215,10 @@ async function loadTenantInfo(unitId, rerender) {
   if (!unitId || tenantInfo[unitId]) return;
   const { data, error } = await supabase.rpc('unit_tenant_details', { unit_uuid: unitId });
   tenantInfo[unitId] = error ? { error: error.message } : { people: data || [] };
-  rerender && rerender();
+  // Only the tenant cards change: fill them in where they are, instead of redrawing the page.
+  const box = document.querySelector(`[data-tc="${CSS.escape(unitId)}"]`);
+  if (box) box.innerHTML = tenantCards({ id: unitId }, Number(box.dataset.share) || 0);
+  else rerender && rerender();
 }
 /* Repairs: one card each, with who reported it, when, and the next step as a button. */
 const ago = d => { const m = Math.round((Date.now() - Date.parse(d)) / 60000); if (!(m >= 0)) return ''; if (m < 1) return 'just now'; if (m < 60) return m + ' min ago'; const h = Math.round(m / 60); if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago'); const dd = Math.round(h / 24); return dd === 1 ? 'yesterday' : dd < 7 ? dd + ' days ago' : date(d); };
@@ -243,7 +246,7 @@ function unitDetail(u, data) {
   const ag = data.agreements.find(a => a.listing_id === u.listing_id && a.room_code === u.unit_code), paidSum = sum(hist.filter(p => p.status === 'confirmed').map(p => p.amount + p.fee + p.deposit));
   const split = u.roommate_name ? u.rent / 2 : u.rent;
   return `<div class="card stack" id="unitDetail" style="gap:16px">${headHtml}
-    ${tenantCards(u, split)}
+    <div style="display:contents" data-tc="${esc(u.id)}" data-share="${split}">${tenantCards(u, split)}</div>
     <div class="share">${icn(u.roommate_name ? 'users' : 'home')}<span>${u.roommate_name ? `Shared room: <b>${esc(u.tenant_name)}</b> and <b>${esc(u.roommate_name)}</b> each pay ${money(split)} a month.` : `No roommate. This unit has one tenant${u.is_corporate ? ' (company staff housing)' : ''}.`}</span></div>
     <div class="ustats"><div><span>Rent for the unit</span><b class="num">${money(u.rent)}</b></div><div><span>Paid through</span><b>${date(u.paid_through)}</b></div><div><span>Balance</span><b class="num" style="color:${u.balance ? 'var(--bad)' : 'var(--ok)'}">${money(u.balance)}</b></div><div><span>Payment record</span><b>${esc(u.credit_rating || 'Good')}</b></div></div>
     ${maint}
@@ -635,7 +638,23 @@ function kpiExtras(data, bk) {
   const heat = `<div class="heat"><div class="hrow hh"><span></span>${slots.map(s => `<span>${s}</span>`).join('')}</div>${grid.map((row, i) => `<div class="hrow"><span>${days[i]}</span>${row.map((v, k) => `<i class="hc" style="--a:${(.08 + v / mx * .92).toFixed(2)}" title="${days[i]} ${slots[k]}h · ${v} ${v === 1 ? 'application' : 'applications'}"></i>`).join('')}</div>`).join('')}</div><div class="lg"><span class="muted">Fewer</span><span class="ramp"></span><span class="muted">More applications</span></div>`;
   return { funnel, status: donut(stat.filter(s => s.v)), heat };
 }
-let pressTimer = 0, pressFired = false, pressBound = false;
+let pressTimer = 0, pressBound = false, swallowUntil = 0, menuThisPress = false;
+/* No room selected any more (another floor was chosen): take the highlight off and put back the hint, without a redraw. */
+function clearUnitSel() {
+  if (!ui.unit) return;
+  ui.unit = null;
+  document.querySelectorAll('.unit[aria-pressed="true"]').forEach(b => b.setAttribute('aria-pressed', 'false'));
+  const d = document.getElementById('unitDetail');
+  if (d) d.outerHTML = '<div class="card"><p class="muted">Select a room to see the tenant, what they pay, their payment history and any repair requests.</p></div>';
+}
+/* Press and hold a room: its status menu. On some phones lifting the finger afterwards also counts as a tap, which
+   would land on the menu (closing it, or picking a status by accident), so a tap at the moment of lifting is ignored. */
+function pressMenu(u) {
+  if (menuThisPress) return; // already opened by this press (the timer and the phone's own long-press can both fire)
+  menuThisPress = true;
+  if (navigator.vibrate) try { navigator.vibrate(12); } catch (_) { /* not every phone allows it */ }
+  quickMenu(u.dataset.pUnit, (u.querySelector('b') || {}).textContent || '');
+}
 export function portalBind() {
   const pager = document.getElementById('fpager');
   if (pager) {
@@ -644,9 +663,12 @@ export function portalBind() {
     pager.addEventListener('scroll', () => {
       clearTimeout(pager._t);
       pager._t = setTimeout(() => {
-        const pg = pages[Math.round(pager.scrollLeft / Math.max(1, pager.clientWidth))];
-        if (!pg) return;
+        const at = pager.scrollLeft + pager.offsetLeft;
+        const pg = pages.reduce((best, x) => Math.abs(x.offsetLeft - at) < Math.abs(best.offsetLeft - at) ? x : best, pages[0]);
+        if (!pg || Number(pg.dataset.fp) === ui.floor) return;
         ui.floor = Number(pg.dataset.fp);
+        const sel = ui.unit && document.querySelector(`.unit[data-p-unit="${CSS.escape(ui.unit)}"]`);
+        if (sel && !pg.contains(sel)) clearUnitSel();
         document.querySelectorAll('[data-p-floor]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.pFloor) === ui.floor)));
       }, 120);
     }, { passive: true });
@@ -655,12 +677,13 @@ export function portalBind() {
   pressBound = true;
   document.addEventListener('pointerdown', e => {
     const u = e.target.closest && e.target.closest('.unit[data-p-unit]'); if (!u) return;
-    pressFired = false; clearTimeout(pressTimer);
-    pressTimer = setTimeout(() => { pressFired = true; quickMenu(u.dataset.pUnit, (u.querySelector('b') || {}).textContent || ''); }, 550);
+    menuThisPress = false; clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => pressMenu(u), 550);
   });
+  document.addEventListener('pointerup', () => { if (menuThisPress) swallowUntil = performance.now() + 400; menuThisPress = false; }, true);
   ['pointerup', 'pointercancel', 'scroll'].forEach(ev => document.addEventListener(ev, () => clearTimeout(pressTimer), true));
-  document.addEventListener('click', e => { if (pressFired && e.target.closest && e.target.closest('.unit[data-p-unit]')) { e.stopPropagation(); e.preventDefault(); pressFired = false; } }, true);
-  document.addEventListener('contextmenu', e => { const u = e.target.closest && e.target.closest('.unit[data-p-unit]'); if (u) { e.preventDefault(); clearTimeout(pressTimer); pressFired = false; quickMenu(u.dataset.pUnit, (u.querySelector('b') || {}).textContent || ''); } });
+  document.addEventListener('click', e => { if (performance.now() < swallowUntil) { e.stopPropagation(); e.preventDefault(); swallowUntil = 0; } }, true);
+  document.addEventListener('contextmenu', e => { const u = e.target.closest && e.target.closest('.unit[data-p-unit]'); if (u) { e.preventDefault(); clearTimeout(pressTimer); pressMenu(u); } });
 }
 
 /* Photos and videos are uploaded exactly as they are: never scaled down or recompressed. */
@@ -694,12 +717,20 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
   }
   if (target.closest('[data-p-past]')) return ui1('past', !ui.past);
   if ((el = target.closest('[data-p-print-month]'))) { const p = currentProp(ctx.data); if (p) printMonth(ctx.data, p, el.dataset.pPrintMonth); return true; }
-  if ((el = target.closest('[data-p-unit]'))) { const id = ui.unit === el.dataset.pUnit ? null : el.dataset.pUnit; ui1('unit', id); if (id) { delete tenantInfo[id]; loadTenantInfo(id, ctx.rerender); } return true; }
+  if ((el = target.closest('[data-p-unit]'))) {
+    const id = ui.unit === el.dataset.pUnit ? null : el.dataset.pUnit;
+    if (id && el.classList.contains('occupied')) delete tenantInfo[id];
+    ui1('unit', id);
+    if (id && el.classList.contains('occupied')) loadTenantInfo(id, ctx.rerender);
+    // The details open below the rooms; if they are off screen, glide down to them so the tap visibly does something.
+    if (id) requestAnimationFrame(() => { const d = document.getElementById('unitDetail'); if (!d) return; const r = d.getBoundingClientRect(); if (r.top > innerHeight * .6 || r.top < 60) d.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth', block: 'start' }); });
+    return true;
+  }
   if ((el = target.closest('[data-p-floor]'))) {
-    ui.floor = Number(el.dataset.pFloor); ui.unit = null;
+    ui.floor = Number(el.dataset.pFloor);
     const pg = document.querySelector(`#fpager .fpage[data-fp="${ui.floor}"]`), pager = document.getElementById('fpager');
-    if (pg && pager) { pager.scrollTo({ left: pg.offsetLeft - pager.offsetLeft, behavior: 'smooth' }); document.querySelectorAll('[data-p-floor]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.pFloor) === ui.floor))); return true; }
-    ctx.rerender && ctx.rerender(); return true;
+    if (pg && pager) { clearUnitSel(); pager.scrollTo({ left: pg.offsetLeft - pager.offsetLeft, behavior: 'smooth' }); document.querySelectorAll('[data-p-floor]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.pFloor) === ui.floor))); return true; }
+    ui.unit = null; ctx.rerender && ctx.rerender(); return true;
   }
   if ((el = target.closest('[data-p-paytab]'))) return ui1('pay', el.dataset.pPaytab);
   if ((el = target.closest('[data-p-range]'))) return ui1('range', Number(el.dataset.pRange));
@@ -793,8 +824,12 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
     result = await supabase.rpc('resolve_owner_request', { request_uuid: id, approve: status === 'approved' });
   } else if (setst) {
     const [id, status] = setst.dataset.pSetst.split(':');
-    result = await supabase.rpc('set_unit_status', { unit_uuid: id, desired_status: status });
+    const unit = (ctx.data?.units || []).find(u => u.id === id), was = unit && unit.status;
     layer('');
+    if (unit && was !== status) { unit.status = status; ctx.rerender && ctx.rerender(); }
+    result = await supabase.rpc('set_unit_status', { unit_uuid: id, desired_status: status });
+    if (result.error && unit) { unit.status = was; ctx.rerender && ctx.rerender(); }
+    if (!result.error) { refresh(); return true; } // the rest of the dashboard catches up quietly
   } else if (remove) {
     if (!window.confirm('Delete this property and everything attached to it? This cannot be undone.')) return true;
     result = await supabase.from('listings').delete().eq('id', remove.dataset.liveDeleteListing);
