@@ -942,6 +942,13 @@ export async function handlePortalSubmit(form, role, user, profile, data, refres
   let result;
   if (kind === 'reserve') {
     const { error } = await supabase.rpc('reserve_unit', { unit_uuid: form.dataset.unitId, holder_name: values.holder_name, holder_phone: values.holder_phone || null, move_in: values.move_in || null });
+    // Until the database has reserve_unit (migration 20261116010000), the room is still marked Reserved, without the name.
+    if (error && (error.code === 'PGRST202' || /could not find the function/i.test(error.message || ''))) {
+      const old = await supabase.rpc('set_unit_status', { unit_uuid: form.dataset.unitId, desired_status: 'reserved' });
+      if (old.error) throw old.error;
+      layer(''); await refresh();
+      throw new Error('The room is marked Reserved. Saving who it is for needs a database update that has not been applied yet.');
+    }
     if (error) throw error;
     layer(''); await refresh();
     return true;
