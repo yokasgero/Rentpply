@@ -18,6 +18,8 @@ const ICON = {
   bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0', list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', flag: 'M5 21V4m0 0h11l-2 4 2 4H5',
   receipt: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6', check: 'M5 12.5l4.5 4.5L19 7.5', arrow: 'M9 6l6 6-6 6', plus: 'M12 5v14M5 12h14', shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
   key: 'M7 14a4 4 0 1 1 3.9-5H21v3h-2v2h-3v-2h-5.1A4 4 0 0 1 7 14z', home: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
+  phone: 'M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z',
+  chat: 'M21 12a8 8 0 0 1-11.8 7L3 21l2-6A8 8 0 1 1 21 12z', mail: 'M4 5h16v14H4zM4 6l8 7 8-7',
   bolt: 'M13 2L4 14h7l-1 8 9-12h-7z', doc: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6', search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-4.3-4.3'
 };
 const icn = name => ic(ICON[name] || ICON.check);
@@ -157,15 +159,84 @@ function propPicker(data, tab, title) {
 }
 const propBar = l => `<div class="pbar"><button class="pback" data-p-adm-back>‹ All properties</button><b>${esc(l.name)}</b></div>`;
 
+/* ---------- people, payments and agreements open in a sheet, wherever they appear ---------- */
+const kvRow = (k, v) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
+/* Ugandan numbers in the international form phones and WhatsApp need: 0772 123456 -> 256772123456. */
+const intlPhone = ph => { let d = String(ph || '').replace(/\D/g, ''); if (d.startsWith('0')) d = '256' + d.slice(1); else if (d.length === 9) d = '256' + d; return d.length >= 11 ? d : ''; };
+/* Call, WhatsApp and SMS, with the message already written. */
+function contactButtons(phone, message) {
+  const n = intlPhone(phone);
+  if (!n) return '<p class="muted" style="font-size:13px">No phone number on record.</p>';
+  const m = encodeURIComponent(message || '');
+  return `<div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn sm" href="tel:+${n}">${icn('phone')}Call</a><a class="btn sm" href="https://wa.me/${n}${m ? '?text=' + m : ''}" target="_blank" rel="noopener">${icn('chat')}WhatsApp</a><a class="btn ghost sm" href="sms:+${n}${m ? '?&body=' + m : ''}">${icn('mail')}SMS</a></div>`;
+}
+const payRowsHTML = list => list.length ? `<div class="stack" style="gap:6px">${list.map(p => `<button class="opt" type="button" data-p-payment="${esc(p.id)}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left"><span style="min-width:0"><b style="font-size:14px">${esc(p.purpose)}</b><small class="muted" style="display:block">${date(p.created_at)} · ${esc(p.payment_method)}</small></span><span style="text-align:right;flex:none"><b class="num" style="font-size:14px">${money(p.amount + p.fee + p.deposit)}</b><br>${pill(p.status)}</span></button>`).join('')}</div>` : '<p class="muted">No payments recorded yet.</p>';
+/* Who lives in a room, what they owe and how to reach them: opened from the room, the reminder list, payments and the Board. */
+function tenantSheetHTML(data, u) {
+  const l = data.listings.find(x => x.id === u.listing_id) || {}, info = tenantInfo[u.id];
+  const entry = (data.board || []).filter(e => e.unit_id === u.id && e.status !== 'cancelled').sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+  const person = info && info.people && info.people[0];
+  const name = (person && person.name) || u.tenant_name || 'Tenant';
+  const phone = (person && person.phone) || (entry && entry.phone) || u.reserved_phone || '';
+  const hist = data.payments.filter(p => p.unit_id === u.id || (p.listing_id === u.listing_id && p.room_code === u.unit_code)).sort((a, b) => when(b) - when(a));
+  const boardPays = entry ? data.boardPayments.filter(x => x.entry_id === entry.id).sort((a, b) => Date.parse(b.paid_at) - Date.parse(a.paid_at)) : [];
+  const ag = data.agreements.filter(a => a.listing_id === u.listing_id && a.room_code === u.unit_code).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+  const owes = Number(u.balance) > 0 && u.status !== 'vacant';
+  const state = u.status === 'reserved' ? ['warn', 'Reserved'] : !owes ? ['ok', 'Paid up'] : u.payment_status === 'overdue' ? ['bad', 'Overdue'] : ['warn', 'Rent due'];
+  const msg = owes ? `Hello ${firstName(name)}, this is ${l.name || 'your landlord'}. A reminder that rent of ${money(u.balance)} for room ${u.unit_code} ${u.paid_through ? 'has been due since ' + date(u.paid_through) : 'is due'}. Please pay as soon as you can and send me the transaction reference. Thank you.`
+    : `Hello ${firstName(name)}, this is ${l.name || 'your landlord'} about room ${u.unit_code}.`;
+  const recordForm = entry && entry.status !== 'full' ? `<form class="card stack" style="gap:10px" data-live-form="board-pay" data-entry-id="${esc(entry.id)}"><b>Record a payment</b><p class="muted" style="font-size:13px">Money ${esc(firstName(name))} paid you directly. ${money(entry.total - entry.paid)} is still owed on the Board.</p><div class="grid"><label class="field"><span>Amount (UGX)</span><input class="inp" name="amount" type="number" min="1" max="${entry.total - entry.paid}" required></label><label class="field"><span>Paid with</span><select class="inp" name="method">${options(METHODS, 'Cash')}</select></label></div><button class="btn" type="submit">Record payment</button></form>` : '';
+  return `<div class="stack" style="gap:16px">
+    <div class="tc-head"><span class="tc-av">${esc(name.trim()[0] || '?')}</span><div style="min-width:0"><b style="font-size:20px">${esc(name)}</b><small>Room <span class="mono">${esc(u.unit_code)}</span> · ${esc(l.name || '')}</small></div></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><span class="pill ${state[0]}">${state[1]}</span>${person ? (person.kyc === 'verified' ? `<span class="pill ok">${icn('shield')}ID verified</span>` : '<span class="pill mute">ID not verified</span>') : ''}${u.roommate_name ? `<span class="pill mute">Shares with ${esc(u.roommate_name)}</span>` : ''}</div>
+    ${!info && u.tenant_id ? '<div class="tc-load"><span class="skeleton" style="height:14px;width:60%"></span></div>' : ''}
+    <div class="card stack" style="gap:8px">${kvRow('Rent for the room', money(u.rent))}${u.status === 'reserved' && u.reserved_move_in ? kvRow('Moving in', date(u.reserved_move_in)) : kvRow('Paid through', date(u.paid_through))}${kvRow('Balance', `<span class="num" style="color:${owes ? 'var(--bad)' : 'var(--ok)'}">${money(u.balance)}</span>`)}${phone ? kvRow('Phone', esc(phone)) : ''}</div>
+    <div class="stack" style="gap:8px"><b>${owes ? 'Send a reminder' : 'Contact'}</b>${contactButtons(phone, msg)}${owes && intlPhone(phone) ? '<p class="muted" style="font-size:12.5px">The reminder is written for you with the amount and date. You can change it before sending.</p>' : ''}</div>
+    ${recordForm}
+    <div class="stack" style="gap:8px"><b>Payments</b>${payRowsHTML(hist)}${boardPays.length ? `<div class="stack" style="gap:4px">${boardPays.map(x => `<div class="kv"><span>${date(x.paid_at)} · ${esc(x.method)}${x.is_booking_fee ? ' · booking fee' : ''} (Board)</span><span class="num">${money(x.amount)}</span></div>`).join('')}</div>` : ''}</div>
+    ${ag ? `<button class="opt" type="button" data-p-agreement="${esc(ag.id)}" style="text-align:left"><b>Tenancy agreement</b><small class="muted" style="display:block"><span class="mono">${esc(ag.reference)}</span> · ${ag.status === 'accepted' ? 'accepted ' + date(ag.accepted_at) : esc(ag.status)}</small></button>` : ''}
+  </div>`;
+}
+function openTenantSheet(data, unitId, rerender) {
+  const u = data.units.find(x => x.id === unitId); if (!u) return;
+  const draw = () => layer(sheetHTML('Tenant', tenantSheetHTML(data, u)));
+  draw();
+  if (u.tenant_id && !tenantInfo[u.id]) loadTenantInfo(u.id).then(() => { if (document.querySelector('#layer .sheet[aria-label="Tenant"]')) draw(); });
+}
+/* One payment in full, with what can be done about it. */
+function paymentSheetHTML(data, p) {
+  const l = data.listings.find(x => x.id === p.listing_id) || {}, total = p.amount + p.fee + p.deposit;
+  const u = data.units.find(x => x.id === p.unit_id) || data.units.find(x => x.listing_id === p.listing_id && x.unit_code === p.room_code);
+  const actions = p.status === 'pending' ? `<div class="row" style="gap:8px"><button class="btn" data-live-payment="${esc(p.id)}:confirmed">I received it</button><button class="btn ghost" data-live-payment="${esc(p.id)}:rejected">I did not receive it</button></div>`
+    : p.status === 'confirmed' && !p.efris_document_no ? `<form class="row" data-live-form="efris-reference" data-payment-id="${esc(p.id)}" style="gap:8px;flex-wrap:wrap"><input class="inp" name="efris_document_no" placeholder="EFRIS number" required style="flex:1;min-width:160px"><button class="btn sm" type="submit">Save EFRIS number</button></form>` : '';
+  return `<div class="stack" style="gap:14px"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px"><div style="min-width:0"><span class="eyebrow">${esc(p.purpose)}</span><h2 style="font-size:24px" class="num">${money(total)}</h2></div>${pill(p.status)}</div>
+    <div class="card stack" style="gap:8px">${kvRow('Tenant', esc(p.tenant_name))}${kvRow('Property', esc(l.name || ''))}${kvRow('Room', esc(roomOf(p)))}${kvRow(p.nights ? 'Check-in' : 'Move-in', date(p.start_date))}${kvRow('Stay', p.nights ? `${p.nights} ${p.nights === 1 ? 'night' : 'nights'}` : `${p.months} ${p.months === 1 ? 'month' : 'months'}`)}</div>
+    <div class="card stack" style="gap:8px">${kvRow('Rent', money(p.amount))}${kvRow('Rentpply fee', money(p.fee))}${p.deposit ? kvRow('Deposit', money(p.deposit)) : ''}<div class="kv tot"><span style="color:var(--ink)">Total</span><span class="num">${money(total)}</span></div></div>
+    <div class="card stack" style="gap:8px">${kvRow('Paid with', esc(p.payment_method) + (p.from_source ? ' · ' + esc(p.from_source) : ''))}${kvRow('Paid by', esc(p.paid_by))}${kvRow('Reference', `<span class="mono">${esc(p.reference)}</span>`)}${kvRow('Sent', date(p.created_at))}${p.confirmed_at ? kvRow('Confirmed', date(p.confirmed_at)) : ''}${kvRow('EFRIS', p.efris_document_no ? `<span class="mono">${esc(p.efris_document_no)}</span>` : 'Not recorded yet')}</div>
+    ${actions}${u && u.tenant_name ? `<button class="btn ghost" type="button" data-p-tenant="${esc(u.id)}">${icn('users')}Open tenant</button>` : ''}</div>`;
+}
+/* The agreement a tenant accepted, as they saw it. */
+function agreementSheetHTML(data, a) {
+  const l = data.listings.find(x => x.id === a.listing_id) || {}, t = a.terms || {}, tpl = data.templates.find(x => x.listing_id === a.listing_id) || {};
+  const pick = (...k) => { for (const x of k) { if (t[x] !== undefined && t[x] !== null && t[x] !== '') return t[x]; } return undefined; };
+  const std = pick('deposit_months', 'deposit', 'late_fee_percent', 'late', 'notice_days', 'notice') === undefined && tpl.deposit_months === undefined;
+  const dep = pick('deposit_months', 'deposit') ?? tpl.deposit_months ?? (l.type === 'rental' ? 2 : 0), late = pick('late_fee_percent', 'late') ?? tpl.late_fee_percent ?? 5, notice = pick('notice_days', 'notice') ?? tpl.notice_days ?? 30, rules = pick('house_rules', 'rules') ?? tpl.house_rules;
+  const u = data.units.find(x => x.id === a.unit_id) || data.units.find(x => x.listing_id === a.listing_id && x.unit_code === a.room_code);
+  return `<div class="stack" style="gap:14px"><div><span class="eyebrow">Tenancy agreement</span><h2 style="font-size:22px" class="mono">${esc(a.reference)}</h2></div>
+    <div class="card stack" style="gap:8px">${kvRow('Tenant', esc(a.tenant_name))}${kvRow('Property', esc(l.name || ''))}${kvRow('Room', esc(a.room_code))}${kvRow('Starts', date(a.start_date))}${kvRow('Length', `${a.quantity} ${l.per === 'night' ? (a.quantity === 1 ? 'night' : 'nights') : (a.quantity === 1 ? 'month' : 'months')}`)}${kvRow('Status', pill(a.status))}${a.accepted_at ? kvRow('Accepted', date(a.accepted_at)) : ''}${kvRow('Paid', a.paid ? 'Yes' : 'Not yet')}</div>
+    <div class="card stack" style="gap:8px"><b>Terms</b>${std ? '<small class="muted">Rentpply standard terms (none were set for this property)</small>' : ''}${dep !== undefined ? kvRow('Refundable deposit', `${dep} ${Number(dep) === 1 ? 'month' : 'months'}`) : ''}${late !== undefined ? kvRow('Late fee', late + '%') : ''}${notice !== undefined ? kvRow('Notice to leave', `${notice} days`) : ''}${rules ? `<p class="muted" style="white-space:pre-line;font-size:14px">${esc(rules)}</p>` : ''}</div>
+    ${u && u.tenant_name ? `<button class="btn ghost" type="button" data-p-tenant="${esc(u.id)}">${icn('users')}Open tenant</button>` : ''}</div>`;
+}
+
 /* ---------- needs-you list ---------- */
 function needsYou(data, lid) {
   const inP = x => !lid || x.listing_id === lid;
   const mt = data.maintenance.filter(m => inP(m) && m.status === 'open').length, rq = data.ownerRequests.filter(r => inP(r) && r.status === 'open').length + data.transferRequests.filter(r => r.status === 'pending' && data.transfers.some(t => t.id === r.transfer_id && inP(t))).length;
   const od = data.units.filter(u => inP(u) && u.payment_status === 'overdue').length, dr = data.payments.filter(p => inP(p) && p.status === 'pending').length;
-  const rows = [[mt, 'bell', 'bad', `${mt} repair ${mt === 1 ? 'complaint' : 'complaints'}`, 'A tenant needs you to attend', 'units'], [rq, 'list', 'warn', `${rq} ${rq === 1 ? 'request' : 'requests'} to approve`, 'New tenants, transfers, roommates and viewings', 'requests'], [od, 'flag', 'bad', `${od} overdue ${od === 1 ? 'tenant' : 'tenants'}`, 'See who owes rent', 'payments']].filter(r => r[0] > 0);
+  const rows = [[mt, 'bell', 'bad', `${mt} repair ${mt === 1 ? 'complaint' : 'complaints'}`, 'A tenant needs you to attend', 'units'], [rq, 'list', 'warn', `${rq} ${rq === 1 ? 'request' : 'requests'} to approve`, 'New tenants, transfers, roommates and viewings', 'requests'], [od, 'flag', 'bad', `${od} overdue ${od === 1 ? 'tenant' : 'tenants'}`, 'See who owes rent and remind them', 'reminders']].filter(r => r[0] > 0);
   const pay = dr ? `<button class="needrow" data-tab="payments"><span class="ric warn">${icn('receipt')}</span><span style="min-width:0;text-align:left"><b>Pending payment approval (${dr})</b><small class="muted" style="display:block">${dr} ${dr === 1 ? 'tenant has' : 'tenants have'} paid and ${dr === 1 ? 'is' : 'are'} waiting for you to confirm</small></span>${ic(ICON.arrow, 'i" style="margin-left:auto;flex:none')}</button>`
     : `<button class="needrow quiet" data-tab="payments"><span class="ric mute">${icn('receipt')}</span><span style="min-width:0;text-align:left"><b>Pending payment approval</b><small class="muted" style="display:block">No payments waiting</small></span>${ic(ICON.arrow, 'i" style="margin-left:auto;flex:none')}</button>`;
-  return `<div class="card stack needs" style="gap:2px;padding:8px"><span class="eyebrow" style="padding:8px 10px 2px">Needs you today</span>${rows.map(r => `<button class="needrow" data-tab="${r[5]}"><span class="ric ${r[2]}">${icn(r[1])}</span><span style="min-width:0;text-align:left"><b>${r[3]}</b><small class="muted" style="display:block">${r[4]}</small></span>${ic(ICON.arrow, 'i" style="margin-left:auto;flex:none')}</button>`).join('')}${pay}</div>`;
+  return `<div class="card stack needs" style="gap:2px;padding:8px"><span class="eyebrow" style="padding:8px 10px 2px">Needs you today</span>${rows.map(r => `<button class="needrow" ${r[5] === 'reminders' ? 'data-scrollto="reminders"' : `data-tab="${r[5]}"`}><span class="ric ${r[2]}">${icn(r[1])}</span><span style="min-width:0;text-align:left"><b>${r[3]}</b><small class="muted" style="display:block">${r[4]}</small></span>${ic(ICON.arrow, 'i" style="margin-left:auto;flex:none')}</button>`).join('')}${pay}</div>`;
 }
 /* ---------- OWNER: overview ---------- */
 function ownerOverview(data, profile) {
@@ -185,7 +256,7 @@ function ownerOverview(data, profile) {
     </div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))">
       <div class="card stack" style="gap:8px"><span class="eyebrow">Rent collected per month, UGX millions</span><div class="scroll-x">${barChart(bk.map(b => b.label), series, 'Rent collected per month')}</div>${sum(series) ? '' : '<p class="muted" style="font-size:13px">No confirmed payments in the last 6 months yet.</p>'}</div>
-      <div class="card stack" style="gap:10px"><span class="eyebrow">Needs a reminder</span>${late.length ? late.map(u => `<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div style="min-width:0"><b>${esc(u.tenant_name || 'Tenant')}</b><div class="muted" style="font-size:13px"><span class="mono">${esc(u.unit_code)}</span> · ${u.payment_status === 'overdue' ? 'overdue' : 'due'}${u.paid_through ? ' since ' + date(u.paid_through) : ''}</div></div><b class="num" style="color:var(--bad)">${money(u.balance)}</b></div>`).join('') : '<p class="muted">Everyone is paid up.</p>'}</div>
+      <div class="card stack" id="reminders" style="gap:4px;scroll-margin-top:84px"><span class="eyebrow">Needs a reminder</span>${late.length ? late.map(u => `<button class="needrow" type="button" data-p-tenant="${esc(u.id)}" style="padding:10px 4px"><span style="min-width:0;text-align:left"><b>${esc(u.tenant_name || 'Tenant')}</b><small class="muted" style="display:block"><span class="mono">${esc(u.unit_code)}</span> · ${u.payment_status === 'overdue' ? 'overdue' : 'due'}${u.paid_through ? ' since ' + date(u.paid_through) : ''}</small></span><b class="num" style="color:var(--bad);margin-left:auto;flex:none">${money(u.balance)}</b>${ic(ICON.arrow, 'i" style="flex:none')}</button>`).join('') : '<p class="muted">Everyone is paid up.</p>'}</div>
     </div>${admin ? '' : mediaEditor(data, p, false)}</section>`;
 }
 
@@ -198,13 +269,12 @@ function unitTile(u, data) {
 }
 /* Who lives in a room, as the owner may see it: no sponsor, next of kin or documents. */
 const tenantInfo = {};
-const maskPhone = p => { let d = String(p || '').replace(/\D/g, ''); if (d.startsWith('256')) d = '0' + d.slice(3); return d.length >= 9 ? `${d.slice(0, 2)}XX XXX ${d.slice(-3)}` : (p || ''); };
 function tenantCards(u, share) {
   const info = tenantInfo[u.id];
   if (!info) return `<div class="tcard"><div class="tc-load"><span class="skeleton" style="width:42px;height:42px;border-radius:50%"></span><span class="skeleton" style="height:14px;width:60%"></span></div></div>`;
   if (info.error) return `<div class="tcard"><p class="muted">Tenant details could not be loaded. ${esc(info.error)}</p></div>`;
   return info.people.map(t => {
-    const rows = [['Studying', t.course ? `${t.course}${t.year ? ', year ' + t.year : ''}` : ''], ['University', t.university], ['Home district', t.home_district], ['Phone', maskPhone(t.phone)], ['Rent share', `${money(share)} / month`]]
+    const rows = [['Studying', t.course ? `${t.course}${t.year ? ', year ' + t.year : ''}` : ''], ['University', t.university], ['Home district', t.home_district], ['Phone', t.phone], ['Rent share', `${money(share)} / month`]]
       .filter(([k, v]) => t.student || !['Studying', 'University'].includes(k));
     return `<div class="tcard"><div class="tc-head"><span class="tc-av">${esc((t.name || '?').trim()[0] || '?')}</span><div><b>${esc(t.name || 'Tenant')}</b><small>${esc(t.place)}</small></div></div>
       <div class="tc-tags">${t.student ? '<span class="pill ok">Student</span>' : '<span class="pill mute">Tenant</span>'}${t.kyc === 'verified' ? `<span class="pill ok">${icn('shield')}ID verified</span>` : t.kyc === 'review' ? '<span class="pill warn">ID being checked</span>' : '<span class="pill mute">ID not verified</span>'}${t.on_rentpply ? '' : '<span class="pill mute">Added on the Board</span>'}</div>
@@ -253,12 +323,13 @@ function unitDetail(u, data) {
   const split = u.roommate_name ? u.rent / 2 : u.rent;
   return `<div class="card stack" id="unitDetail" style="gap:16px">${headHtml}
     <div style="display:contents" data-tc="${esc(u.id)}" data-share="${split}">${tenantCards(u, split)}</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" type="button" data-p-tenant="${esc(u.id)}">${icn('users')}${Number(u.balance) > 0 ? 'Remind or contact tenant' : 'Contact tenant'}</button></div>
     <div class="share">${icn(u.roommate_name ? 'users' : 'home')}<span>${u.roommate_name ? `Shared room: <b>${esc(u.tenant_name)}</b> and <b>${esc(u.roommate_name)}</b> each pay ${money(split)} a month.` : `No roommate. This unit has one tenant${u.is_corporate ? ' (company staff housing)' : ''}.`}</span></div>
     <div class="ustats"><div><span>Rent for the unit</span><b class="num">${money(u.rent)}</b></div><div><span>Paid through</span><b>${date(u.paid_through)}</b></div><div><span>Balance</span><b class="num" style="color:${u.balance ? 'var(--bad)' : 'var(--ok)'}">${money(u.balance)}</b></div><div><span>Payment record</span><b>${esc(u.credit_rating || 'Good')}</b></div></div>
     ${maint}
     <div class="row" style="justify-content:space-between"><div><b>Tenancy agreement</b><div class="muted" style="font-size:13px">${ag ? `<span class="mono">${esc(ag.reference)}</span> · ${ag.status === 'accepted' ? 'accepted ' + date(ag.accepted_at) : esc(ag.status)}` : 'None on record'}</div></div></div>
     <div><div class="sec-h" style="margin-bottom:8px"><b style="font-size:17px">Payment history</b><span class="muted num" style="font-size:13px">${money(paidSum)} confirmed</span></div>
-      ${hist.length ? `<div class="tablebox" style="max-height:340px"><table><thead><tr><th>For</th><th>Paid by</th><th class="r">Amount</th><th>Method</th><th>Receipt</th><th>EFRIS</th><th>Status</th></tr></thead><tbody>${hist.map(p => `<tr><td>${esc(p.purpose)}<div class="muted" style="font-size:12px">${date(p.created_at)}</div></td><td>${esc(p.paid_by)}</td><td class="r num">${money(p.amount + p.fee + p.deposit)}</td><td>${esc(p.payment_method)}</td><td class="mono">${esc(p.reference)}</td><td>${p.efris_document_no ? `<span class="mono">${esc(p.efris_document_no)}</span>` : '<span class="pill warn">Pending</span>'}</td><td>${pill(p.status)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No payments recorded for this unit yet.</p>'}</div></div>`;
+      ${hist.length ? `<div class="tablebox" style="max-height:340px"><table><thead><tr><th>For</th><th>Paid by</th><th class="r">Amount</th><th>Method</th><th>Receipt</th><th>EFRIS</th><th>Status</th></tr></thead><tbody>${hist.map(p => `<tr data-p-payment="${esc(p.id)}" tabindex="0" role="button" style="cursor:pointer"><td>${esc(p.purpose)}<div class="muted" style="font-size:12px">${date(p.created_at)}</div></td><td>${esc(p.paid_by)}</td><td class="r num">${money(p.amount + p.fee + p.deposit)}</td><td>${esc(p.payment_method)}</td><td class="mono">${esc(p.reference)}</td><td>${p.efris_document_no ? `<span class="mono">${esc(p.efris_document_no)}</span>` : '<span class="pill warn">Pending</span>'}</td><td>${pill(p.status)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No payments recorded for this unit yet.</p>'}</div></div>`;
 }
 function unitsView(data, p, adminMode) {
   const units = data.units.filter(u => u.listing_id === p.id).sort(byCode);
@@ -288,7 +359,7 @@ const payTotal = p => p.amount + p.fee + p.deposit;
 const roomOf = p => p.room_code === 'Unassigned' ? 'To be assigned' : p.room_code;
 function paymentsTable(data, lid, withActions, list) {
   list = list || data.payments.filter(p => !lid || p.listing_id === lid);
-  return table(['Tenant', 'Room', 'For', 'Total', 'Method', 'Status', withActions ? 'Review' : 'EFRIS'], list.map(p => `<tr><td>${esc(p.tenant_name)}<div class="muted" style="font-size:12px">${date(p.created_at)}</div></td><td class="mono">${esc(roomOf(p))}</td><td>${esc(p.purpose)}</td><td class="num">${money(payTotal(p))}</td><td>${esc(p.payment_method)}</td><td>${pill(p.status)}</td><td>${p.status === 'pending' && withActions ? `<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-live-payment="${esc(p.id)}:confirmed">Confirm</button><button class="btn ghost sm" data-live-payment="${esc(p.id)}:rejected">Reject</button></div>` : p.status === 'confirmed' ? `<span class="muted" style="font-size:12.5px">${esc(p.efris_document_no || 'EFRIS pending')}</span>` : '-'}</td></tr>`), 'No payments in this month.');
+  return table(['Tenant', 'Room', 'For', 'Total', 'Method', 'Status', withActions ? 'Review' : 'EFRIS'], list.map(p => `<tr data-p-payment="${esc(p.id)}" tabindex="0" role="button" style="cursor:pointer"><td>${esc(p.tenant_name)}<div class="muted" style="font-size:12px">${date(p.created_at)}</div></td><td class="mono">${esc(roomOf(p))}</td><td>${esc(p.purpose)}</td><td class="num">${money(payTotal(p))}</td><td>${esc(p.payment_method)}</td><td>${pill(p.status)}</td><td>${p.status === 'pending' && withActions ? `<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-live-payment="${esc(p.id)}:confirmed">Confirm</button><button class="btn ghost sm" data-live-payment="${esc(p.id)}:rejected">Reject</button></div>` : p.status === 'confirmed' ? `<span class="muted" style="font-size:12.5px">${esc(p.efris_document_no || 'EFRIS pending')}</span>` : '-'}</td></tr>`), 'No payments in this month.');
 }
 /* Monthly reports: this month first; earlier months fold away below, each with its own print button. */
 const monthKey = d => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`; };
@@ -387,7 +458,28 @@ function activityHub(data) {
     <h3 style="font-size:22px;margin-top:8px">Rent-transfer approvals</h3>${table(['Requester', 'Room', 'Status', 'Decision'], data.transferRequests.map(r => { const t = data.transfers.find(x => x.id === r.transfer_id); return `<tr><td>${esc(r.requester?.full_name || 'Tenant')}</td><td class="mono">${esc(t?.room_code || '')}</td><td>${pill(r.status)}</td><td>${r.status === 'pending' ? `<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-live-transfer-request="${esc(r.id)}:1">Approve</button><button class="btn ghost sm" data-live-transfer-request="${esc(r.id)}:0">Decline</button></div>` : '-'}</td></tr>`; }), 'No transfer requests.')}${trs.length ? '' : ''}</div>`;
 }
 function accountsHub(data) {
-  return `<div class="stack"><h3 style="font-size:22px">Accounts</h3><p class="muted">${me && me.role === 'super' ? 'As the super user you can make people administrators or remove them.' : 'Only the super user can add or remove administrators.'}</p>${table(['Name', 'Role', 'Identity', 'Joined'], data.profiles.map(x => `<tr><td><b>${esc(x.full_name)}</b><div class="muted mono" style="font-size:11px">${esc(x.id.slice(0, 8))}</div></td><td>${x.role === 'super' ? '<span class="pill ok">Super user</span>' : x.role === 'admin' && !(me && me.role === 'super') ? '<span class="pill mute">admin</span>' : `<select class="inp" style="width:auto" data-live-role="${esc(x.id)}" aria-label="Role for ${esc(x.full_name)}">${options(me && me.role === 'super' ? ['tenant', 'student', 'owner', 'admin'] : ['tenant', 'student', 'owner'], x.role)}</select>`}</td><td>${pill(x.kyc_status, x.kyc_status === 'verified' ? 'ok' : x.kyc_status === 'review' ? 'warn' : 'mute')}</td><td>${date(x.created_at)}</td></tr>`), 'No accounts yet.')}</div>`;
+  const isSuper = me && me.role === 'super';
+  return `<div class="stack"><h3 style="font-size:22px">Accounts</h3><p class="muted">${isSuper ? 'As the super user you can make people administrators or remove them.' : 'Only the super user can add or remove administrators.'} Tap a name to see the person.</p>
+    <div class="sbox">${icn('search')}<input class="inp" id="acctq" type="search" placeholder="Search ${data.profiles.length} people by name or phone" aria-label="Search accounts" autocomplete="off"></div>
+    ${table(['Name', 'Role', 'Identity', 'Joined'], data.profiles.map(x => `<tr class="arow" data-q="${esc(`${x.full_name || ''} ${x.phone || ''} ${x.role}`.toLowerCase())}"><td><button class="linkbtn" type="button" data-p-person="${esc(x.id)}" style="text-align:left"><b>${esc(x.full_name)}</b></button><div class="muted mono" style="font-size:11px">${esc(x.phone || x.id.slice(0, 8))}</div></td><td>${x.role === 'super' ? '<span class="pill ok">Super user</span>' : x.role === 'admin' && !isSuper ? '<span class="pill mute">admin</span>' : `<select class="inp" style="width:auto" data-live-role="${esc(x.id)}" aria-label="Role for ${esc(x.full_name)}">${options(isSuper ? ['tenant', 'student', 'owner', 'admin'] : ['tenant', 'student', 'owner'], x.role)}</select>`}</td><td>${pill(x.kyc_status, x.kyc_status === 'verified' ? 'ok' : x.kyc_status === 'review' ? 'warn' : 'mute')}</td><td>${date(x.created_at)}</td></tr>`), 'No accounts yet.')}
+    <p class="muted" id="acctnone" hidden>No one matches.</p></div>`;
+}
+/* One person on the platform, for the admin: who they are, identity check, how to reach them, and what they have on Rentpply. */
+function personSheetHTML(data, x) {
+  const props = data.listings.filter(l => l.owner_id === x.id), pays = data.payments.filter(p => p.tenant_id === x.id).sort((a, b) => when(b) - when(a));
+  const ags = data.agreements.filter(a => a.tenant_id === x.id), login = data.logins.find(l => l.owner_id === x.id);
+  const roleName = { super: 'Super user', admin: 'Administrator', owner: 'Property owner', student: 'Student', tenant: 'Tenant' }[x.role] || x.role;
+  const kycTone = x.kyc_status === 'verified' ? 'ok' : x.kyc_status === 'review' ? 'warn' : 'mute';
+  return `<div class="stack" style="gap:14px">
+    <div class="tc-head"><span class="tc-av">${esc((x.full_name || '?').trim()[0] || '?')}</span><div style="min-width:0"><b style="font-size:20px">${esc(x.full_name || 'No name')}</b><small>${esc(roleName)} · joined ${date(x.created_at)}</small></div></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><span class="pill ${kycTone}">${icn('shield')}Identity: ${esc(x.kyc_status || 'none')}</span>${x.is_student ? '<span class="pill mute">Student</span>' : ''}${login ? (login.sent_at ? '<span class="pill ok">Login sent</span>' : login.issued_at ? '<span class="pill warn">Login issued, not sent</span>' : '<span class="pill mute">No login yet</span>') : ''}</div>
+    <div class="card stack" style="gap:8px">${kvRow('Phone', esc(x.phone || 'Not given'))}${x.course || x.college ? kvRow('Studying', esc([x.course, x.college].filter(Boolean).join(', '))) : ''}${x.next_of_kin_name ? kvRow('Next of kin', esc(`${x.next_of_kin_name}${x.next_of_kin_phone ? ', ' + x.next_of_kin_phone : ''}`)) : ''}${x.id_type ? kvRow('ID', esc(`${x.id_type}${x.id_number_masked ? ' ' + x.id_number_masked : ''}`)) : ''}</div>
+    ${contactButtons(x.phone, '')}
+    ${x.kyc_status === 'review' ? `<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost sm" data-live-kyc-doc="${esc(x.id_document_url || '')}">View ID</button><button class="btn ghost sm" data-live-kyc-doc="${esc(x.selfie_url || '')}">View selfie</button><button class="btn sm" data-live-kyc="${esc(x.id)}:verified">Verify identity</button><button class="btn ghost sm" data-live-kyc="${esc(x.id)}:none">Ask to resubmit</button></div>` : ''}
+    ${props.length ? `<div class="stack" style="gap:6px"><b>Properties</b>${props.map(l => `<button class="opt" type="button" data-p-adm-prop="${esc(l.id)}" data-p-adm-tab="prop" style="display:flex;justify-content:space-between;text-align:left"><span><b style="font-size:14px">${esc(l.name)}</b><small class="muted" style="display:block">${esc(l.area)} · ${data.units.filter(u => u.listing_id === l.id).length} rooms</small></span>${pill(l.verified ? 'verified' : 'pending', l.verified ? 'ok' : 'warn')}</button>`).join('')}</div>` : ''}
+    ${['tenant', 'student'].includes(x.role) || pays.length ? `<div class="stack" style="gap:6px"><b>Payments</b>${payRowsHTML(pays)}</div>` : ''}
+    ${ags.length ? `<div class="stack" style="gap:6px"><b>Agreements</b>${ags.map(a => `<button class="opt" type="button" data-p-agreement="${esc(a.id)}" style="text-align:left"><b class="mono" style="font-size:14px">${esc(a.reference)}</b><small class="muted" style="display:block">${esc((data.listings.find(l => l.id === a.listing_id) || {}).name || '')} · room ${esc(a.room_code)} · ${esc(a.status)}</small></button>`).join('')}</div>` : ''}
+  </div>`;
 }
 /* ---------- the super user's own section: the administrators ----------
    Only the super user can add administrators, make an existing account one, take the role away or give one a new password.
@@ -609,13 +701,14 @@ function ownerBoard(data) {
       <div class="bar" role="img" aria-label="${pct}% paid"><b style="width:${pct}%"></b></div>
       <div class="row" style="justify-content:space-between;font-size:14px"><span>Paid <b>${money(e.paid)}</b> of ${money(e.total)}</span>${e.total - e.paid > 0 ? `<span>Still owed <b style="color:var(--bad)">${money(e.total - e.paid)}</b></span>` : '<b style="color:var(--ok)">Paid in full</b>'}</div>
       ${pays.length ? `<details><summary class="muted" style="cursor:pointer">Payment log (${pays.length})</summary><div class="stack" style="gap:6px;margin-top:8px">${pays.map(x => `<div class="kv"><span>${date(x.paid_at)} · ${esc(x.method)}${x.is_booking_fee ? ' · booking fee' : ''}</span><span class="num">${money(x.amount)}</span></div>`).join('')}</div></details>` : ''}
+      ${contactButtons(e.phone, e.total - e.paid > 0 ? `Hello ${firstName(e.tenant_name)}, this is ${p.name}. A reminder that ${money(e.total - e.paid)} is still owed for room ${e.unit_code}. Please pay as soon as you can. Thank you.` : '')}
       ${e.status !== 'full' ? `<form class="row" data-live-form="board-pay" data-entry-id="${esc(e.id)}" style="flex-wrap:wrap;gap:8px"><input class="inp" name="amount" type="number" min="1" max="${e.total - e.paid}" placeholder="Amount (UGX)" required style="flex:1;min-width:140px"><select class="inp" name="method" style="width:auto" aria-label="Paid with">${options(METHODS, 'Cash')}</select><button class="btn sm" type="submit">Record payment</button><button class="btn ghost sm" type="button" data-p-board-cancel="${esc(e.id)}">Remove</button></form>` : ''}</article>`;
   };
   const ags = data.agreements.filter(a => a.listing_id === p.id), tone = { accepted: 'ok', sent: 'warn', draft: 'mute' };
   return `<section class="sec">${head(p.name, 'Board')}${propChips(data)}
     <div class="tgrid"><div class="card tile2"><span class="muted">On the board</span><b class="num">${t.n}</b></div><div class="card tile2"><span class="muted">Booked (reserved)</span><b class="num">${t.booked}</b></div><div class="card tile2"><span class="muted">Fully paid</span><b class="num">${t.full}</b></div><div class="card tile2"><span class="muted">Still owed</span><b class="num">${money(t.owed)}</b></div></div>
     ${form}<h3 style="font-size:22px">Tenants on the board</h3>${entries.length ? `<div class="stack">${entries.map(card).join('')}</div>` : '<div class="card"><p class="muted">Nobody is on the board yet.</p></div>'}
-    <h3 style="font-size:22px">Agreements from Rentpply bookings</h3>${table(['Reference', 'Tenant', 'Room', 'Stay', 'Start', 'Status'], ags.map(a => `<tr><td class="mono">${esc(a.reference)}</td><td>${esc(a.tenant_name)}</td><td class="mono">${esc(a.room_code === 'Unassigned' ? 'To be assigned' : a.room_code)}</td><td>${a.quantity} ${esc((a.terms && a.terms.stay_unit) || 'month')}${a.quantity === 1 ? '' : 's'}</td><td>${date(a.start_date)}</td><td><span class="pill ${tone[a.status] || 'mute'}">${esc(a.status)}</span></td></tr>`), 'Agreements appear here when tenants accept them.')}</section>`;
+    <h3 style="font-size:22px">Agreements from Rentpply bookings</h3>${table(['Reference', 'Tenant', 'Room', 'Stay', 'Start', 'Status'], ags.map(a => `<tr data-p-agreement="${esc(a.id)}" tabindex="0" role="button" style="cursor:pointer"><td class="mono">${esc(a.reference)}</td><td>${esc(a.tenant_name)}</td><td class="mono">${esc(a.room_code === 'Unassigned' ? 'To be assigned' : a.room_code)}</td><td>${a.quantity} ${esc((a.terms && a.terms.stay_unit) || 'month')}${a.quantity === 1 ? '' : 's'}</td><td>${date(a.start_date)}</td><td><span class="pill ${tone[a.status] || 'mute'}">${esc(a.status)}</span></td></tr>`), 'Agreements appear here when tenants accept them.')}</section>`;
 }
 
 function verifyCard(l) {
@@ -764,8 +857,13 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
   if ((el = target.closest('[data-p-paytab]'))) return ui1('pay', el.dataset.pPaytab);
   if ((el = target.closest('[data-p-range]'))) return ui1('range', Number(el.dataset.pRange));
   if ((el = target.closest('[data-p-hub]'))) return ui1('hub', el.dataset.pHub);
-  if ((el = target.closest('[data-p-adm-prop]'))) { ui.admProp = el.dataset.pAdmProp; ui.unit = null; ui.floor = null; if (el.dataset.pAdmTab && ctx.setTab) { ctx.setTab(el.dataset.pAdmTab); return true; } ctx.rerender && ctx.rerender(); return true; }
+  if ((el = target.closest('[data-p-adm-prop]'))) { if (el.closest('#layer')) layer(''); ui.admProp = el.dataset.pAdmProp; ui.unit = null; ui.floor = null; if (el.dataset.pAdmTab && ctx.setTab) { ctx.setTab(el.dataset.pAdmTab); return true; } ctx.rerender && ctx.rerender(); return true; }
   if (target.closest('[data-p-adm-back]')) { ui.admProp = null; ui.unit = null; ui.floor = null; ctx.rerender && ctx.rerender(); return true; }
+  if ((el = target.closest('[data-p-person]'))) { const x = ctx.data && ctx.data.profiles.find(y => y.id === el.dataset.pPerson); if (x) layer(sheetHTML('Person', personSheetHTML(ctx.data, x))); return true; }
+  if ((el = target.closest('[data-p-tenant]'))) { if (ctx.data) openTenantSheet(ctx.data, el.dataset.pTenant, ctx.rerender); return true; }
+  const inRowControl = target.closest('a,input,select,textarea,form,button:not([data-p-payment]):not([data-p-agreement])');
+  if ((el = target.closest('[data-p-payment]')) && !(inRowControl && el.contains(inRowControl))) { const pay = ctx.data && ctx.data.payments.find(x => x.id === el.dataset.pPayment); if (pay) layer(sheetHTML('Payment', paymentSheetHTML(ctx.data, pay))); return true; }
+  if ((el = target.closest('[data-p-agreement]')) && !(inRowControl && el.contains(inRowControl))) { const ag = ctx.data && ctx.data.agreements.find(x => x.id === el.dataset.pAgreement); if (ag) layer(sheetHTML('Agreement', agreementSheetHTML(ctx.data, ag))); return true; }
   if ((el = target.closest('[data-p-reserve]')) || ((el = target.closest('[data-p-setst]')) && el.dataset.pSetst.endsWith(':reserved'))) {
     const id = el.dataset.pReserve || el.dataset.pSetst.split(':')[0], u = (ctx.data?.units || []).find(x => x.id === id);
     if (!u) return true;
@@ -922,6 +1020,12 @@ export async function handlePortalChange(target, refresh, ctx = {}) {
 }
 
 export function handlePortalInput(target) {
+  if (target.id === 'acctq') {
+    const q = target.value.trim().toLowerCase(); let shown = 0;
+    document.querySelectorAll('tr.arow').forEach(r => { const hit = !q || r.dataset.q.includes(q); r.hidden = !hit; if (hit) shown++; });
+    const none = document.getElementById('acctnone'); if (none) none.hidden = shown > 0;
+    return true;
+  }
   if (target.id === 'teamq') {
     const q = target.value.trim().toLowerCase(); let shown = 0;
     document.querySelectorAll('.trow').forEach(r => { const hit = q.length > 0 && shown < 20 && r.dataset.q.includes(q); r.hidden = !hit; if (hit) shown++; });
@@ -1005,6 +1109,7 @@ export async function handlePortalSubmit(form, role, user, profile, data, refres
   } else return false;
   if (result.error) throw result.error;
   form.reset();
+  if (form.closest('#layer')) layer('');
   await refresh();
   return true;
 }
