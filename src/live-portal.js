@@ -647,6 +647,14 @@ function clearUnitSel() {
   const d = document.getElementById('unitDetail');
   if (d) d.outerHTML = '<div class="card"><p class="muted">Select a room to see the tenant, what they pay, their payment history and any repair requests.</p></div>';
 }
+/* Admin: the "New room" form and the floor layout editor follow the floor being viewed, so a room is added to the
+   floor on screen. The layout editor's columns and rows belong to its floor, so it is redrawn when that changes. */
+let lastRerender = null;
+function syncFloorFields() {
+  const inp = document.querySelector('form[data-live-form="unit"] [name=floor]'); if (inp) inp.value = ui.floor;
+  const sel = document.querySelector('[data-p-layfloor]');
+  if (sel && Number(sel.value) !== ui.floor && lastRerender) lastRerender();
+}
 /* Press and hold a room: its status menu. On some phones lifting the finger afterwards also counts as a tap, which
    would land on the menu (closing it, or picking a status by accident), so a tap at the moment of lifting is ignored. */
 function pressMenu(u) {
@@ -669,6 +677,7 @@ export function portalBind() {
         ui.floor = Number(pg.dataset.fp);
         const sel = ui.unit && document.querySelector(`.unit[data-p-unit="${CSS.escape(ui.unit)}"]`);
         if (sel && !pg.contains(sel)) clearUnitSel();
+        syncFloorFields();
         document.querySelectorAll('[data-p-floor]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.pFloor) === ui.floor)));
       }, 120);
     }, { passive: true });
@@ -705,6 +714,7 @@ export function renderPortal(role, tab, data, profile) {
 /* long press on a room, and swiping between floors */
 /* ---------- actions ---------- */
 export async function handlePortalClick(target, refresh, ctx = {}) {
+  if (ctx.rerender) lastRerender = ctx.rerender;
   const ui1 = (key, value, extra) => { ui[key] = value; if (extra) extra(); ctx.rerender && ctx.rerender(); return true; };
   let el;
   if ((el = target.closest('[data-p-prop]'))) return ui1('prop', el.dataset.pProp, () => { ui.unit = null; ui.floor = null; });
@@ -729,7 +739,7 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
   if ((el = target.closest('[data-p-floor]'))) {
     ui.floor = Number(el.dataset.pFloor);
     const pg = document.querySelector(`#fpager .fpage[data-fp="${ui.floor}"]`), pager = document.getElementById('fpager');
-    if (pg && pager) { clearUnitSel(); pager.scrollTo({ left: pg.offsetLeft - pager.offsetLeft, behavior: 'smooth' }); document.querySelectorAll('[data-p-floor]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.pFloor) === ui.floor))); return true; }
+    if (pg && pager) { clearUnitSel(); setTimeout(syncFloorFields, 450); pager.scrollTo({ left: pg.offsetLeft - pager.offsetLeft, behavior: 'smooth' }); document.querySelectorAll('[data-p-floor]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.pFloor) === ui.floor))); return true; }
     ui.unit = null; ctx.rerender && ctx.rerender(); return true;
   }
   if ((el = target.closest('[data-p-paytab]'))) return ui1('pay', el.dataset.pPaytab);

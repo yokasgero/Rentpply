@@ -3129,7 +3129,7 @@ async function paintPushRow() {
 /* Content flows in: after an update, only the pieces that are new or changed glide in, one after another.
    Unchanged pieces stay still, so a page never flashes. */
 const FLOW = '.card,.lrow,.lcard,.tile,.unit,tbody tr,.mrep,.tcard,.notice,.alertbar,.needrow,.kgrid>*,.grid>*,.tgrid>*,.lv-tabs,.lview,.prefbar,.fpanel,.paytabs,.hubs,.fchips,.legend,.sec-h,.mgrid>*';
-const flowKey = el => el.className + '|' + el.textContent.replace(/\s+/g, ' ').trim().slice(0, 160);
+const flowKey = el => el.className.replace(/\bflowin\b/, '').trim() + '|' + el.textContent.replace(/\s+/g, ' ').trim().slice(0, 160);
 function flowSnapshot(root) { return new Set([...root.querySelectorAll(FLOW)].map(flowKey)); }
 function flowIn(root, before, cap = 14) {
   if (matchMedia('(prefers-reduced-motion:reduce)').matches) return;
