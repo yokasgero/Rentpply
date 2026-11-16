@@ -1675,6 +1675,37 @@ function toast(msg) {
 const verifiedPill = l => l.v ? `<span class="pill ok">${ic('shield')}Verified</span>` : `<span class="pill warn">Pending check</span>`;
 const unitLabel = l => l.per === 'night' ? '/ night' : '/ month';
 
+/* ---------- reaching the owner, and where to pay ----------
+   my_place_contacts and listing_pay_details come with database update 20261116020000. Until it is applied they are
+   missing, and the screens say to ask the owner instead. */
+const intlNo = ph => { let d = String(ph || '').replace(/\D/g, ''); if (d.startsWith('0')) d = '256' + d.slice(1); else if (d.length === 9) d = '256' + d; return d.length >= 11 ? d : ''; };
+const contactBtns = (phone, msg) => { const n = intlNo(phone); if (!n) return ''; const m = msg ? encodeURIComponent(msg) : ''; return `<div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn sm" href="tel:+${n}">Call</a><a class="btn sm" href="https://wa.me/${n}${m ? '?text=' + m : ''}" target="_blank" rel="noopener">WhatsApp</a><a class="btn ghost sm" href="sms:+${n}${m ? '?&body=' + m : ''}">SMS</a></div>`; };
+const missingFn = e => e && (e.code === 'PGRST202' || /could not find the function/i.test(e.message || ''));
+async function loadContacts() {
+  try { await backendReady; } catch { return; } // the app may have opened from the saved copy before the backend loaded
+  if (!S.user || !supabase) return;
+  const { data, error } = await supabase.rpc('my_place_contacts');
+  S.contacts = error ? null : Object.fromEntries((data || []).map(c => [c.listing_id, c]));
+  if (S.contacts && (S.page || S.tab === 'wallet')) render();
+}
+const ownerContactHTML = (l, msg) => {
+  const c = S.contacts && S.contacts[l.dbId];
+  if (!c) return '';
+  return `<div class="stack" style="gap:8px"><p><b>${esc(c.owner_name || l.owner || 'Owner')}</b>${c.phone ? ` · <a href="tel:+${intlNo(c.phone)}">${esc(c.phone)}</a>` : ''}${c.email ? ` · <a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : ''}</p>${contactBtns(c.phone, msg)}</div>`;
+};
+const PAYDET = {}; // listing id -> the owner's payment details, null when none were entered, 'missing' before the database update
+function payToHTML(l) {
+  const d = PAYDET[l.dbId];
+  if (d === undefined) {
+    PAYDET[l.dbId] = 'loading';
+    supabase.rpc('listing_pay_details', { listing_uuid: l.dbId }).then(({ data, error }) => { PAYDET[l.dbId] = error ? 'missing' : (data || null); const box = $('#payto'); if (box) box.outerHTML = payToHTML(l); });
+  }
+  const row = (k, v, name) => v ? `<div class="kv" style="align-items:center"><span>${k}</span><span><b class="mono">${esc(v)}</b>${name ? `<small class="muted" style="display:block">${esc(name)}</small>` : ''}<button class="linkbtn" type="button" data-copytext="${esc(v)}" style="font-size:12.5px">Copy</button></span></div>` : '';
+  const body = d === undefined || d === 'loading' ? '<span class="skeleton" style="height:16px;width:70%"></span>'
+    : d && d !== 'missing' && (d.mtn_number || d.airtel_number || d.bank_account) ? `${row('MTN MoMo', d.mtn_number, d.mtn_name)}${row('Airtel Money', d.airtel_number, d.airtel_name)}${row(esc(d.bank_name || 'Bank'), d.bank_account, d.bank_account_name)}${d.note ? `<p class="muted" style="font-size:13px">${esc(d.note)}</p>` : ''}<p class="muted" style="font-size:12.5px">Check the name the network shows before you confirm the transfer.</p>`
+    : `<p class="muted">The owner's payment details are not on Rentpply yet. Ask the owner where to send the money before you pay.</p>${ownerContactHTML(l, `Hello, I would like to pay for ${l.name} through Rentpply. Which number or account should I send the money to?`)}`;
+  return `<div class="card stack" id="payto" style="gap:8px"><span class="lbl">Where to send the money</span>${body}</div>`;
+}
 /* A place, as a message: name, area, price and its own link. */
 const placeUrl = l => location.origin + '/place/' + l.id;
 const shareText = l => `Have a look at ${l.name} in ${l.area} on Rentpply: ${fmt(l.price)} ${unitLabel(l)}. ${placeUrl(l)}`;
@@ -2195,7 +2226,7 @@ function pgListing() {
     ${lsec('bed', 'Interior amenities', bullets(inter))}
     ${lsec('doc', 'Rules and policies', bullets(rules, 4))}
     ${lsec('car', 'Parking', `<p class="muted">${hasPark ? 'Parking is available on site.' : 'No parking on site.'}</p>`)}
-    ${lsec('phone', 'Contact information', `<p><b>${esc(l.owner)}</b>${l.v ? ' · verified owner' : ''}</p><p class="muted">Phone and email are shared once you apply, so scammers cannot copy them.</p>`)}
+    ${lsec('phone', 'Contact information', `<p><b>${esc(l.owner)}</b>${l.v ? ' · verified owner' : ''}</p>${S.contacts && S.contacts[l.dbId] ? '' : '<p class="muted">Phone and email are shared once you apply, so scammers cannot copy them.</p>'}${ownerContactHTML(l, `Hello, I am interested in ${l.name} on Rentpply.`)}`)}
     ${lsec('globe', 'Show someone', `<p class="muted">Send this place to a parent, sponsor or friend. They can open it without an account.</p><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><a class="btn sm" href="https://wa.me/?text=${encodeURIComponent(shareText(l))}" target="_blank" rel="noopener">Send on WhatsApp</a><button class="btn ghost sm" type="button" data-share="${l.id}">Share or copy link</button></div>`)}
     ${lsec('pin', 'Local information', `<div class="row" style="justify-content:space-between;gap:10px;margin-bottom:6px"><span class="muted">${l.area}, Kampala · ${l.dist} km ${l.type === 'hostel' ? 'to campus' : 'from the centre'}</span><a class="btn ghost sm" href="${mapsLink(l)}" target="_blank" rel="noopener">Open in Google Maps</a></div>${l.loc && l.loc.address ? `<p class="muted" style="font-size:13px">${esc(l.loc.address)}</p>` : ''}<button class="btn ghost sm" data-lv-tab="map" data-lv-up style="align-self:flex-start;margin-top:6px">${ic('pin')}See it on the map</button>`)}
     ${ok ? `<div class="actbar always"><div class="inner two"><button class="btn ghost" data-view="${l.id}">Book a viewing</button><button class="btn" data-apply>Apply now</button></div></div>` : ''}
@@ -2252,6 +2283,7 @@ function pgPayment() {
         <div class="field"><label for="bq">${({ night: 'Nights', semester: 'Semesters', month: 'Months' })[stayUnit(l)]}</label><select class="inp" id="bq">${({ night: [1, 2, 3, 5, 7, 14], semester: [1, 2, 3, 4], month: [1, 2, 3, 4, 6, 12] })[stayUnit(l)].map(n => `<option value="${n}" ${BK.qty === n ? 'selected' : ''}>${stayUnit(l) === 'semester' ? `${plural(n, 'semester')} (${n * MONTHS_PER_SEMESTER} months)` : n}</option>`).join('')}</select></div></div></div>
       <div class="card stack"><span class="lbl">Who is paying</span><div class="row"><button class="chip" data-payer="Self" aria-pressed="${BK.paidBy === 'Self'}">I am paying</button><button class="chip" data-payer="Sponsor" aria-pressed="${BK.paidBy === 'Sponsor'}">A sponsor is paying</button></div>
         <div id="sp" ${BK.paidBy === 'Sponsor' ? '' : 'hidden'} class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))"><div class="field"><label for="spn">Sponsor name</label><input class="inp" id="spn" placeholder="e.g. Mother"></div><div class="field"><label for="spc">Paying from</label><input class="inp" id="spc" placeholder="e.g. United States"></div></div></div>
+      ${payToHTML(l)}
       <div class="card stack"><span class="lbl">Payment evidence</span><p class="muted">After sending money directly to the property owner, choose the method and enter the transaction reference. Card charging is not available here.</p>
         ${[['MTN MoMo', 'MTN', '#FFCC00'], ['Airtel Money', 'AIR', '#E40000'], ['Bank transfer', 'BANK', '#8FB4FF']].map(m => `<button class="opt" data-method="${m[0]}" aria-pressed="${BK.method === m[0]}"><span class="dot" style="background:${m[2]};color:#111">${m[1]}</span><b>${m[0]}</b></button>`).join('')}
         <div class="field"><label for="ph">Transaction reference</label><input class="inp" id="ph" autocomplete="off" placeholder="Enter the reference from your receipt" required></div></div>
@@ -2346,6 +2378,7 @@ function roomCard(r, first) {
     <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">${stat(l.per === 'night' ? 'Per night' : 'Rent per month', fmt(l.price))}${stat('Paid until', fdate(r.en))}${stat('Room', esc(roomLabel(b.room)))}${stat('Stay', b.nights ? plural(b.nights, 'night') : plural(b.months, 'month'))}</div>
     <div class="row"><span class="pill ok">${ic('check')}Payment confirmed</span><span class="pill ${ag && ag.status === 'accepted' ? 'ok' : 'mute'}">${ic('key')}Agreement ${ag && ag.status === 'accepted' ? 'accepted' : 'on file'}</span><span class="pill ${openN ? 'warn' : 'ok'}">${ic(openN ? 'bell' : 'check')}${openN ? openN + ' repair' + (openN > 1 ? 's' : '') + ' open' : 'No repairs open'}</span></div>
     ${mine.length ? `<details class="rep"><summary><span class="lbl">Your repair requests (${mine.length})</span><span class="muted" style="font-size:13px">${openN ? openN + ' open' : 'All fixed'}</span>${ic('chevron')}</summary><div class="stack" style="gap:8px;margin-top:6px">${mine.slice(0, 4).map(m => `<div class="row" style="justify-content:space-between;flex-wrap:nowrap;border-top:1px solid var(--line);padding-top:8px"><div style="min-width:0"><b>${mtName(m.type)}</b>${m.urgent ? ' <span class="pill bad">Urgent</span>' : ''}<div class="muted" style="font-size:13px;overflow-wrap:anywhere">${esc(m.note)} · ${ago(m.ts)}</div></div><span class="pill ${pill.st[m.st][0]}">${pill.st[m.st][1]}</span></div>`).join('')}</div></details>` : ''}
+    ${S.contacts && S.contacts[l.dbId] ? `<div class="stack" style="gap:6px"><span class="lbl">Contact the owner</span>${ownerContactHTML(l, `Hello, this is ${ME}, room ${roomLabel(b.room)} at ${l.name}.`)}</div>` : ''}
     <div class="row">${cur ? `<button class="btn" data-report="${b.id}">${ic('bell')}Report a problem</button>` : ''}${ag ? `<button class="btn ghost" data-agview="${ag.id}">View agreement</button>` : ''}<button class="btn ghost" data-receipt="${b.id}">${ic('receipt')}Receipt</button></div></div>`;
 }
 function vWallet() {
@@ -2929,7 +2962,7 @@ function setTenant(d) {
 const isTenantRole = r => ['tenant', 'student'].includes(r);
 function applyStart(d) {
   setListings(d);
-  if (d.profile && isTenantRole(d.profile.role)) setTenant(d);
+  if (d.profile && isTenantRole(d.profile.role)) { setTenant(d); if (S.contacts === undefined) { S.contacts = null; setTimeout(loadContacts, 0); } }
 }
 /* The signed-in person's account details, and the screen they start on. */
 function takeProfile(profile) {
@@ -3056,6 +3089,7 @@ async function syncLiveSession(session) {
 
 /* After a tenant saves something: ask again (one trip) and keep the copy on the phone up to date. */
 async function loadTenantData() {
+  loadContacts();
   if (!S.user) return;
   const d = await fetchStart(S.user.id, true);
   if (!d || !S.user) return;
@@ -3483,6 +3517,7 @@ document.addEventListener('click', async e => {
     if (error) { toast(error.message || 'Could not list this rent transfer.'); return; }
     await loadTenantData(); render(); toast('Transfer listing sent to the owner workflow.'); return;
   }
+  if ((el = c('[data-copytext]'))) { const v = el.dataset.copytext; try { await navigator.clipboard.writeText(v); toast('Copied ' + v); } catch { toast(v); } return; }
   if ((el = c('[data-copy]'))) { const v = el.dataset.copy; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => toast('Link copied')).catch(() => { const r = document.createRange(); const code = el.parentNode.querySelector('code'); r.selectNodeContents(code); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Press and hold to copy'); }); return; }
   /* owner */
   /* agreements, bills, tax */
