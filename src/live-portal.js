@@ -191,7 +191,7 @@ function tenantSheetHTML(data, u) {
     <div class="row" style="gap:6px;flex-wrap:wrap"><span class="pill ${state[0]}">${state[1]}</span>${person ? (person.kyc === 'verified' ? `<span class="pill ok">${icn('shield')}ID verified</span>` : '<span class="pill mute">ID not verified</span>') : ''}${u.roommate_name ? `<span class="pill mute">Shares with ${esc(u.roommate_name)}</span>` : ''}</div>
     ${!info && u.tenant_id ? '<div class="tc-load"><span class="skeleton" style="height:14px;width:60%"></span></div>' : ''}
     <div class="card stack" style="gap:8px">${kvRow('Rent for the room', money(u.rent))}${u.status === 'reserved' && u.reserved_move_in ? kvRow('Moving in', date(u.reserved_move_in)) : kvRow('Paid through', date(u.paid_through))}${kvRow('Balance', `<span class="num" style="color:${owes ? 'var(--bad)' : 'var(--ok)'}">${money(u.balance)}</span>`)}${phone ? kvRow('Phone', esc(phone)) : ''}</div>
-    <div class="stack" style="gap:8px"><b>${owes ? 'Send a reminder' : 'Contact'}</b>${contactButtons(phone, msg)}${owes && intlPhone(phone) ? '<p class="muted" style="font-size:12.5px">The reminder is written for you with the amount and date. You can change it before sending.</p>' : ''}</div>
+    <div class="stack" style="gap:8px"><b>${owes ? 'Send a reminder' : 'Contact'}</b>${owes && u.tenant_id ? `<button class="btn" type="button" data-p-remind="${esc(u.id)}" style="align-self:flex-start">${icn('bell')}Remind in Rentpply</button><small class="muted">They get it in the app and on their phone.</small>` : ''}${contactButtons(phone, msg)}${owes && intlPhone(phone) ? '<p class="muted" style="font-size:12.5px">The reminder is written for you with the amount and date. You can change it before sending.</p>' : ''}</div>
     ${recordForm}
     <div class="stack" style="gap:8px"><b>Payments</b>${payRowsHTML(hist)}${boardPays.length ? `<div class="stack" style="gap:4px">${boardPays.map(x => `<div class="kv"><span>${date(x.paid_at)} · ${esc(x.method)}${x.is_booking_fee ? ' · booking fee' : ''} (Board)</span><span class="num">${money(x.amount)}</span></div>`).join('')}</div>` : ''}</div>
     ${ag ? `<button class="opt" type="button" data-p-agreement="${esc(ag.id)}" style="text-align:left"><b>Tenancy agreement</b><small class="muted" style="display:block"><span class="mono">${esc(ag.reference)}</span> · ${ag.status === 'accepted' ? 'accepted ' + date(ag.accepted_at) : esc(ag.status)}</small></button>` : ''}
@@ -226,6 +226,29 @@ function agreementSheetHTML(data, a) {
     <div class="card stack" style="gap:8px">${kvRow('Tenant', esc(a.tenant_name))}${kvRow('Property', esc(l.name || ''))}${kvRow('Room', esc(a.room_code))}${kvRow('Starts', date(a.start_date))}${kvRow('Length', `${a.quantity} ${l.per === 'night' ? (a.quantity === 1 ? 'night' : 'nights') : (a.quantity === 1 ? 'month' : 'months')}`)}${kvRow('Status', pill(a.status))}${a.accepted_at ? kvRow('Accepted', date(a.accepted_at)) : ''}${kvRow('Paid', a.paid ? 'Yes' : 'Not yet')}</div>
     <div class="card stack" style="gap:8px"><b>Terms</b>${std ? '<small class="muted">Rentpply standard terms (none were set for this property)</small>' : ''}${dep !== undefined ? kvRow('Refundable deposit', `${dep} ${Number(dep) === 1 ? 'month' : 'months'}`) : ''}${late !== undefined ? kvRow('Late fee', late + '%') : ''}${notice !== undefined ? kvRow('Notice to leave', `${notice} days`) : ''}${rules ? `<p class="muted" style="white-space:pre-line;font-size:14px">${esc(rules)}</p>` : ''}</div>
     ${u && u.tenant_name ? `<button class="btn ghost" type="button" data-p-tenant="${esc(u.id)}">${icn('users')}Open tenant</button>` : ''}</div>`;
+}
+
+/* Where tenants send money for a property (MTN, Airtel, bank). Shown to a tenant on the payment step.
+   Needs database update 20261116020000; until it is applied the form says so instead. */
+const payDet = {}; // listing id -> details, null when none yet, 'missing' before the update
+function payDetailsForm(p) {
+  const d = payDet[p.id];
+  if (d === undefined) {
+    payDet[p.id] = 'loading';
+    supabase.rpc('listing_pay_details', { listing_uuid: p.id }).then(({ data, error }) => {
+      payDet[p.id] = error ? (/could not find|PGRST202/i.test((error.code || '') + (error.message || '')) ? 'missing' : null) : (data || null);
+      const box = document.getElementById('payDetails'); if (box) box.outerHTML = payDetailsForm(p);
+    });
+  }
+  const v = d && typeof d === 'object' ? d : {}, f = (label, name, extra = '') => `<label class="field"><span>${label}</span><input class="inp" name="${name}" value="${esc(v[name] || '')}" ${extra}></label>`;
+  if (d === 'loading' || d === undefined) return `<div class="card" id="payDetails"><span class="skeleton" style="height:16px;width:50%"></span></div>`;
+  if (d === 'missing') return `<div class="card stack" id="payDetails"><h3>How tenants pay</h3><p class="notice">Saving payment details needs the database update 20261116020000 (contacts and payment details). Once it is applied, enter the owner's MTN, Airtel and bank details here.</p></div>`;
+  return `<form class="card stack" id="payDetails" data-live-form="pay-details" data-listing-id="${esc(p.id)}"><h3>How tenants pay</h3><p class="muted">Tenants see these on the payment step, so they know where to send the money. Only signed-in people can see them.</p>
+    <div class="grid">${f('MTN MoMo number', 'mtn_number', 'type="tel" inputmode="tel"')}${f('Name on MTN', 'mtn_name')}</div>
+    <div class="grid">${f('Airtel Money number', 'airtel_number', 'type="tel" inputmode="tel"')}${f('Name on Airtel', 'airtel_name')}</div>
+    <div class="grid">${f('Bank', 'bank_name')}${f('Account number', 'bank_account')}${f('Account name', 'bank_account_name')}</div>
+    ${f('Note for tenants (optional)', 'note', 'placeholder="e.g. Use your name and room as the reason"')}
+    <button class="btn" type="submit" style="align-self:flex-start">Save payment details</button></form>`;
 }
 
 /* ---------- needs-you list ---------- */
@@ -419,7 +442,7 @@ function ownerPayments(data) {
 function requestCards(data, lid) {
   const reqs = data.ownerRequests.filter(r => r.listing_id === lid && r.kind !== 'Rent transfer'), mt = data.maintenance.filter(m => m.listing_id === lid);
   const trs = data.transferRequests.filter(r => data.transfers.some(t => t.id === r.transfer_id && t.listing_id === lid));
-  return `<div class="stack">${reqs.map(r => `<div class="card stack" style="gap:8px"><div class="row" style="justify-content:space-between"><span class="pill mute">${esc(r.kind)}</span>${r.status !== 'open' ? pill(r.status) : ''}</div><b style="font-size:17px">${esc(r.requester_name)}</b><p class="muted">${esc(r.details)}</p>${r.status === 'open' ? `<div class="row"><button class="btn sm" data-live-owner-request="${esc(r.id)}:approved">Approve</button><button class="btn ghost sm" data-live-owner-request="${esc(r.id)}:declined">Decline</button></div>` : ''}</div>`).join('')}
+  return `<div class="stack">${reqs.map(r => `<div class="card stack" style="gap:8px">${r.kind === 'Viewing request' ? `<button class="btn ghost sm" type="button" data-p-reqcontact="${esc(r.id)}" style="order:9;align-self:flex-start">${icn('phone')}Contact ${esc(firstName(r.requester_name))}</button>` : ''}<div class="row" style="justify-content:space-between"><span class="pill mute">${esc(r.kind)}</span>${r.status !== 'open' ? pill(r.status) : ''}</div><b style="font-size:17px">${esc(r.requester_name)}</b><p class="muted">${esc(r.details)}</p>${r.status === 'open' ? `<div class="row"><button class="btn sm" data-live-owner-request="${esc(r.id)}:approved">Approve</button><button class="btn ghost sm" data-live-owner-request="${esc(r.id)}:declined">Decline</button></div>` : ''}</div>`).join('')}
     ${trs.map(r => { const t = data.transfers.find(x => x.id === r.transfer_id); return `<div class="card stack" style="gap:8px"><div class="row" style="justify-content:space-between"><span class="pill mute">Rent transfer</span>${r.status !== 'pending' ? pill(r.status) : ''}</div><b style="font-size:17px">${esc(r.requester?.full_name || 'Tenant')}</b><p class="muted">Wants room ${esc(t?.room_code || '')} at ${money(t?.price_per_month)} a month from ${date(t?.available_from)}.</p>${r.status === 'pending' ? `<div class="row"><button class="btn sm" data-live-transfer-request="${esc(r.id)}:1">Approve</button><button class="btn ghost sm" data-live-transfer-request="${esc(r.id)}:0">Decline</button></div>` : ''}</div>`; }).join('')}
     ${maintBlock(mt, { room: true })}
     ${!reqs.length && !trs.length && !mt.length ? '<div class="card"><p class="muted">Nothing needs your approval right now.</p></div>' : ''}</div>`;
@@ -562,7 +585,8 @@ function adminProperty(data) {
     <form class="card stack" data-live-form="agreement" data-listing-id="${esc(p.id)}"><h3>Agreement</h3><p class="muted">These clauses appear on the listing page as the rules and in the tenancy agreement tenants accept.${p.per === 'night' ? ' Short stays always show free cancellation up to 48 hours before check-in.' : ''}</p>
       <div class="grid"><label class="field"><span>Notice period (days)</span><input class="inp" name="notice" type="number" min="0" max="365" value="${t.notice_days ?? 30}" required></label><label class="field"><span>Refundable deposit (months of rent)</span><input class="inp" name="deposit" type="number" min="0" max="6" value="${t.deposit_months ?? 0}" required></label><label class="field"><span>Late fee (% of overdue rent)</span><input class="inp" name="late" type="number" min="0" max="50" value="${t.late_fee_percent ?? 5}" required></label></div>
       <label class="field"><span>House rules</span><textarea class="inp" name="rules" rows="3" placeholder="Visitors leave by 10 pm. Quiet hours are 10 pm to 6 am.">${esc(t.house_rules || '')}</textarea></label>
-      <button class="btn" type="submit" style="align-self:flex-start">Save agreement</button></form></section>`;
+      <button class="btn" type="submit" style="align-self:flex-start">Save agreement</button></form>
+    ${payDetailsForm(p)}</section>`;
 }
 
 function adminListings(data) {
@@ -859,6 +883,21 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
   if ((el = target.closest('[data-p-hub]'))) return ui1('hub', el.dataset.pHub);
   if ((el = target.closest('[data-p-adm-prop]'))) { if (el.closest('#layer')) layer(''); ui.admProp = el.dataset.pAdmProp; ui.unit = null; ui.floor = null; if (el.dataset.pAdmTab && ctx.setTab) { ctx.setTab(el.dataset.pAdmTab); return true; } ctx.rerender && ctx.rerender(); return true; }
   if (target.closest('[data-p-adm-back]')) { ui.admProp = null; ui.unit = null; ui.floor = null; ctx.rerender && ctx.rerender(); return true; }
+  if ((el = target.closest('[data-p-remind]'))) {
+    el.disabled = true;
+    const { error } = await supabase.rpc('remind_tenant', { unit_uuid: el.dataset.pRemind });
+    el.disabled = false;
+    if (error) throw new Error(/could not find|PGRST202/i.test((error.code || '') + (error.message || '')) ? 'In-app reminders need the database update 20261116020000. Use WhatsApp or SMS for now.' : error.message);
+    el.textContent = 'Reminder sent'; el.disabled = true; ctx.toast && ctx.toast('Reminder sent. They see it in Rentpply and on their phone.'); return true;
+  }
+  if ((el = target.closest('[data-p-reqcontact]'))) {
+    const r = (ctx.data?.ownerRequests || []).find(x => x.id === el.dataset.pReqcontact);
+    const { data, error } = await supabase.rpc('request_contact', { request_uuid: el.dataset.pReqcontact });
+    if (error) throw new Error(/could not find|PGRST202/i.test((error.code || '') + (error.message || '')) ? 'Contact details for viewing requests need the database update 20261116020000.' : error.message);
+    const name = (data && data.name) || (r && r.requester_name) || 'them';
+    layer(sheetHTML('Viewing request', `<div class="stack" style="gap:12px"><h2 style="font-size:22px">${esc(name)}</h2>${r ? `<p class="muted">${esc(r.details)}</p>` : ''}${data && data.phone ? kvRow('Phone', esc(data.phone)) : ''}${contactButtons(data && data.phone, `Hello ${firstName(name)}, this is about your viewing request on Rentpply${r ? ': ' + r.details.replace(/^Would like to view/, 'viewing') : ''}.`)}</div>`));
+    return true;
+  }
   if ((el = target.closest('[data-p-person]'))) { const x = ctx.data && ctx.data.profiles.find(y => y.id === el.dataset.pPerson); if (x) layer(sheetHTML('Person', personSheetHTML(ctx.data, x))); return true; }
   if ((el = target.closest('[data-p-tenant]'))) { if (ctx.data) openTenantSheet(ctx.data, el.dataset.pTenant, ctx.rerender); return true; }
   const inRowControl = target.closest('a,input,select,textarea,form,button:not([data-p-payment]):not([data-p-agreement])');
@@ -1091,6 +1130,12 @@ export async function handlePortalSubmit(form, role, user, profile, data, refres
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Enter a Google Maps link or both coordinates.');
     if (lat < -1.6 || lat > 4.3 || lng < 29.5 || lng > 35.1) throw new Error('Those coordinates are outside Uganda. Check that latitude and longitude are not swapped.');
     result = await supabase.from('listing_locations').upsert({ listing_id: form.dataset.listingId, lat, lng, address: (values.address || '').trim() || null, updated_at: new Date().toISOString() });
+  } else if (kind === 'pay-details') {
+    const row = { listing_id: form.dataset.listingId, updated_at: new Date().toISOString() };
+    ['mtn_number', 'mtn_name', 'airtel_number', 'airtel_name', 'bank_name', 'bank_account', 'bank_account_name', 'note'].forEach(k => { row[k] = String(values[k] || '').trim() || null; });
+    if (!row.mtn_number && !row.airtel_number && !row.bank_account) throw new Error('Enter at least one way to pay: MTN, Airtel or a bank account.');
+    result = await supabase.from('listing_pay_details').upsert(row);
+    if (!result.error) payDet[row.listing_id] = row;
   } else if (kind === 'agreement') {
     result = await supabase.from('agreement_templates').upsert({ listing_id: form.dataset.listingId, notice_days: Number(values.notice), deposit_months: Number(values.deposit), late_fee_percent: Number(values.late), house_rules: (values.rules || '').trim() || null, updated_at: new Date().toISOString() });
   } else if (kind === 'layout') {
