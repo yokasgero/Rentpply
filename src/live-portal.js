@@ -192,7 +192,7 @@ function ownerOverview(data, profile) {
 /* ---------- OWNER / ADMIN: units ---------- */
 const firstName = n => String(n || '').split(' ')[0];
 function unitTile(u, data) {
-  const lab = u.status === 'occupied' ? (u.roommate_name ? firstName(u.tenant_name) + ' +1' : firstName(u.tenant_name) || 'Occupied') : u.status === 'maint' ? 'Maintenance' : u.status === 'reserved' ? 'Reserved' : 'Vacant';
+  const lab = u.status === 'occupied' ? (u.roommate_name ? firstName(u.tenant_name) + ' +1' : firstName(u.tenant_name) || 'Occupied') : u.status === 'maint' ? 'Maintenance' : u.status === 'reserved' ? (firstName(u.tenant_name) || 'Reserved') : 'Vacant';
   const open = data.maintenance.filter(m => m.unit_id === u.id && m.status === 'open').length;
   return `<button class="unit ${u.status}" data-p-unit="${esc(u.id)}" aria-pressed="${ui.unit === u.id}" aria-label="Unit ${esc(u.unit_code)}, ${STNAME[u.status]}"><b>${esc(u.unit_code)}</b><small>${esc(lab)}</small>${open ? `<span class="bell ring" style="width:20px;height:20px">${icn('bell')}</span>` : ''}${u.status === 'occupied' && u.payment_status && u.payment_status !== 'paid' ? `<span class="pill ${u.payment_status === 'overdue' ? 'bad' : 'warn'}" style="font-size:10px;padding:1px 7px">${u.payment_status === 'overdue' ? 'Overdue' : 'Due'}</span>` : ''}</button>`;
 }
@@ -239,7 +239,13 @@ function unitDetail(u, data) {
   const mt = data.maintenance.filter(m => m.unit_id === u.id);
   const maint = maintBlock(mt);
   if (u.status !== 'occupied') {
-    const msg = { vacant: 'This unit is empty and shows as available to people searching on Rentpply.', maint: 'This unit is closed for repairs and hidden from search. Reopen it by choosing Vacant.', reserved: u.tenant_name ? `Held for ${esc(u.tenant_name)}, who is moving in soon.` : 'This unit is being held for someone who is about to move in.' }[u.status];
+    const onBoard = (data.board || []).some(e => e.unit_id === u.id && ['unpaid', 'booked'].includes(e.status));
+    if (u.status === 'reserved' && u.tenant_name) {
+      const facts = [u.reserved_phone ? `<div><span>Phone</span><b>${esc(u.reserved_phone)}</b></div>` : '', u.reserved_move_in ? `<div><span>Moving in</span><b>${date(u.reserved_move_in)}</b></div>` : '', u.reserved_at ? `<div><span>Reserved on</span><b>${date(u.reserved_at)}</b></div>` : ''].join('');
+      return `<div class="card stack" id="unitDetail">${headHtml}<p>Held for <b>${esc(u.tenant_name)}</b>${onBoard ? ', on the Board. Change it on the Board when they pay or if they cancel.' : '.'}</p>${facts ? `<div class="tc-rows">${facts}</div>` : ''}
+        ${onBoard ? '' : `<div class="row"><button class="btn sm" type="button" data-p-reserve="${esc(u.id)}">Change reservation</button><button class="btn ghost sm" type="button" data-p-unreserve="${esc(u.id)}">Cancel reservation</button></div>`}${maint}</div>`;
+    }
+    const msg = { vacant: 'This unit is empty and shows as available to people searching on Rentpply.', maint: 'This unit is closed for repairs and hidden from search. Reopen it by choosing Vacant.', reserved: 'This unit is held, but nobody is named. Choose Reserved to say who it is for.' }[u.status];
     return `<div class="card stack" id="unitDetail">${headHtml}<p class="muted">${msg}</p>${maint}</div>`;
   }
   const hist = data.payments.filter(p => p.unit_id === u.id || (p.listing_id === u.listing_id && p.room_code === u.unit_code)).sort((a, b) => when(b) - when(a));
@@ -538,6 +544,17 @@ function showCredentials(username, password, ownerId) {
     <label class="field"><span>Password</span><div class="row" style="flex-wrap:nowrap"><input class="inp mono" id="credPw" type="password" readonly value="${esc(password)}"><button class="btn ghost sm" type="button" data-p-pwtoggle>Show</button><button class="btn ghost sm" type="button" data-p-copy="${esc(password)}">Copy</button></div></label>
     <button class="btn" type="button" data-p-logins-sent="${esc(ownerId)}">Mark as sent to the owner</button></div>`));
 }
+/* Reserve a room for someone: their name, and optionally a phone number and the day they move in. */
+function reserveSheet(u) {
+  const again = u.status === 'reserved' && u.reserved_at;
+  layer(sheetHTML(`Room ${u.unit_code}`, `<form class="stack" style="gap:14px" data-live-form="reserve" data-unit-id="${esc(u.id)}"><h2 style="font-size:24px">${again ? 'Change reservation' : 'Reserve this room'}</h2>
+    <p class="muted">Room ${esc(u.unit_code)} is held for this person and stops showing as available. You can change or cancel it at any time.</p>
+    <label class="field"><span>Reserved for (name)</span><input class="inp" name="holder_name" required minlength="2" autocomplete="off" value="${again ? esc(u.tenant_name || '') : ''}"></label>
+    <label class="field"><span>Phone (optional)</span><input class="inp" name="holder_phone" type="tel" inputmode="tel" value="${again ? esc(u.reserved_phone || '') : ''}"></label>
+    <label class="field"><span>Moving in on (optional)</span><input class="inp" name="move_in" type="date" value="${again && u.reserved_move_in ? esc(u.reserved_move_in) : ''}"></label>
+    <button class="btn" type="submit">${again ? 'Save' : 'Reserve room'}</button></form>`));
+  setTimeout(() => { const f = document.querySelector('#layer [name=holder_name]'); if (f) f.focus(); }, 350);
+}
 function quickMenu(unitId, code) {
   layer(sheetHTML(`Room ${code}`, `<div class="stack" style="gap:10px"><h2 style="font-size:24px">Room ${esc(code)}</h2><p class="muted">Change the status of this room.</p>${STAT.map(([k, t]) => `<button class="opt" type="button" data-p-setst="${esc(unitId)}:${k}"><b>${t}</b></button>`).join('')}</div>`));
 }
@@ -576,10 +593,10 @@ function paymentGate(data) {
 function ownerBoard(data) {
   const p = currentProp(data); if (!p) return noProps();
   const entries = data.board.filter(e => e.listing_id === p.id && e.status !== 'cancelled').sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
-  const vac = data.units.filter(u => u.listing_id === p.id && u.status === 'vacant').sort(byCode), t = boardTotals(data, p.id);
+  const vac = data.units.filter(u => u.listing_id === p.id && (u.status === 'vacant' || (u.status === 'reserved' && u.reserved_at))).sort(byCode), t = boardTotals(data, p.id);
   const form = p.per !== 'month' ? '<div class="notice">The board is for monthly stays. Short-stay guests book through Rentpply.</div>'
     : `<form class="card stack" data-live-form="board-onboard" data-listing-id="${esc(p.id)}"><div><span class="eyebrow">Walk-in tenant</span><h3>Onboard tenant</h3><p class="muted">For someone who viewed a room and paid you directly. The room follows what they have paid: Reserved while part paid, Occupied once paid in full.</p></div>
-      <div class="grid"><label class="field"><span>Room</span><select class="inp" name="unit_id" required>${vac.map(u => `<option value="${esc(u.id)}">${esc(u.unit_code)} · ${floorName(u.floor)}</option>`).join('')}</select></label>${field('Tenant name', 'tenant_name')}${field('Phone', 'phone', 'tel', 'placeholder="07XX XXX XXX"')}</div>
+      <div class="grid"><label class="field"><span>Room</span><select class="inp" name="unit_id" required>${vac.map(u => `<option value="${esc(u.id)}">${esc(u.unit_code)} · ${floorName(u.floor)}${u.status === 'reserved' ? ' · held for ' + esc(u.tenant_name || '') : ''}</option>`).join('')}</select></label>${field('Tenant name', 'tenant_name')}${field('Phone', 'phone', 'tel', 'placeholder="07XX XXX XXX"')}</div>
       <div class="grid"><label class="field"><span>Months</span><input class="inp" name="months" type="number" min="1" max="24" value="4" required></label><label class="field"><span>Start date</span><input class="inp" name="start_date" type="date" value="${today()}" required></label><label class="field"><span>Rent per month</span><input class="inp" value="${money(p.price)}" disabled></label></div>
       <label class="chk"><input type="checkbox" name="has_roommate"><span>They will have a roommate</span></label>
       <label class="chk"><input type="checkbox" name="booking_fee" checked><span>This payment is a booking fee</span></label>
@@ -638,7 +655,7 @@ function kpiExtras(data, bk) {
   const heat = `<div class="heat"><div class="hrow hh"><span></span>${slots.map(s => `<span>${s}</span>`).join('')}</div>${grid.map((row, i) => `<div class="hrow"><span>${days[i]}</span>${row.map((v, k) => `<i class="hc" style="--a:${(.08 + v / mx * .92).toFixed(2)}" title="${days[i]} ${slots[k]}h · ${v} ${v === 1 ? 'application' : 'applications'}"></i>`).join('')}</div>`).join('')}</div><div class="lg"><span class="muted">Fewer</span><span class="ramp"></span><span class="muted">More applications</span></div>`;
   return { funnel, status: donut(stat.filter(s => s.v)), heat };
 }
-let pressTimer = 0, pressBound = false, swallowUntil = 0, menuThisPress = false;
+let pressTimer = 0, pressBound = false, swallowUntil = 0, menuThisPress = false, menuAt = 0;
 /* No room selected any more (another floor was chosen): take the highlight off and put back the hint, without a redraw. */
 function clearUnitSel() {
   if (!ui.unit) return;
@@ -659,7 +676,7 @@ function syncFloorFields() {
    would land on the menu (closing it, or picking a status by accident), so a tap at the moment of lifting is ignored. */
 function pressMenu(u) {
   if (menuThisPress) return; // already opened by this press (the timer and the phone's own long-press can both fire)
-  menuThisPress = true;
+  menuThisPress = true; menuAt = performance.now();
   if (navigator.vibrate) try { navigator.vibrate(12); } catch (_) { /* not every phone allows it */ }
   quickMenu(u.dataset.pUnit, (u.querySelector('b') || {}).textContent || '');
 }
@@ -685,11 +702,13 @@ export function portalBind() {
   if (pressBound) return;
   pressBound = true;
   document.addEventListener('pointerdown', e => {
+    menuThisPress = false; clearTimeout(pressTimer); // every new touch starts clean
     const u = e.target.closest && e.target.closest('.unit[data-p-unit]'); if (!u) return;
-    menuThisPress = false; clearTimeout(pressTimer);
     pressTimer = setTimeout(() => pressMenu(u), 550);
-  });
-  document.addEventListener('pointerup', () => { if (menuThisPress) swallowUntil = performance.now() + 400; menuThisPress = false; }, true);
+  }, true);
+  // Only the finger lifting from the press that opened the menu is ignored, and only just after it opened.
+  document.addEventListener('pointerup', () => { if (menuThisPress && performance.now() - menuAt < 2500) swallowUntil = performance.now() + 400; menuThisPress = false; }, true);
+  document.addEventListener('pointercancel', () => { menuThisPress = false; }, true);
   ['pointerup', 'pointercancel', 'scroll'].forEach(ev => document.addEventListener(ev, () => clearTimeout(pressTimer), true));
   document.addEventListener('click', e => { if (performance.now() < swallowUntil) { e.stopPropagation(); e.preventDefault(); swallowUntil = 0; } }, true);
   document.addEventListener('contextmenu', e => { const u = e.target.closest && e.target.closest('.unit[data-p-unit]'); if (u) { e.preventDefault(); clearTimeout(pressTimer); pressMenu(u); } });
@@ -747,6 +766,22 @@ export async function handlePortalClick(target, refresh, ctx = {}) {
   if ((el = target.closest('[data-p-hub]'))) return ui1('hub', el.dataset.pHub);
   if ((el = target.closest('[data-p-adm-prop]'))) { ui.admProp = el.dataset.pAdmProp; ui.unit = null; ui.floor = null; if (el.dataset.pAdmTab && ctx.setTab) { ctx.setTab(el.dataset.pAdmTab); return true; } ctx.rerender && ctx.rerender(); return true; }
   if (target.closest('[data-p-adm-back]')) { ui.admProp = null; ui.unit = null; ui.floor = null; ctx.rerender && ctx.rerender(); return true; }
+  if ((el = target.closest('[data-p-reserve]')) || ((el = target.closest('[data-p-setst]')) && el.dataset.pSetst.endsWith(':reserved'))) {
+    const id = el.dataset.pReserve || el.dataset.pSetst.split(':')[0], u = (ctx.data?.units || []).find(x => x.id === id);
+    if (!u) return true;
+    if ((ctx.data.board || []).some(e => e.unit_id === id && ['unpaid', 'booked'].includes(e.status))) { layer(''); ctx.toast && ctx.toast(`Room ${u.unit_code} is held on the Board. Change it there.`); return true; }
+    if (u.status === 'occupied') { layer(''); ctx.toast && ctx.toast(`Room ${u.unit_code} has a tenant. Mark it vacant first.`); return true; }
+    reserveSheet(u); return true;
+  }
+  if ((el = target.closest('[data-p-unreserve]'))) {
+    const u = (ctx.data?.units || []).find(x => x.id === el.dataset.pUnreserve);
+    if (!u || !window.confirm(`Cancel the reservation for ${u.tenant_name || 'this person'}? Room ${u.unit_code} becomes vacant and available again.`)) return true;
+    const was = { ...u };
+    Object.assign(u, { status: 'vacant', tenant_name: null, reserved_phone: null, reserved_move_in: null, reserved_at: null }); ctx.rerender && ctx.rerender();
+    const { error } = await supabase.rpc('set_unit_status', { unit_uuid: u.id, desired_status: 'vacant' });
+    if (error) { Object.assign(u, was); ctx.rerender && ctx.rerender(); throw error; }
+    refresh(); ctx.toast && ctx.toast('Reservation cancelled.'); return true;
+  }
   if ((el = target.closest('[data-p-admin-make], [data-p-admin-remove]'))) {
     const make = el.matches('[data-p-admin-make]'), id = make ? el.dataset.pAdminMake : el.dataset.pAdminRemove, who = (ctx.data?.profiles || []).find(x => x.id === id);
     const name = who ? who.full_name : 'this person';
@@ -905,6 +940,12 @@ export async function handlePortalSubmit(form, role, user, profile, data, refres
   const values = Object.fromEntries(new FormData(form));
   const kind = form.dataset.liveForm;
   let result;
+  if (kind === 'reserve') {
+    const { error } = await supabase.rpc('reserve_unit', { unit_uuid: form.dataset.unitId, holder_name: values.holder_name, holder_phone: values.holder_phone || null, move_in: values.move_in || null });
+    if (error) throw error;
+    layer(''); await refresh();
+    return true;
+  }
   if (kind === 'new-admin') {
     const out = await ownerLoginsCall({ action: 'create_admin', full_name: values.full_name, email: values.email, phone: values.phone });
     form.reset(); team = null; await refresh();

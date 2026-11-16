@@ -3326,7 +3326,7 @@ document.addEventListener('click', async e => {
   }
   if (c('[data-live-retry]')) { await refreshPortal(); return; }
   if (S.profile && ['owner', 'admin', 'super'].includes(S.profile.role)) {
-    try { if (PORTAL && await PORTAL.handlePortalClick(t, refreshPortal, { rerender: () => render(), setTab: tab => { S.tab = tab; render(true); }, data: S.liveData, toast })) { if (!t.closest('[data-p-prop],[data-p-unit],[data-p-floor],[data-p-paytab],[data-p-range],[data-p-hub],[data-p-adm-prop],[data-p-adm-back],[data-live-kyc-doc],[data-p-copy],[data-p-pwtoggle],[data-p-login-issue],[data-p-fill],[data-p-verify],[data-p-media-cover],[data-p-media-del],[data-p-past],[data-p-print-month],[data-p-maint],[data-p-admin-make],[data-p-admin-remove],[data-p-admin-pw]')) toast('Changes saved.'); return; } }
+    try { if (PORTAL && await PORTAL.handlePortalClick(t, refreshPortal, { rerender: () => render(), setTab: tab => { S.tab = tab; render(true); }, data: S.liveData, toast })) { if (!t.closest('[data-p-prop],[data-p-unit],[data-p-floor],[data-p-paytab],[data-p-range],[data-p-hub],[data-p-adm-prop],[data-p-adm-back],[data-live-kyc-doc],[data-p-copy],[data-p-pwtoggle],[data-p-login-issue],[data-p-fill],[data-p-verify],[data-p-media-cover],[data-p-media-del],[data-p-past],[data-p-print-month],[data-p-maint],[data-p-admin-make],[data-p-admin-remove],[data-p-admin-pw],[data-p-reserve],[data-p-unreserve],[data-p-setst$=":reserved"]')) toast('Changes saved.'); return; } }
     catch (error) { toast(error.message || 'Could not save that change.'); return; }
   }
   if (!c('.acwrap')) document.querySelectorAll('.acpop').forEach(x => { x.hidden = true; });
