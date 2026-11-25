@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
+import { copyFileSync, readdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 // The Android and iPhone apps (apps/) carry a copy of the site and keep it up to date.
@@ -13,8 +13,11 @@ function appManifest() {
     apply: 'build' as const,
     configResolved(c: { root: string; build: { outDir: string } }) { outDir = join(c.root, c.build.outDir); },
     closeBundle() {
-      const skip = new Set(['app-manifest.json', '_headers']);
-      const files: Record<string, { sha256: string; size: number }> = {};
+      // Cloudflare adds its analytics script to HTML as it serves it, so the apps download the page from an
+      // untouched copy with a .txt name instead (the manifest says where, in "src").
+      copyFileSync(join(outDir, 'index.html'), join(outDir, 'app-shell.txt'));
+      const skip = new Set(['app-manifest.json', '_headers', 'app-shell.txt']);
+      const files: Record<string, { sha256: string; size: number; src?: string }> = {};
       const walk = (dir: string) => {
         for (const name of readdirSync(dir).sort()) {
           const full = join(dir, name);
@@ -26,6 +29,7 @@ function appManifest() {
         }
       };
       walk(outDir);
+      if (files['index.html']) files['index.html'].src = 'app-shell.txt';
       const version = createHash('sha256').update(Object.entries(files).map(([p, f]) => p + ':' + f.sha256).join('\n')).digest('hex').slice(0, 16);
       writeFileSync(join(outDir, 'app-manifest.json'), JSON.stringify({ version, built: new Date().toISOString(), files }, null, 1));
     },

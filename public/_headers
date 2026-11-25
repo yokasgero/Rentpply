@@ -16,3 +16,5 @@
 /app-manifest.json
   Cache-Control: no-cache
   Access-Control-Allow-Origin: *
+/app-shell.txt
+  Cache-Control: no-cache
