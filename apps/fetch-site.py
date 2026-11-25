@@ -17,9 +17,7 @@ UA = {'User-Agent': 'RentpplyAppBuild/1.0', 'Cache-Control': 'no-cache'}
 def get(path, tries=5):
     for i in range(tries):
         try:
-            # The site answers /index.html with a redirect to /, so the page itself is fetched from /.
-            url = f'{base}/' if path == 'index.html' else f'{base}/{path}'
-            req = urllib.request.Request(f'{url}?b={int(time.time())}', headers=UA)
+            req = urllib.request.Request(f'{base}/{path}?b={int(time.time())}', headers=UA)
             with urllib.request.urlopen(req, timeout=60) as r:
                 return r.read()
         except Exception as e:  # flaky connections: try again
@@ -31,7 +29,7 @@ def get(path, tries=5):
 raw = get('app-manifest.json')
 manifest = json.loads(raw)
 for path, info in manifest['files'].items():
-    data = get(path)
+    data = get(info.get('src') or path)  # the page comes from an untouched copy (see vite.config.ts)
     if hashlib.sha256(data).hexdigest() != info['sha256']:
         raise SystemExit(f'{path} does not match the manifest (the site may be mid-deploy; try again)')
     dest = os.path.join(out, *path.split('/'))

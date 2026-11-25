@@ -71,10 +71,10 @@ final class SiteStore {
             var body: Data? = nil
             // Unchanged files are copied from the version already here; only changes are downloaded.
             if let old = have?[path]?["sha256"] as? String, old == sha, let d = data(for: path), SiteStore.sha256(d) == sha { body = d }
-            // The site answers /index.html with a redirect to /, so the page itself is fetched from /.
             if body == nil {
-                let url = path == "index.html" ? SiteStore.origin.appendingPathComponent("/") : SiteStore.origin.appendingPathComponent(path)
-                body = try await download(url, bust: true)
+                let src = info["src"] as? String ?? path // the page comes from an untouched copy
+                guard !src.contains("..") else { throw URLError(.cannotParseResponse) }
+                body = try await download(SiteStore.origin.appendingPathComponent(src), bust: true)
             }
             guard let d = body, SiteStore.sha256(d) == sha else { throw URLError(.cannotDecodeContentData) }
             let dest = tmp.appendingPathComponent(path)

@@ -86,16 +86,16 @@ final class SiteStore {
         JSONObject files = latest.getJSONObject("files");
         for (Iterator<String> it = files.keys(); it.hasNext(); ) {
             String path = it.next();
-            if (path.contains("..")) throw new IOException("Bad path in manifest: " + path);
+            if (path.contains("..") || files.getJSONObject(path).optString("src", "").contains("..")) throw new IOException("Bad path in manifest: " + path);
             String sha = files.getJSONObject(path).getString("sha256");
+            String src = files.getJSONObject(path).optString("src", path); // the page comes from an untouched copy
             byte[] data = null;
             // Unchanged files are copied from the version already here; only changes are downloaded.
             if (have != null && have.has(path) && sha.equals(have.getJSONObject(path).optString("sha256"))) {
                 InputStream in = open(path);
                 if (in != null) data = readAllBytes(in);
             }
-            // The site answers /index.html with a redirect to /, so the page itself is fetched from /.
-            if (data == null || !sha.equals(sha256(data))) data = download(ORIGIN + "/" + (path.equals("index.html") ? "" : path) + "?v=" + sha.substring(0, 12));
+            if (data == null || !sha.equals(sha256(data))) data = download(ORIGIN + "/" + src + "?v=" + sha.substring(0, 12));
             if (!sha.equals(sha256(data))) throw new IOException(path + " did not match the manifest");
             File dest = new File(tmp, path);
             dest.getParentFile().mkdirs();
