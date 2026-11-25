@@ -1,0 +1,50 @@
+name: iPhone app (updates itself from the site)
+
+on:
+  push:
+    paths: ["apps/web-ios/**", "apps/fetch-site.py", ".github/workflows/web-ios.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy the live site into the app
+        run: python3 -I apps/fetch-site.py apps/web-ios/Site https://rentpply.com
+
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          cd apps/web-ios && xcodegen generate
+
+      - name: Build (unsigned)
+        run: |
+          set -o pipefail
+          cd apps/web-ios
+          xcodebuild -project Rentpply.xcodeproj -scheme Rentpply -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            SYMROOT="$PWD/build" build 2>&1 | tee build.log | xcpretty \
+            || { grep -E "error:" build.log | sort -u | head -50; exit 1; }
+
+      - name: Package the IPA
+        run: |
+          cd apps/web-ios
+          APP=build/Release-iphoneos/Rentpply.app
+          # Refuse to publish an incomplete app.
+          test -f "$APP/Info.plist" || { echo "Info.plist missing"; exit 1; }
+          test -f "$APP/Rentpply" || { echo "App binary missing"; exit 1; }
+          test -f "$APP/Assets.car" || { echo "Icons missing"; exit 1; }
+          test -f "$APP/Site/index.html" || { echo "Site copy missing"; exit 1; }
+          test -f "$APP/Site/app-manifest.json" || { echo "Site manifest missing"; exit 1; }
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qr Rentpply.ipa Payload
+          unzip -l Rentpply.ipa | tail -1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Rentpply-ipa
+          path: apps/web-ios/Rentpply.ipa

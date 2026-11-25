@@ -8,3 +8,8 @@ dist/
 
 # one-time login for the super user account (never commit)
 SUPERUSER-LOGIN.txt
+
+# app builds (apps/)
+apps/*/build/
+apps/web-ios/Site/
+apps/*/*.xcodeproj/
