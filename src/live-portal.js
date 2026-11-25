@@ -417,7 +417,7 @@ function printMonth(data, p, key) {
     <footer>Printed ${new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} from rentpply.pages.dev</footer>`;
   document.body.classList.add('printing');
   const done = () => { document.body.classList.remove('printing'); removeEventListener('afterprint', done); };
-  addEventListener('afterprint', done); setTimeout(() => { window.print(); setTimeout(done, 1500); }, 60);
+  addEventListener('afterprint', done); setTimeout(() => { window.print(); if (!/RentpplyApp\//.test(navigator.userAgent)) setTimeout(done, 1500); }, 60); // in the apps, printing returns at once and the app sends afterprint when the print screen closes
 }
 
 function billsBlock(data, p) {

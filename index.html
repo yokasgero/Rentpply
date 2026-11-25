@@ -1707,7 +1707,8 @@ function payToHTML(l) {
   return `<div class="card stack" id="payto" style="gap:8px"><span class="lbl">Where to send the money</span>${body}</div>`;
 }
 /* A place, as a message: name, area, price and its own link. */
-const placeUrl = l => location.origin + '/place/' + l.id;
+const siteOrigin = () => /^https?:$/.test(location.protocol) ? location.origin : 'https://rentpply.com'; // the iPhone app runs from its own copy of the site
+const placeUrl = l => siteOrigin() + '/place/' + l.id;
 const shareText = l => `Have a look at ${l.name} in ${l.area} on Rentpply: ${fmt(l.price)} ${unitLabel(l)}. ${placeUrl(l)}`;
 function card(l) {
   const saved = S.saved.includes(l.id);
@@ -3131,11 +3132,12 @@ async function initLiveAuth() {
 
 
 /* ---------- installing the app, and phone notifications ---------- */
-const swReady = 'serviceWorker' in navigator ? navigator.serviceWorker.register('/sw.js').then(() => navigator.serviceWorker.ready).catch(() => null) : Promise.resolve(null);
+const swReady = 'serviceWorker' in navigator && !/RentpplyApp\//.test(navigator.userAgent) ? navigator.serviceWorker.register('/sw.js').then(() => navigator.serviceWorker.ready).catch(() => null) : Promise.resolve(null);
 let installEvt = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
 addEventListener('appinstalled', () => { installEvt = null; toast('Rentpply is on your home screen.'); });
-const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const inNativeApp = () => /RentpplyApp\//.test(navigator.userAgent); // the Android and iPhone apps (apps/)
+const isStandalone = () => inNativeApp() || matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 function installHelp(reason) {
   const ios = isIOS();
@@ -3157,7 +3159,7 @@ async function pushState() {
   return sub && Notification.permission === 'granted' ? 'on' : 'off';
 }
 async function pushOn() {
-  if (!pushSupported()) { if (isIOS() && !isStandalone()) installHelp('notify'); else toast('This browser cannot show phone notifications.'); return; }
+  if (!pushSupported()) { if (inNativeApp()) toast('Phone notifications are not in the app yet. You will still see every notification under the bell.'); else if (isIOS() && !isStandalone()) installHelp('notify'); else toast('This browser cannot show phone notifications.'); return; }
   if (await Notification.requestPermission() !== 'granted') { toast('Notifications are blocked. Allow them for Rentpply in your browser settings.'); return; }
   let { data: key } = await supabase.rpc('push_public_key');
   if (!key) { await supabase.functions.invoke('send-push', { body: { action: 'init' } }); ({ data: key } = await supabase.rpc('push_public_key')); }
@@ -3541,7 +3543,7 @@ document.addEventListener('submit', async e => {
     e.preventDefault();
     const values = Object.fromEntries(new FormData(form));
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(values.email, { redirectTo: `${window.location.origin}/` });
+      const { error } = await supabase.auth.resetPasswordForEmail(values.email, { redirectTo: `${siteOrigin()}/` });
       if (error) throw error;
       S.authNotice = 'If that email belongs to a Rentpply account, a secure reset link is on its way.';
       render();

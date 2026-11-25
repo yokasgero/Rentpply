@@ -23,7 +23,7 @@ export const auth = {
           role: ['owner', 'student'].includes(metadata.role) ? metadata.role : 'tenant',
           is_student: metadata.role === 'student' || metadata.is_student === true
         },
-        emailRedirectTo: `${window.location.origin}/`
+        emailRedirectTo: `${/^https?:$/.test(window.location.protocol) ? window.location.origin : 'https://rentpply.com'}/`
       }
     });
     if (error) throw error;
